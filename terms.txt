@@ -85,8 +85,7 @@ free of charge and is itself open-source under the Mozilla Public License 2.0.
 13. CONTACT
 
   For questions about these Terms, open an issue at:
-  https://github.com/ameerhamzasaifi/openlib/issues
+  https://github.com/AHS-Mobile-Labs/OpenLib/issues
 
   Or visit the repository:
-  https://github.com/ameerhamzasaifi/openlib
-  
+  https://github.com/AHS-Mobile-Labs/OpenLib

@@ -13,14 +13,19 @@ const path = require("path");
 admin.initializeApp();
 const db = admin.firestore();
 
-const BASE_URL = "https://openlib-f7bf1.web.app";
+const BASE_URL = "https://www.openlib.online";
+const GITHUB_URL = "https://github.com/AHS-Mobile-Labs/OpenLib";
+const OG_IMAGE = `${BASE_URL}/og-image.png`;
 const PRERENDER_CACHE_TTL_MS = 15 * 60 * 1000;
 const PRERENDER_LIST_LIMIT = 120;
 const APP_PRERENDER_FIELDS = [
   "name",
   "alternative",
   "description",
+  "fullDescription",
+  "uses",
   "logo",
+  "screenshots",
   "category",
   "platforms",
   "features",
@@ -44,6 +49,8 @@ const APP_PRERENDER_FIELDS = [
   "opens",
   "downloads",
   "createdAt",
+  "updatedAt",
+  "moderationStatus",
 ];
 
 const prerenderCache = new Map();
@@ -66,11 +73,11 @@ function setCachedHtml(key, html) {
   }
 }
 
-function sendHtml(req, res, html, extraHeaders = {}) {
+function sendHtml(req, res, html, extraHeaders = {}, statusCode = 200) {
   Object.entries(extraHeaders).forEach(([key, value]) => res.set(key, value));
   res.set("Content-Type", "text/html; charset=utf-8");
-  if (req.method === "HEAD") return res.status(200).send("");
-  return res.send(html);
+  if (req.method === "HEAD") return res.status(statusCode).send("");
+  return res.status(statusCode).send(html);
 }
 
 // ── Bot detection ────────────────────────────────────────────────────────────
@@ -90,6 +97,109 @@ function esc(s) {
     .replace(/'/g, "&#39;");
 }
 
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function isPublicApp(app) {
+  return (app.moderationStatus || "active") === "active";
+}
+
+function truncate(value, max = 155) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 1).trim()}...`;
+}
+
+function titleCaseFromSlug(slug) {
+  return String(slug || "")
+    .split("-")
+    .filter(Boolean)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function wordsForApp(app) {
+  return [
+    app.name,
+    app.category,
+    app.alternative,
+    app.description,
+    app.fullDescription,
+    app.uses,
+    app.license,
+    ...(app.tags || []),
+    ...(app.features || []),
+    ...(app.platforms || [])
+  ].join(" ").toLowerCase();
+}
+
+const SEO_TOPIC_PAGES = [
+  {
+    slug: "open-source-alternatives",
+    title: "Open Source Alternatives to Popular Apps | OpenLib",
+    h1: "Open source alternatives",
+    description: "Discover free and open-source alternatives to popular proprietary apps, with community ratings, features, platforms, licenses, and source links.",
+    keywords: ["open source alternatives", "free software alternatives", "FOSS apps"],
+    match: app => !!(app.alternative || app.description)
+  },
+  {
+    slug: "privacy-focused-software",
+    title: "Privacy-Focused Open Source Software | OpenLib",
+    h1: "Privacy-focused software",
+    description: "Find privacy-friendly open-source apps for security, encryption, communication, DNS, storage, and everyday workflows.",
+    keywords: ["privacy-focused software", "secure open source apps", "private alternatives"],
+    match: app => /privacy|private|secure|security|encrypt|encrypted|dns|password|firewall|tracker|permission/.test(wordsForApp(app))
+  },
+  {
+    slug: "self-hosted-applications",
+    title: "Self-Hosted Open Source Applications | OpenLib",
+    h1: "Self-hosted applications",
+    description: "Explore open-source software that can be self-hosted or run on your own infrastructure for more control and portability.",
+    keywords: ["self-hosted applications", "self hosted software", "open source server apps"],
+    match: app => /self-host|self hosted|server|docker|hosted|cloud|sync|web/.test(wordsForApp(app))
+  },
+  {
+    slug: "linux-software",
+    title: "Open Source Linux Software | OpenLib",
+    h1: "Linux software",
+    description: "Browse free and open-source Linux apps, utilities, productivity tools, creative software, security tools, and cross-platform alternatives.",
+    keywords: ["Linux software", "open source Linux apps", "free Linux applications"],
+    match: app => (app.platforms || []).some(p => String(p).toLowerCase() === "linux") || /linux|flatpak|appimage|snap|deb|rpm/.test(wordsForApp(app))
+  },
+  {
+    slug: "open-source-productivity-tools",
+    title: "Open Source Productivity Tools | OpenLib",
+    h1: "Open source productivity tools",
+    description: "Compare open-source productivity software for notes, documents, office work, planning, knowledge management, and collaboration.",
+    keywords: ["open source productivity tools", "free productivity software", "open source office apps"],
+    match: app => app.category === "Productivity" || /productivity|office|note|notes|docs|document|task|project|knowledge|writing|calendar/.test(wordsForApp(app))
+  },
+  {
+    slug: "open-source-password-managers",
+    title: "Open Source Password Managers | OpenLib",
+    h1: "Open source password managers",
+    description: "Find open-source password managers and credential security tools with source links, licenses, platform support, and alternatives.",
+    keywords: ["open source password managers", "free password manager", "privacy password manager"],
+    match: app => /password|credential|keepass|vault|2fa|authenticator/.test(wordsForApp(app))
+  },
+  {
+    slug: "open-source-cloud-storage",
+    title: "Open Source Cloud Storage Alternatives | OpenLib",
+    h1: "Open source cloud storage",
+    description: "Discover open-source cloud storage, file sync, encrypted vault, and backup alternatives for safer control of your files.",
+    keywords: ["open source cloud storage", "cloud storage alternatives", "encrypted file storage"],
+    match: app => /cloud|storage|sync|backup|file|drive|vault|cryptomator|encrypt/.test(wordsForApp(app))
+  }
+];
+
+const SEO_TOPIC_BY_SLUG = new Map(SEO_TOPIC_PAGES.map(page => [page.slug, page]));
+
 // ── SPA fallback (serves index.html to regular users) ────────────────────────
 let spaHtmlCache = null;
 function getSpaHtml() {
@@ -105,13 +215,58 @@ function getSpaHtml() {
 }
 
 // ── Build pre-rendered HTML page ─────────────────────────────────────────────
-function buildPage({ title, description, url, image, type, jsonLd, body }) {
-  const jsonLdTag = jsonLd
-    ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`
-    : "";
+function siteJsonLdGraph() {
+  return [
+    {
+      "@type": "Organization",
+      "@id": `${BASE_URL}/#organization`,
+      name: "OpenLib",
+      url: `${BASE_URL}/`,
+      logo: `${BASE_URL}/favicon.png`,
+      sameAs: [GITHUB_URL],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${BASE_URL}/#website`,
+      url: `${BASE_URL}/`,
+      name: "OpenLib",
+      description: "A curated open-source app library for discovering free and privacy-friendly software alternatives.",
+      publisher: { "@id": `${BASE_URL}/#organization` },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${BASE_URL}/?q={search_term_string}`,
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ];
+}
+
+function breadcrumbJsonLd(items) {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+function withSiteJsonLd(jsonLd) {
+  const graph = siteJsonLdGraph();
+  if (!jsonLd) return { "@context": "https://schema.org", "@graph": graph };
+  if (jsonLd["@graph"]) return { "@context": "https://schema.org", "@graph": [...graph, ...jsonLd["@graph"]] };
+  const normalized = { ...jsonLd };
+  delete normalized["@context"];
+  return { "@context": "https://schema.org", "@graph": [...graph, normalized] };
+}
+
+function buildPage({ title, description, url, image, type, jsonLd, body, robots = "index, follow, max-snippet:-1, max-image-preview:large" }) {
+  const jsonLdTag = `<script type="application/ld+json">${JSON.stringify(withSiteJsonLd(jsonLd))}</script>`;
   const imgTag = image
-    ? `<meta property="og:image" content="${esc(image)}">\n    <meta name="twitter:image" content="${esc(image)}">`
-    : `<meta property="og:image" content="${BASE_URL}/og-image.png">`;
+    ? `<meta property="og:image" content="${esc(image)}">\n  <meta name="twitter:image" content="${esc(image)}">`
+    : `<meta property="og:image" content="${OG_IMAGE}">\n  <meta name="twitter:image" content="${OG_IMAGE}">`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -120,7 +275,7 @@ function buildPage({ title, description, url, image, type, jsonLd, body }) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}">
-  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <meta name="robots" content="${esc(robots)}">
   <link rel="canonical" href="${esc(url)}">
 
   <meta property="og:type" content="${esc(type || "website")}">
@@ -128,11 +283,13 @@ function buildPage({ title, description, url, image, type, jsonLd, body }) {
   <meta property="og:url" content="${esc(url)}">
   <meta property="og:title" content="${esc(title)}">
   <meta property="og:description" content="${esc(description)}">
+  <meta property="og:image:alt" content="${esc(title)}">
   ${imgTag}
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${esc(title)}">
   <meta name="twitter:description" content="${esc(description)}">
+  <meta name="twitter:url" content="${esc(url)}">
 
   ${jsonLdTag}
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -151,12 +308,15 @@ function buildPage({ title, description, url, image, type, jsonLd, body }) {
   </main>
   <footer>
     <p><strong>OpenLib</strong> — A curated open-source app library.
-    <a href="https://github.com/ameerhamzasaifi/openlib">Contribute on GitHub</a></p>
+    <a href="${GITHUB_URL}">Contribute on GitHub</a></p>
     <nav>
       <a href="/rankings">Rankings</a> ·
       <a href="/trending">Trending</a> ·
-      <a href="/privacy.txt">Privacy Policy</a> ·
-      <a href="/terms.txt">Terms</a>
+      <a href="/open-source-alternatives">Open Source Alternatives</a> ·
+      <a href="/privacy-focused-software">Privacy Software</a> ·
+      <a href="/linux-software">Linux Software</a> ·
+      <a href="/privacy">Privacy Policy</a> ·
+      <a href="/terms">Terms</a>
     </nav>
   </footer>
 </body>
@@ -174,7 +334,147 @@ async function getLimitedAppsByEngagement(maxDocs = PRERENDER_LIST_LIMIT) {
   for (const docSnap of [...viewsSnap.docs, ...likesSnap.docs]) {
     if (!merged.has(docSnap.id)) merged.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
   }
-  return [...merged.values()];
+  return [...merged.values()].filter(isPublicApp);
+}
+
+async function getPrerenderApps(maxDocs = 500) {
+  const snap = await db.collection("apps")
+    .limit(maxDocs)
+    .select(...APP_PRERENDER_FIELDS)
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter(isPublicApp);
+}
+
+function summarizeList(apps, fallback) {
+  const names = apps.slice(0, 4).map(app => app.name).join(", ");
+  return names ? `${names}${apps.length > 4 ? " and more" : ""}` : fallback;
+}
+
+function renderAppList(apps) {
+  if (!apps.length) return `<p>No matching apps are available yet.</p>`;
+  return `<ol>
+    ${apps.slice(0, 100).map((app, i) => `
+      <li>
+        <a href="/app/${encodeURIComponent(app.id)}">${esc(app.name)}</a>
+        ${app.alternative ? ` - open-source alternative to <a href="/alternatives/${slugify(app.alternative)}">${esc(app.alternative)}</a>` : ""}
+        ${app.category ? ` in <a href="/category/${slugify(app.category)}">${esc(app.category)}</a>` : ""}
+        <p>${esc(truncate(app.description || app.uses || "", 140))}</p>
+      </li>`).join("")}
+  </ol>`;
+}
+
+function relatedCollectionLinks(apps, currentPath = "") {
+  const categories = [...new Set(apps.map(app => app.category).filter(Boolean))]
+    .sort()
+    .slice(0, 12)
+    .map(category => ({ href: `/category/${slugify(category)}`, label: `${category} apps` }));
+  const topics = SEO_TOPIC_PAGES.map(topic => ({ href: `/${topic.slug}`, label: topic.h1 }));
+  const links = [...topics, ...categories].filter(link => link.href !== currentPath);
+  return `<section><h2>Related Collections</h2><p>${links.slice(0, 18).map(link => `<a href="${link.href}">${esc(link.label)}</a>`).join(" · ")}</p></section>`;
+}
+
+function collectionJsonLd({ url, name, description, apps }) {
+  return {
+    "@graph": [
+      breadcrumbJsonLd([
+        { name: "OpenLib", url: `${BASE_URL}/` },
+        { name, url },
+      ]),
+      {
+        "@type": "CollectionPage",
+        "@id": `${url}#collection`,
+        name,
+        url,
+        description,
+        isPartOf: { "@id": `${BASE_URL}/#website` },
+      },
+      {
+        "@type": "ItemList",
+        name,
+        numberOfItems: apps.length,
+        itemListElement: apps.slice(0, 50).map((app, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          name: app.name,
+          url: `${BASE_URL}/app/${encodeURIComponent(app.id)}`,
+        })),
+      },
+    ],
+  };
+}
+
+async function renderCollection(kind, slug) {
+  const allApps = await getPrerenderApps();
+  let page;
+  let pageApps = [];
+
+  if (kind === "topic") {
+    const topic = SEO_TOPIC_BY_SLUG.get(slug);
+    if (!topic) return null;
+    pageApps = allApps.filter(topic.match);
+    if (!pageApps.length) pageApps = allApps.slice(0, 12);
+    page = {
+      path: `/${topic.slug}`,
+      title: topic.title,
+      h1: topic.h1,
+      description: topic.description,
+      keywords: topic.keywords,
+    };
+  } else if (kind === "category") {
+    pageApps = allApps.filter(app => slugify(app.category) === slug);
+    const label = pageApps[0]?.category || titleCaseFromSlug(slug);
+    page = {
+      path: `/category/${slug}`,
+      title: `${label} Open Source Apps and Alternatives | OpenLib`,
+      h1: `${label} open-source apps`,
+      description: `Browse ${label.toLowerCase()} open-source apps and free software alternatives on OpenLib, including ${summarizeList(pageApps, "community-curated tools")}.`,
+      keywords: [`open source ${label.toLowerCase()} apps`, `${label.toLowerCase()} software alternatives`, `free ${label.toLowerCase()} software`],
+    };
+  } else if (kind === "tag") {
+    pageApps = allApps.filter(app => (app.tags || []).some(tag => slugify(tag) === slug));
+    const label = titleCaseFromSlug(slug);
+    page = {
+      path: `/tag/${slug}`,
+      title: `${label} Open Source Software | OpenLib`,
+      h1: `${label} software`,
+      description: `Discover open-source software tagged ${label.toLowerCase()} on OpenLib, with app details, alternatives, platforms, licenses, and source links.`,
+      keywords: [`${label.toLowerCase()} open source software`, `${label.toLowerCase()} apps`],
+    };
+  } else if (kind === "alternative") {
+    pageApps = allApps.filter(app => slugify(app.alternative) === slug);
+    const label = pageApps[0]?.alternative || titleCaseFromSlug(slug);
+    page = {
+      path: `/alternatives/${slug}`,
+      title: `Open Source Alternatives to ${label} | OpenLib`,
+      h1: `Open source alternatives to ${label}`,
+      description: `Compare free and open-source alternatives to ${label} on OpenLib, including ${summarizeList(pageApps, "privacy-friendly software options")}.`,
+      keywords: [`open source alternative to ${label}`, `free ${label} alternative`, `${label} alternatives`],
+    };
+  }
+
+  if (!page || (!pageApps.length && kind !== "topic")) return null;
+
+  const url = `${BASE_URL}${page.path}`;
+  const body = `
+    <article>
+      <h1>${esc(page.h1)}</h1>
+      <p>${esc(page.description)}</p>
+      <p>${page.keywords.map(keyword => `<span>${esc(keyword)}</span>`).join(" · ")}</p>
+      <section>
+        <h2>Recommended Apps</h2>
+        ${renderAppList(pageApps)}
+      </section>
+      ${relatedCollectionLinks(allApps, page.path)}
+    </article>`;
+
+  return buildPage({
+    title: page.title,
+    description: page.description,
+    url,
+    type: "website",
+    jsonLd: collectionJsonLd({ url, name: page.h1, description: page.description, apps: pageApps }),
+    body,
+  });
 }
 
 // ── Render: App Detail Page ──────────────────────────────────────────────────
@@ -184,31 +484,46 @@ async function renderApp(appId) {
     if (!snap.exists) return null;
 
     const app = { id: snap.id, ...snap.data() };
+    if (!isPublicApp(app)) return null;
+
     const alt = app.alternative || "proprietary software";
-    const title = `${app.name} — Free Open Source Alternative to ${alt} | OpenLib`;
-    const desc = `${app.name} is a free, open-source alternative to ${alt}. ${(app.description || "").slice(0, 140)}`;
+    const title = `${app.name} - Free Open Source Alternative to ${alt} | OpenLib`;
+    const desc = truncate(`${app.name} is a free, open-source alternative to ${alt}. ${app.description || app.uses || ""}`);
     const url = `${BASE_URL}/app/${encodeURIComponent(appId)}`;
+    const categoryUrl = `${BASE_URL}/category/${slugify(app.category || "apps")}`;
 
     const jsonLd = {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      name: app.name,
-      description: app.description || "",
-      applicationCategory: app.category || "DesignApplication",
-      operatingSystem: (app.platforms || []).join(", ") || "All",
-      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-      ...(app.license && { license: app.license }),
-      ...(app.download && { downloadUrl: app.download }),
-      ...(app.version && { softwareVersion: app.version }),
-      ...(app.avgRating && {
-        aggregateRating: {
-          "@type": "AggregateRating",
-          ratingValue: app.avgRating,
-          reviewCount: app.reviewCount || 1,
-          bestRating: "5",
-          worstRating: "1",
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: app.category || "Apps", url: categoryUrl },
+          { name: app.name, url },
+        ]),
+        {
+          "@type": "SoftwareApplication",
+          "@id": `${url}#software`,
+          name: app.name,
+          url,
+          description: app.description || "",
+          applicationCategory: app.category || "DeveloperApplication",
+          operatingSystem: (app.platforms || []).join(", ") || "All",
+          image: app.logo || OG_IMAGE,
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          ...(app.license && { license: app.license }),
+          ...(app.download && { downloadUrl: app.download }),
+          ...(app.source && { codeRepository: app.source }),
+          ...(app.version && { softwareVersion: app.version }),
+          ...(app.avgRating && {
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: app.avgRating,
+              reviewCount: app.reviewCount || 1,
+              bestRating: "5",
+              worstRating: "1",
+            },
+          }),
         },
-      }),
+      ],
     };
 
     const platforms = (app.platforms || []).join(", ");
@@ -216,19 +531,32 @@ async function renderApp(appId) {
       .map((f) => `<li>${esc(f)}</li>`)
       .join("");
     const tags = (app.tags || [])
-      .map((t) => `<span>${esc(t)}</span>`)
+      .map((t) => `<a href="/tag/${slugify(t)}">${esc(t)}</a>`)
       .join(" · ");
     const installs = (app.installMethods || [])
       .map((m) => `<li><strong>${esc(m.label)}</strong>: <code>${esc(m.command)}</code></li>`)
       .join("");
+    const useCases = [
+      app.uses,
+      app.alternative ? `${app.name} is useful when you want an open-source alternative to ${app.alternative}.` : "",
+      app.category ? `It belongs to the ${app.category} category on OpenLib.` : "",
+      platforms ? `It supports ${platforms}.` : "",
+    ].filter(Boolean);
+    const relatedTopics = SEO_TOPIC_PAGES
+      .filter(topic => topic.match(app))
+      .slice(0, 4)
+      .map(topic => `<a href="/${topic.slug}">${esc(topic.h1)}</a>`)
+      .join(" · ");
 
     const body = `
     <article>
       <h1>${esc(app.name)}</h1>
-      ${app.alternative ? `<p><strong>Free, open-source alternative to ${esc(app.alternative)}</strong></p>` : ""}
-      <p>${esc(app.description || "")}</p>
+      ${app.logo ? `<p><img src="${esc(app.logo)}" alt="${esc(app.name)} logo" width="96" height="96" loading="eager"></p>` : ""}
+      ${app.alternative ? `<p><strong>Free, open-source alternative to <a href="/alternatives/${slugify(app.alternative)}">${esc(app.alternative)}</a></strong></p>` : ""}
+      <p>${esc(app.description || `${app.name} is a free and open-source software listing on OpenLib.`)}</p>
 
       ${app.fullDescription ? `<section><h2>About ${esc(app.name)}</h2><p>${esc(app.fullDescription)}</p></section>` : ""}
+      ${useCases.length ? `<section><h2>Use Cases</h2><ul>${useCases.map(item => `<li>${esc(item)}</li>`).join("")}</ul></section>` : ""}
       ${features ? `<section><h2>Key Features</h2><ul>${features}</ul></section>` : ""}
       ${platforms ? `<section><h2>Available Platforms</h2><p>${esc(platforms)}</p></section>` : ""}
       ${installs ? `<section><h2>Installation</h2><ul>${installs}</ul></section>` : ""}
@@ -239,7 +567,7 @@ async function renderApp(appId) {
         <ul>
           ${app.version ? `<li>Version: ${esc(app.version)}</li>` : ""}
           ${app.license ? `<li>License: ${esc(app.license)}</li>` : ""}
-          ${app.category ? `<li>Category: ${esc(app.category)}</li>` : ""}
+          ${app.category ? `<li>Category: <a href="/category/${slugify(app.category)}">${esc(app.category)}</a></li>` : ""}
           ${app.fileSize ? `<li>File Size: ${esc(app.fileSize)}</li>` : ""}
           ${app.developer ? `<li>Developer: ${esc(app.developer)}</li>` : ""}
           ${app.maintainer ? `<li>Maintained by: ${esc(app.maintainer)}</li>` : ""}
@@ -247,6 +575,7 @@ async function renderApp(appId) {
       </section>
 
       ${tags ? `<section><h2>Tags</h2><p>${tags}</p></section>` : ""}
+      ${relatedTopics ? `<section><h2>Related Open Source Collections</h2><p>${relatedTopics}</p></section>` : ""}
 
       <section>
         <h2>Links</h2>
@@ -258,7 +587,7 @@ async function renderApp(appId) {
         </ul>
       </section>
 
-      <p><a href="/app/${encodeURIComponent(appId)}/reviews">Read reviews for ${esc(app.name)}</a></p>
+      <p><a href="/category/${slugify(app.category || "apps")}">Browse more ${esc(app.category || "open-source")} apps</a></p>
     </article>`;
 
     return buildPage({ title, description: desc, url, image: app.logo, type: "article", jsonLd, body });
@@ -278,21 +607,28 @@ async function renderRankings() {
       return scoreB - scoreA;
     });
 
-    const title = "Top Ranked Open Source Apps 2026 | OpenLib";
+    const title = "Top Ranked Open Source Apps | OpenLib";
     const desc = "Discover the highest-rated free and open-source apps ranked by the OpenLib community. Find the best FOSS alternatives.";
     const url = `${BASE_URL}/rankings`;
 
     const jsonLd = {
-      "@context": "https://schema.org",
-      "@type": "ItemList",
-      name: "Top Ranked Open Source Apps",
-      numberOfItems: apps.length,
-      itemListElement: apps.slice(0, 50).map((app, i) => ({
-        "@type": "ListItem",
-        position: i + 1,
-        name: app.name,
-        url: `${BASE_URL}/app/${encodeURIComponent(app.id)}`,
-      })),
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: "Rankings", url },
+        ]),
+        {
+          "@type": "ItemList",
+          name: "Top Ranked Open Source Apps",
+          numberOfItems: apps.length,
+          itemListElement: apps.slice(0, 50).map((app, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: app.name,
+            url: `${BASE_URL}/app/${encodeURIComponent(app.id)}`,
+          })),
+        },
+      ],
     };
 
     const list = apps
@@ -331,6 +667,25 @@ async function renderTrending() {
     const title = "Trending Open Source Apps This Week | OpenLib";
     const desc = "See which free and open-source apps are trending this week on OpenLib. Discover popular FOSS alternatives.";
     const url = `${BASE_URL}/trending`;
+    const jsonLd = {
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: "Trending", url },
+        ]),
+        {
+          "@type": "ItemList",
+          name: "Trending Open Source Apps",
+          numberOfItems: apps.length,
+          itemListElement: apps.slice(0, 50).map((app, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: app.name,
+            url: `${BASE_URL}/app/${encodeURIComponent(app.id)}`,
+          })),
+        },
+      ],
+    };
 
     const list = apps
       .slice(0, 50)
@@ -347,11 +702,119 @@ async function renderTrending() {
         ${list}
     </ul>`;
 
-    return buildPage({ title, description: desc, url, body });
+    return buildPage({ title, description: desc, url, jsonLd, body });
   } catch (e) {
     console.error("renderTrending error:", e);
     return null;
   }
+}
+
+function renderPolicy(kind) {
+  const isPrivacy = kind === "privacy";
+  const pathName = isPrivacy ? "/privacy" : "/terms";
+  const title = isPrivacy ? "Privacy Policy | OpenLib" : "Terms and Conditions | OpenLib";
+  const h1 = isPrivacy ? "Privacy Policy" : "Terms and Conditions";
+  const desc = isPrivacy
+    ? "Read OpenLib's privacy policy for app discovery, submissions, account data, analytics, and community features."
+    : "Read OpenLib's terms and conditions for app submissions, reviews, community use, ownership, and acceptable behavior.";
+  const url = `${BASE_URL}${pathName}`;
+  const body = `
+    <article>
+      <h1>${h1}</h1>
+      <p>${esc(desc)}</p>
+      <section>
+        <h2>${isPrivacy ? "What OpenLib Collects" : "Using OpenLib"}</h2>
+        <p>${isPrivacy
+          ? "OpenLib uses Firebase services for accounts, app submissions, reviews, moderation, and basic analytics. Public app listings and community content are used to operate the open-source software directory."
+          : "OpenLib is a community-curated directory for discovering open-source software. Users are responsible for submitting accurate app information, respecting project licenses, and using linked third-party software at their own discretion."}</p>
+      </section>
+      <section>
+        <h2>${isPrivacy ? "How Data Is Used" : "Community Content"}</h2>
+        <p>${isPrivacy
+          ? "Data is used to provide discovery, recommendations, moderation, rankings, security review workflows, and abuse prevention while keeping the platform lightweight."
+          : "Reviews, ratings, reports, edit requests, and app metadata may be moderated to keep listings useful, accurate, and safe for the OpenLib community."}</p>
+      </section>
+      <p>Full text: <a href="${isPrivacy ? "/privacy.txt" : "/terms.txt"}">${isPrivacy ? "privacy.txt" : "terms.txt"}</a></p>
+    </article>`;
+
+  return buildPage({
+    title,
+    description: desc,
+    url,
+    jsonLd: {
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: h1, url },
+        ]),
+        {
+          "@type": "WebPage",
+          "@id": `${url}#webpage`,
+          name: h1,
+          url,
+          description: desc,
+          isPartOf: { "@id": `${BASE_URL}/#website` },
+        },
+      ],
+    },
+    body,
+  });
+}
+
+function renderTeam() {
+  const title = "OpenLib Team | Open Source Software Curation";
+  const desc = "Meet the OpenLib team and learn how OpenLib curates open-source software alternatives, reviews submissions, and maintains the app library.";
+  const url = `${BASE_URL}/team`;
+  const body = `
+    <article>
+      <h1>OpenLib Team</h1>
+      <p>${desc}</p>
+      <section>
+        <h2>Curation Mission</h2>
+        <p>OpenLib helps people discover free, open-source, and privacy-friendly software alternatives with clear metadata, source links, reviews, rankings, and community moderation.</p>
+      </section>
+      <section>
+        <h2>Explore OpenLib</h2>
+        <p><a href="/open-source-alternatives">Open source alternatives</a> · <a href="/privacy-focused-software">Privacy-focused software</a> · <a href="/linux-software">Linux software</a></p>
+      </section>
+    </article>`;
+  return buildPage({
+    title,
+    description: desc,
+    url,
+    jsonLd: {
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: "Team", url },
+        ]),
+        {
+          "@type": "AboutPage",
+          "@id": `${url}#webpage`,
+          name: "OpenLib Team",
+          url,
+          description: desc,
+          isPartOf: { "@id": `${BASE_URL}/#website` },
+        },
+      ],
+    },
+    body,
+  });
+}
+
+function renderNotFound(urlPath) {
+  const url = `${BASE_URL}${urlPath}`;
+  return buildPage({
+    title: "Page Not Found | OpenLib",
+    description: "This OpenLib page could not be found.",
+    url,
+    robots: "noindex, follow",
+    jsonLd: breadcrumbJsonLd([
+      { name: "OpenLib", url: `${BASE_URL}/` },
+      { name: "Page Not Found", url },
+    ]),
+    body: `<article><h1>Page not found</h1><p>This page is not available. Explore <a href="/">OpenLib</a> or browse <a href="/open-source-alternatives">open-source alternatives</a>.</p></article>`,
+  });
 }
 
 // ── Main Cloud Function ──────────────────────────────────────────────────────
@@ -395,14 +858,46 @@ exports.prerender = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    if (urlPath.startsWith("/app/")) {
-      // Extract appId (handles /app/{id}, /app/{id}/reviews, /app/{id}/versions, etc.)
+    if (urlPath.match(/^\/app\/[^/]+\/(reviews|edit-requests|versions)$/)) {
       const appId = urlPath.replace("/app/", "").split("/")[0];
-      if (appId) html = await renderApp(appId);
+      return res.redirect(301, `/app/${encodeURIComponent(appId)}`);
+    } else if (urlPath.match(/^\/app\/[^/]+$/)) {
+      const appId = urlPath.replace("/app/", "");
+      html = await renderApp(appId);
+      if (!html) {
+        res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+        return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
+      }
+    } else if (urlPath.startsWith("/category/")) {
+      html = await renderCollection("category", slugify(urlPath.replace("/category/", "")));
+      if (!html) {
+        res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+        return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
+      }
+    } else if (urlPath.startsWith("/tag/")) {
+      html = await renderCollection("tag", slugify(urlPath.replace("/tag/", "")));
+      if (!html) {
+        res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+        return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
+      }
+    } else if (urlPath.startsWith("/alternatives/")) {
+      html = await renderCollection("alternative", slugify(urlPath.replace("/alternatives/", "")));
+      if (!html) {
+        res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+        return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
+      }
+    } else if (SEO_TOPIC_BY_SLUG.has(urlPath.slice(1))) {
+      html = await renderCollection("topic", urlPath.slice(1));
     } else if (urlPath === "/rankings") {
       html = await renderRankings();
     } else if (urlPath === "/trending") {
       html = await renderTrending();
+    } else if (urlPath === "/team") {
+      html = renderTeam();
+    } else if (urlPath === "/privacy") {
+      html = renderPolicy("privacy");
+    } else if (urlPath === "/terms") {
+      html = renderPolicy("terms");
     }
   } catch (e) {
     console.error("Prerender error:", urlPath, e);
@@ -414,6 +909,11 @@ exports.prerender = functions.https.onRequest(async (req, res) => {
     res.set("X-Rendered-By", "openlib-prerender");
     res.set("X-Prerender-Cache", "MISS");
     return sendHtml(req, res, html);
+  }
+
+  if (urlPath !== "/" && !urlPath.includes(".")) {
+    res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+    return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
   }
 
   // Fallback: serve SPA

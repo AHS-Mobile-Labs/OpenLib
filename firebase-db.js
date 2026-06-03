@@ -1684,8 +1684,8 @@ export async function getOpenLibConfig() {
     return {
       displayName: "OpenLib",
       bio: "A curated open-source app library. Discover, rate, and explore the best free and open-source software alternatives.",
-      website: "https://openlib-f7bf1.web.app",
-      github: "https://github.com/ameerhamzasaifi/openlib",
+      website: "https://www.openlib.online",
+      github: "https://github.com/AHS-Mobile-Labs/OpenLib",
       avatarText: "OL",
       established: "2024"
     };

@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" id="meta-description" content="Discover free, open-source alternatives to popular apps. Compare FOSS software, read community reviews, and find the best free alternatives to Photoshop, Office, and more.">
   <meta name="theme-color" content="#0c0c0f">
-  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <meta name="robots" id="meta-robots" content="index, follow, max-snippet:-1, max-image-preview:large">
   <meta name="keywords" content="open source, free software, FOSS, app library, software alternatives, open-source apps, Linux apps, free alternatives">
   <meta name="author" content="OpenLib Team">
   <title>OpenLib — Open Source App Library</title>
@@ -24,7 +24,7 @@
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="OpenLib — Open Source App Library">
-  <meta property="og:logo" content="https://www.openlib.online/logo.png">
+  <meta property="og:logo" content="https://www.openlib.online/favicon.png">
   <meta property="og:site_name" content="OpenLib">
 
   <!-- Twitter Card -->
@@ -38,14 +38,40 @@
   <script id="jsonld" type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "OpenLib",
-    "url": "https://www.openlib.online",
-    "description": "A curated open-source app library. Discover, rate, and explore the best free and open-source software alternatives.",
-    "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "All",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-    "author": { "@type": "Organization", "name": "OpenLib Team", "url": "https://github.com/ameerhamzasaifi/openlib" }
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://www.openlib.online/#organization",
+        "name": "OpenLib",
+        "url": "https://www.openlib.online/",
+        "logo": "https://www.openlib.online/favicon.png",
+        "sameAs": ["https://github.com/AHS-Mobile-Labs/OpenLib"]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://www.openlib.online/#website",
+        "url": "https://www.openlib.online/",
+        "name": "OpenLib",
+        "description": "A curated open-source app library for discovering free and privacy-friendly software alternatives.",
+        "publisher": { "@id": "https://www.openlib.online/#organization" },
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://www.openlib.online/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://www.openlib.online/#app",
+        "name": "OpenLib",
+        "url": "https://www.openlib.online/",
+        "description": "A curated open-source app library. Discover, rate, and explore the best free and open-source software alternatives.",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "All",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@id": "https://www.openlib.online/#organization" }
+      }
+    ]
   }
   </script>
 
@@ -80,9 +106,14 @@
   </script>
 
   <!-- Resource hints -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap"></noscript>
+  <link rel="modulepreload" href="script.js">
 
   <link rel="stylesheet" href="styles.css">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -146,10 +177,28 @@
       </div>
       <div id="app-grid" role="list"></div>
     </section>
+
+    <section class="seo-links-section" aria-label="Explore open-source software collections">
+      <div class="seo-links-inner">
+        <h2>Explore open-source software collections</h2>
+        <div class="seo-link-grid">
+          <a href="/open-source-alternatives">Open source alternatives</a>
+          <a href="/privacy-focused-software">Privacy-focused software</a>
+          <a href="/self-hosted-applications">Self-hosted applications</a>
+          <a href="/linux-software">Linux software</a>
+          <a href="/open-source-productivity-tools">Open source productivity tools</a>
+          <a href="/open-source-password-managers">Open source password managers</a>
+          <a href="/open-source-cloud-storage">Open source cloud storage</a>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- ═══ DETAIL VIEW ═══ -->
   <div id="detail-view" class="view-section initially-hidden"></div>
+
+  <!-- ═══ SEO LANDING VIEW ═══ -->
+  <div id="seo-view" class="view-section initially-hidden"></div>
 
   <!-- ═══ RANKINGS VIEW ═══ -->
   <div id="rankings-view" class="view-section initially-hidden"></div>
@@ -187,8 +236,11 @@
       <nav class="footer-right" aria-label="Footer links">
         <a href="/rankings" class="footer-link">Rankings</a>
         <a href="/trending" class="footer-link">Trending</a>
-        <a href="/privacy.txt" target="_blank" class="footer-link">Privacy Policy</a>
-        <a href="/terms.txt" target="_blank" class="footer-link">Terms &amp; Conditions</a>
+        <a href="/privacy" class="footer-link">Privacy Policy</a>
+        <a href="/terms" class="footer-link">Terms &amp; Conditions</a>
+        <a href="/open-source-alternatives" class="footer-link">Open Source Alternatives</a>
+        <a href="/privacy-focused-software" class="footer-link">Privacy Software</a>
+        <a href="/linux-software" class="footer-link">Linux Software</a>
         <a href="https://github.com/AHS-Mobile-Labs/OpenLib" target="_blank" rel="noopener" class="footer-link">GitHub</a>
         <a href="https://github.com/AHS-Mobile-Labs/OpenLib/blob/main/README.md" target="_blank" rel="noopener" class="footer-link">Docs</a>
       </nav>

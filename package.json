@@ -1,0 +1,10 @@
+{
+  "name": "openlib-seo-tools",
+  "private": true,
+  "scripts": {
+    "seo:sitemap": "node bump-sitemap.js",
+    "seo:audit": "node seo-audit.js",
+    "seo:audit:live": "node seo-audit.js --live",
+    "seo:gsc": "node search-console-monitor.js"
+  }
+}

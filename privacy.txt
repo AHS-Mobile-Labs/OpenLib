@@ -75,7 +75,7 @@ use, and protect your information when you use our service.
 10. CONTACT
 
   For privacy-related inquiries, open an issue at:
-  https://github.com/ameerhamzasaifi/openlib/issues
+  https://github.com/AHS-Mobile-Labs/OpenLib/issues
 
   Or reach us through the GitHub repository:
-  https://github.com/ameerhamzasaifi/openlib
+  https://github.com/AHS-Mobile-Labs/OpenLib

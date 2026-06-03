@@ -14,7 +14,7 @@
     "public": ".",
     "cleanUrls": true,
     "trailingSlash": false,
-    "predeploy": ["node bump-version.js", "node bump-sitemap.js"],
+    "predeploy": ["node bump-version.js", "node bump-sitemap.js", "node seo-audit.js"],
     "ignore": [
       "firebase.json",
       "firebase-config.template.js",
@@ -99,6 +99,70 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/app/**",
+        "function": "prerender"
+      },
+      {
+        "source": "/category/**",
+        "function": "prerender"
+      },
+      {
+        "source": "/tag/**",
+        "function": "prerender"
+      },
+      {
+        "source": "/alternatives/**",
+        "function": "prerender"
+      },
+      {
+        "source": "/rankings",
+        "function": "prerender"
+      },
+      {
+        "source": "/trending",
+        "function": "prerender"
+      },
+      {
+        "source": "/team",
+        "function": "prerender"
+      },
+      {
+        "source": "/privacy",
+        "function": "prerender"
+      },
+      {
+        "source": "/terms",
+        "function": "prerender"
+      },
+      {
+        "source": "/open-source-alternatives",
+        "function": "prerender"
+      },
+      {
+        "source": "/privacy-focused-software",
+        "function": "prerender"
+      },
+      {
+        "source": "/self-hosted-applications",
+        "function": "prerender"
+      },
+      {
+        "source": "/linux-software",
+        "function": "prerender"
+      },
+      {
+        "source": "/open-source-productivity-tools",
+        "function": "prerender"
+      },
+      {
+        "source": "/open-source-password-managers",
+        "function": "prerender"
+      },
+      {
+        "source": "/open-source-cloud-storage",
+        "function": "prerender"
+      },
       {
         "source": "**",
         "destination": "/index.html"
