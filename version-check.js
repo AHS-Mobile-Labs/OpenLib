@@ -7,10 +7,12 @@ import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/
 import { db } from './firebase-config.js';
 
 // ── Auto-stamped by predeploy hook — DO NOT EDIT MANUALLY ────────────────────
-const DEPLOY_TIMESTAMP = 1779704295;
+const DEPLOY_TIMESTAMP = 1780501966;
 
 const LS_KEY = "openlib_deploy_ts";
+const LS_LAST_CHECK_KEY = "openlib_deploy_last_check";
 const SS_DISMISS_KEY = "openlib_update_dismissed";
+const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Run the version check after app initialises.
@@ -20,6 +22,9 @@ export async function checkForUpdates() {
   try {
     if (sessionStorage.getItem(SS_DISMISS_KEY)) return;
     if (!DEPLOY_TIMESTAMP) return; // local dev — not stamped
+    const lastCheck = Number(localStorage.getItem(LS_LAST_CHECK_KEY) || "0");
+    if (lastCheck && Date.now() - lastCheck < CHECK_INTERVAL_MS) return;
+    localStorage.setItem(LS_LAST_CHECK_KEY, String(Date.now()));
 
     const snap = await getDoc(doc(db, "config", "app_version"));
     const remoteTs = snap.exists() ? (snap.data().deployTimestamp || 0) : 0;

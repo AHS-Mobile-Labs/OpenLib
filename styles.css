@@ -531,6 +531,17 @@ header {
   gap: 20px;
 }
 
+.grid-load-more-wrap {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+}
+
+.grid-load-more-wrap .btn {
+  flex: 0 1 220px;
+}
+
 @media (max-width: 1024px) {
   #app-grid {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

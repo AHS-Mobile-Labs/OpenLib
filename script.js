@@ -3,7 +3,8 @@ import {
   signInWithGoogle, signInWithGitHub, signOutUser, getCurrentUser, onUserAuthStateChanged,
   getPendingLinkData, clearPendingLinkData, linkProviderToCurrentUser, getLinkedProviders,
   submitReportToFirestore,
-  submitAppToFirestore, getAllAppsFromFirestore,
+  getAllAppsFromFirestore,
+  getCachedAppsFromBrowser, revalidateAppsCache,
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
@@ -44,6 +45,38 @@ let currentUser = null;
 let userRecord = null;
 let isAdmin = false;
 let apps = [];
+const GRID_BATCH_SIZE = 24;
+let currentGridList = [];
+let currentGridRankMap = new Map();
+let currentGridRendered = 0;
+let appsRevalidationScheduled = false;
+let memorySessionId = null;
+const PERF_SLOW_OP_MS = 200;
+const perfSamples = [];
+
+function recordPerfSample(name, startTime, details = {}) {
+  if (!("performance" in window)) return;
+  const duration = performance.now() - startTime;
+  const sample = {
+    name,
+    duration: Math.round(duration),
+    at: Date.now(),
+    ...details
+  };
+  perfSamples.push(sample);
+  if (perfSamples.length > 100) perfSamples.shift();
+  try {
+    performance.measure(`openlib:${name}`, { start: startTime, duration });
+  } catch (_) {}
+  if (duration > PERF_SLOW_OP_MS) {
+    console.info(`[perf] ${name}: ${Math.round(duration)}ms`, details);
+  }
+}
+
+window.openLibPerf = {
+  getSamples: () => [...perfSamples],
+  getSlowSamples: (minMs = PERF_SLOW_OP_MS) => perfSamples.filter(s => s.duration >= minMs)
+};
 
 // [OPT-1 FIX] Centralized view switching — replaces 11 duplicate view-hiding blocks
 const ALL_VIEWS = ["home-view", "detail-view", "rankings-view", "trending-view", "profile-view",
@@ -123,24 +156,89 @@ function showInputModal(title, placeholder = "Enter your response…") {
 
 // ── Session ID ───────────────────────────────────────────────────────────────
 function getSessionId() {
-  let id = localStorage.getItem("openlib_session");
-  if (!id) {
-    id = "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    localStorage.setItem("openlib_session", id);
+  try {
+    let id = localStorage.getItem("openlib_session");
+    if (!id) {
+      id = "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("openlib_session", id);
+    }
+    return id;
+  } catch (_) {
+    if (!memorySessionId) {
+      memorySessionId = "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    }
+    return memorySessionId;
   }
-  return id;
 }
 
-// ── Data Loading (Firestore only) ────────────────────────────────────────────
-async function loadApps() {
+function shouldRunClientTrackedEvent(key, ttlMs) {
   try {
-    apps = await getAllAppsFromFirestore();
-    if (apps.length === 0) {
-      console.log("No apps in Firestore. Use seedApps() in console to seed initial data.");
+    const storageKey = `openlib_track_${key}`;
+    const last = Number(localStorage.getItem(storageKey) || "0");
+    if (last && Date.now() - last < ttlMs) return false;
+    localStorage.setItem(storageKey, String(Date.now()));
+    return true;
+  } catch (_) {
+    return true;
+  }
+}
+
+// ── Data Loading (browser cache first, Firestore revalidation) ───────────────
+function renderHomeIfVisible() {
+  if (location.pathname !== "/" && location.pathname !== "") return;
+  buildFilters();
+  renderGrid(getFiltered());
+}
+
+function scheduleAppsRevalidation() {
+  if (appsRevalidationScheduled) return;
+  appsRevalidationScheduled = true;
+  const run = async () => {
+    try {
+      const freshApps = await revalidateAppsCache();
+      if (Array.isArray(freshApps) && freshApps.length) {
+        apps = freshApps;
+        renderHomeIfVisible();
+      }
+    } catch (err) {
+      console.warn("Background app refresh failed:", err);
+    } finally {
+      appsRevalidationScheduled = false;
     }
+  };
+
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(run, { timeout: 3000 });
+  } else {
+    setTimeout(run, 1200);
+  }
+}
+
+async function loadApps(options = {}) {
+  const { force = false } = options;
+  const started = performance.now();
+  try {
+    if (!force) {
+      const cachedApps = getCachedAppsFromBrowser();
+      if (Array.isArray(cachedApps) && cachedApps.length) {
+        apps = cachedApps;
+        scheduleAppsRevalidation();
+        recordPerfSample("loadApps", started, { source: "browser-cache", count: apps.length });
+        return apps;
+      }
+    }
+
+    apps = await getAllAppsFromFirestore({ force, allowStale: !force });
+    if (apps.length === 0) {
+        console.log("No apps in Firestore. Use seedApps() in console to seed initial data.");
+    }
+    recordPerfSample("loadApps", started, { source: force ? "firestore-forced" : "firestore", count: apps.length });
+    return apps;
   } catch (err) {
     console.error("Error loading apps:", err);
     apps = [];
+    recordPerfSample("loadApps", started, { source: "error", count: 0 });
+    return apps;
   }
 }
 
@@ -531,9 +629,12 @@ function handleLogoError(e) {
 }
 
 function renderGrid(list) {
+  const started = performance.now();
   const grid = document.getElementById("app-grid");
   // [OPT-13 FIX] Precompute rank map once — O(n log n) total instead of O(n²)
-  const rankMap = new Map(getRankedApps().map((a, i) => [a.id, i + 1]));
+  currentGridRankMap = new Map(getRankedApps().map((a, i) => [a.id, i + 1]));
+  currentGridList = list;
+  currentGridRendered = Math.min(GRID_BATCH_SIZE, list.length);
   document.getElementById("results-count").innerHTML = `<strong>${list.length}</strong> of ${apps.length} apps`;
   if (!list.length) {
     grid.innerHTML = `
@@ -544,13 +645,47 @@ function renderGrid(list) {
         <h3>No apps found</h3>
         <p>Try a different search term or category, or run <code>seedApps()</code> in the console to add initial data.</p>
       </div>`;
+    recordPerfSample("renderGrid", started, { visible: 0, total: 0 });
     return;
   }
-  grid.innerHTML = list.map(app => buildCard(app, rankMap)).join("");
+  grid.innerHTML = list.slice(0, currentGridRendered).map(app => buildCard(app, currentGridRankMap)).join("");
   document.getElementById("total-count").textContent = `${apps.length} apps`;
-  grid.querySelectorAll("img.app-logo").forEach(img => {
-    img.addEventListener("error", handleLogoError);
+  bindGridAssetHandlers(grid);
+  renderGridLoadMore();
+  recordPerfSample("renderGrid", started, { visible: currentGridRendered, total: list.length });
+}
+
+function bindGridAssetHandlers(root) {
+  root.querySelectorAll("img.app-logo").forEach(img => {
+    img.addEventListener("error", handleLogoError, { once: true });
   });
+}
+
+function renderGridLoadMore() {
+  const grid = document.getElementById("app-grid");
+  grid.querySelector("#grid-load-more-wrap")?.remove();
+  if (currentGridRendered >= currentGridList.length) return;
+  const remaining = currentGridList.length - currentGridRendered;
+  grid.insertAdjacentHTML("beforeend", `
+    <div id="grid-load-more-wrap" class="grid-load-more-wrap">
+      <button type="button" class="btn btn-secondary" id="grid-load-more-btn">Load ${Math.min(GRID_BATCH_SIZE, remaining)} more</button>
+    </div>
+  `);
+  grid.querySelector("#grid-load-more-btn")?.addEventListener("click", loadMoreGridItems, { once: true });
+}
+
+function loadMoreGridItems() {
+  const grid = document.getElementById("app-grid");
+  grid.querySelector("#grid-load-more-wrap")?.remove();
+  const nextCount = Math.min(currentGridRendered + GRID_BATCH_SIZE, currentGridList.length);
+  const nextHtml = currentGridList
+    .slice(currentGridRendered, nextCount)
+    .map(app => buildCard(app, currentGridRankMap))
+    .join("");
+  grid.insertAdjacentHTML("beforeend", nextHtml);
+  currentGridRendered = nextCount;
+  bindGridAssetHandlers(grid);
+  renderGridLoadMore();
 }
 
 function getFiltered() {
@@ -606,17 +741,24 @@ async function showAppDetail(appId) {
   // SEO: Inject SoftwareApplication JSON-LD for this app
   injectAppJsonLd(app);
 
-  // Increment views (throttled: 1 per user per app per hour)
-  const viewUserId = currentUser ? currentUser.uid : null;
-  const newViews = await incrementAppViews(appId, viewUserId);
-  app.views = newViews;
   const localIdx = apps.findIndex(a => a.id === appId);
-  if (localIdx >= 0) apps[localIdx].views = newViews;
+
+  // Increment views in the background. Local throttle prevents repeated
+  // Firestore throttle queries from the same browser/device.
+  const viewUserId = currentUser ? currentUser.uid : null;
+  const viewThrottleKey = `view:${viewUserId || getSessionId()}:${appId}`;
+  if (shouldRunClientTrackedEvent(viewThrottleKey, 60 * 60 * 1000)) {
+    app.views = (app.views || 0) + 1;
+    if (localIdx >= 0) apps[localIdx].views = app.views;
+    incrementAppViews(appId, viewUserId).catch(() => {});
+  }
 
   // Get user vote if logged in
   let userVote = null;
   let bookmarked = false;
-  const ratingData = await getAverageRating(appId);
+  const ratingData = (app.avgRating || app.reviewCount)
+    ? { avg: app.avgRating || 0, count: app.reviewCount || 0 }
+    : await getAverageRating(appId);
   if (currentUser) {
     try {
       userVote = await getUserVote(appId, currentUser.uid);
@@ -1025,13 +1167,17 @@ async function showAppDetail(appId) {
     let tracking = false;
     link.addEventListener("click", async () => {
       if (tracking) return;
+      const trackKey = `download:${currentUser?.uid || getSessionId()}:${appId}`;
+      if (!shouldRunClientTrackedEvent(trackKey, 30 * 1000)) return;
       tracking = true;
+      const idx = apps.findIndex(a => a.id === appId);
+      if (idx >= 0) apps[idx].downloads = (apps[idx].downloads || 0) + 1;
+      const dlStat = detailView.querySelector('.detail-stat-card[data-stat="downloads"] .stat-number');
+      if (dlStat) dlStat.textContent = (parseInt(dlStat.textContent) || 0) + 1;
       try {
         const newCount = await trackDownload(appId, currentUser?.uid);
         if (newCount != null) {
-          const idx = apps.findIndex(a => a.id === appId);
           if (idx >= 0) apps[idx].downloads = newCount;
-          const dlStat = detailView.querySelector('.detail-stat-card[data-stat="downloads"] .stat-number');
           if (dlStat) dlStat.textContent = newCount;
         }
       } finally {
@@ -1046,6 +1192,8 @@ async function showAppDetail(appId) {
     link.addEventListener("click", () => {
       const now = Date.now();
       if (now - lastTracked < 30000) return; // debounce: 1 per 30s
+      const trackKey = `open:${currentUser?.uid || getSessionId()}:${appId}`;
+      if (!shouldRunClientTrackedEvent(trackKey, 60 * 60 * 1000)) return;
       lastTracked = now;
       // Optimistic UI update
       const openStat = detailView.querySelector('.detail-stat-card[data-stat="opens"] .stat-number');
@@ -2546,7 +2694,7 @@ function attachVerifyHandlers() {
       try {
         await approveSubmission(btn.dataset.id, currentUser.uid);
         showToast("App accepted & published!");
-        await loadApps();
+        await loadApps({ force: true });
         showVerifySubmissions();
       } catch (err) {
         showToast(err.message);
@@ -3710,7 +3858,7 @@ function attachAdminHandlers(tab) {
           await approveSubmission(btn.dataset.id, currentUser.uid);
           btn.closest(".admin-card").remove();
           showToast("Submission approved & app created!");
-          await loadApps();
+          await loadApps({ force: true });
         } catch (err) { showToast(err.message); }
         btn.disabled = false;
       });
@@ -3768,7 +3916,7 @@ function attachAdminHandlers(tab) {
           await mergeEditRequest(btn.dataset.id, currentUser.uid);
           btn.closest(".admin-card").remove();
           showToast("Edit request merged!");
-          await loadApps();
+          await loadApps({ force: true });
         } catch (err) { showToast(err.message); }
         btn.disabled = false;
       });
@@ -3896,7 +4044,7 @@ function attachAdminHandlers(tab) {
         try {
           await setAppModerationStatus(btn.dataset.appId, "restricted", currentUser.uid, reason);
           showToast("App restricted");
-          await loadApps();
+          await loadApps({ force: true });
           showAdminDashboard();
         } catch (err) { showToast(err.message); }
         btn.disabled = false;
@@ -3912,7 +4060,7 @@ function attachAdminHandlers(tab) {
         try {
           await setAppModerationStatus(btn.dataset.appId, "removed", currentUser.uid, reason);
           showToast("App removed from public listing");
-          await loadApps();
+          await loadApps({ force: true });
           showAdminDashboard();
         } catch (err) { showToast(err.message); }
         btn.disabled = false;
@@ -3933,7 +4081,7 @@ function attachAdminHandlers(tab) {
           const suspendUntil = new Date(Date.now() + days * 86400000).toISOString();
           await setAppModerationStatus(btn.dataset.appId, "restricted", currentUser.uid, reason, { suspendUntil });
           showToast(`App suspended for ${days} day(s)`);
-          await loadApps();
+          await loadApps({ force: true });
           showAdminDashboard();
         } catch (err) { showToast(err.message); }
         btn.disabled = false;
@@ -3947,7 +4095,7 @@ function attachAdminHandlers(tab) {
         try {
           await setAppModerationStatus(btn.dataset.appId, "active", currentUser.uid, "Restored by admin");
           showToast("App restored");
-          await loadApps();
+          await loadApps({ force: true });
           showAdminDashboard();
         } catch (err) { showToast(err.message); }
         btn.disabled = false;
@@ -4143,7 +4291,7 @@ function attachAdminHandlers(tab) {
         if (aaCompContainer) aaCompContainer.innerHTML = "";
         if (aaCompInitBtn) aaCompInitBtn.style.display = "";
         clearScreenshotUploader("aa");
-        await loadApps();
+        await loadApps({ force: true });
       } catch (err) {
         showFormError(form, err.message);
       } finally {
@@ -4230,7 +4378,7 @@ function bindVersionCardHandlers(container, appId, reloadFn) {
       try {
         await restoreAppVersion(btn.dataset.appId, btn.dataset.versionId, currentUser.uid);
         showToast("App restored to selected version!");
-        await loadApps();
+        await loadApps({ force: true });
         reloadFn();
       } catch (err) {
         showToast(err.message);
@@ -4453,7 +4601,7 @@ function bindERCardHandlers(container, appId, reloadFn) {
       try {
         await mergeEditRequest(btn.dataset.erId, currentUser.uid);
         showToast("Edit request merged!");
-        await loadApps();
+        await loadApps({ force: true });
         reloadFn();
       } catch (err) { showToast(err.message); }
       btn.disabled = false;
@@ -5922,8 +6070,12 @@ async function init() {
   initTheme();
   initAuth();
 
-  // Non-blocking version update check (runs in background)
-  checkForUpdates();
+  // Defer version update checks so homepage rendering never waits on config reads.
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(() => checkForUpdates(), { timeout: 5000 });
+  } else {
+    setTimeout(() => checkForUpdates(), 2500);
+  }
 
   // Load data from Firestore
   await loadApps();
@@ -5997,6 +6149,8 @@ async function init() {
         // Client-side debounce: 1 per 30s per link
         const now = Date.now();
         if (openLink._lastTracked && now - openLink._lastTracked < 30000) return;
+        const trackKey = `open:${currentUser?.uid || getSessionId()}:${appId}`;
+        if (!shouldRunClientTrackedEvent(trackKey, 60 * 60 * 1000)) return;
         openLink._lastTracked = now;
         // Optimistic UI update
         const card = openLink.closest(".app-card");

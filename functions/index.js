@@ -14,6 +14,64 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const BASE_URL = "https://openlib-f7bf1.web.app";
+const PRERENDER_CACHE_TTL_MS = 15 * 60 * 1000;
+const PRERENDER_LIST_LIMIT = 120;
+const APP_PRERENDER_FIELDS = [
+  "name",
+  "alternative",
+  "description",
+  "logo",
+  "category",
+  "platforms",
+  "features",
+  "installMethods",
+  "systemRequirements",
+  "tags",
+  "download",
+  "source",
+  "website",
+  "docs",
+  "version",
+  "license",
+  "fileSize",
+  "developer",
+  "maintainer",
+  "avgRating",
+  "reviewCount",
+  "likes",
+  "dislikes",
+  "views",
+  "opens",
+  "downloads",
+  "createdAt",
+];
+
+const prerenderCache = new Map();
+
+function getCachedHtml(key) {
+  const cached = prerenderCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.ts > PRERENDER_CACHE_TTL_MS) {
+    prerenderCache.delete(key);
+    return null;
+  }
+  return cached.html;
+}
+
+function setCachedHtml(key, html) {
+  prerenderCache.set(key, { html, ts: Date.now() });
+  if (prerenderCache.size > 250) {
+    const oldestKey = prerenderCache.keys().next().value;
+    prerenderCache.delete(oldestKey);
+  }
+}
+
+function sendHtml(req, res, html, extraHeaders = {}) {
+  Object.entries(extraHeaders).forEach(([key, value]) => res.set(key, value));
+  res.set("Content-Type", "text/html; charset=utf-8");
+  if (req.method === "HEAD") return res.status(200).send("");
+  return res.send(html);
+}
 
 // ── Bot detection ────────────────────────────────────────────────────────────
 const BOT_RE = /googlebot|google-inspectiontool|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|linkedinbot|embedly|quora link preview|outbrain|pinterest|pinterestbot|slackbot|vkshare|w3c_validator|whatsapp|telegrambot|discordbot|applebot|petalbot|seznambot|ahrefsbot|semrushbot|mj12bot|dotbot/i;
@@ -77,7 +135,6 @@ function buildPage({ title, description, url, image, type, jsonLd, body }) {
   <meta name="twitter:description" content="${esc(description)}">
 
   ${jsonLdTag}
-  <link rel="stylesheet" href="/styles.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 </head>
 <body>
@@ -102,9 +159,22 @@ function buildPage({ title, description, url, image, type, jsonLd, body }) {
       <a href="/terms.txt">Terms</a>
     </nav>
   </footer>
-  <script type="module" src="/script.js"></script>
 </body>
 </html>`;
+}
+
+async function getLimitedAppsByEngagement(maxDocs = PRERENDER_LIST_LIMIT) {
+  const fields = APP_PRERENDER_FIELDS;
+  const [viewsSnap, likesSnap] = await Promise.all([
+    db.collection("apps").orderBy("views", "desc").limit(maxDocs).select(...fields).get(),
+    db.collection("apps").orderBy("likes", "desc").limit(maxDocs).select(...fields).get(),
+  ]);
+
+  const merged = new Map();
+  for (const docSnap of [...viewsSnap.docs, ...likesSnap.docs]) {
+    if (!merged.has(docSnap.id)) merged.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+  }
+  return [...merged.values()];
 }
 
 // ── Render: App Detail Page ──────────────────────────────────────────────────
@@ -201,8 +271,7 @@ async function renderApp(appId) {
 // ── Render: Rankings Page ────────────────────────────────────────────────────
 async function renderRankings() {
   try {
-    const snap = await db.collection("apps").get();
-    const apps = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const apps = await getLimitedAppsByEngagement();
     apps.sort((a, b) => {
       const scoreA = (a.likes || 0) - (a.dislikes || 0) + (a.views || 0) / 10;
       const scoreB = (b.likes || 0) - (b.dislikes || 0) + (b.views || 0) / 10;
@@ -251,7 +320,11 @@ async function renderRankings() {
 // ── Render: Trending Page ────────────────────────────────────────────────────
 async function renderTrending() {
   try {
-    const snap = await db.collection("apps").get();
+    const snap = await db.collection("apps")
+      .orderBy("views", "desc")
+      .limit(75)
+      .select(...APP_PRERENDER_FIELDS)
+      .get();
     const apps = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     apps.sort((a, b) => (b.views || 0) - (a.views || 0));
 
@@ -292,6 +365,9 @@ exports.prerender = functions.https.onRequest(async (req, res) => {
   if (req.method === "OPTIONS") {
     return res.status(204).send("");
   }
+  if (!["GET", "HEAD"].includes(req.method)) {
+    return res.status(405).send("Method Not Allowed");
+  }
 
   const ua = req.headers["user-agent"] || "";
 
@@ -300,8 +376,7 @@ exports.prerender = functions.https.onRequest(async (req, res) => {
     const spa = getSpaHtml();
     if (spa) {
       res.set("Cache-Control", "public, max-age=300, s-maxage=600");
-      res.set("Content-Type", "text/html; charset=utf-8");
-      return res.send(spa);
+      return sendHtml(req, res, spa);
     }
     // If spa.html missing, redirect to root (hosting serves index.html)
     return res.redirect(302, "/");
@@ -310,6 +385,14 @@ exports.prerender = functions.https.onRequest(async (req, res) => {
   // Bot traffic → serve pre-rendered HTML
   const urlPath = decodeURIComponent(req.path);
   let html = null;
+  const cacheKey = `html:${urlPath}`;
+  const cachedHtml = getCachedHtml(cacheKey);
+  if (cachedHtml) {
+    res.set("Cache-Control", "public, s-maxage=3600, max-age=600, stale-while-revalidate=86400");
+    res.set("X-Rendered-By", "openlib-prerender");
+    res.set("X-Prerender-Cache", "HIT");
+    return sendHtml(req, res, cachedHtml);
+  }
 
   try {
     if (urlPath.startsWith("/app/")) {
@@ -326,18 +409,18 @@ exports.prerender = functions.https.onRequest(async (req, res) => {
   }
 
   if (html) {
-    res.set("Cache-Control", "public, s-maxage=3600, max-age=600");
-    res.set("Content-Type", "text/html; charset=utf-8");
+    setCachedHtml(cacheKey, html);
+    res.set("Cache-Control", "public, s-maxage=3600, max-age=600, stale-while-revalidate=86400");
     res.set("X-Rendered-By", "openlib-prerender");
-    return res.send(html);
+    res.set("X-Prerender-Cache", "MISS");
+    return sendHtml(req, res, html);
   }
 
   // Fallback: serve SPA
   const spa = getSpaHtml();
   if (spa) {
     res.set("Cache-Control", "public, max-age=300");
-    res.set("Content-Type", "text/html; charset=utf-8");
-    return res.send(spa);
+    return sendHtml(req, res, spa);
   }
   return res.redirect(302, "/");
 });

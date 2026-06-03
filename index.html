@@ -57,15 +57,25 @@
 
   <!-- Google Analytics (GA4) — [OPT-15 FIX] Only load on production hostname -->
   <script>
-    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      const _gas = document.createElement('script');
-      _gas.async = true;
-      _gas.src = 'https://www.googletagmanager.com/gtag/js?id=G-01WBRWH49J';
-      document.head.appendChild(_gas);
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-01WBRWH49J');
+    {
+      const GA_HOSTS = new Set(['www.openlib.online', 'openlib-f7bf1.web.app']);
+      function loadAnalytics() {
+        if (!GA_HOSTS.has(location.hostname) || window.__openlibGaLoaded) return;
+        window.__openlibGaLoaded = true;
+        const _gas = document.createElement('script');
+        _gas.async = true;
+        _gas.src = 'https://www.googletagmanager.com/gtag/js?id=G-01WBRWH49J';
+        document.head.appendChild(_gas);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function(){dataLayer.push(arguments);};
+        window.gtag('js', new Date());
+        window.gtag('config', 'G-01WBRWH49J');
+      }
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(loadAnalytics, { timeout: 5000 });
+      } else {
+        window.addEventListener('load', () => setTimeout(loadAnalytics, 1500), { once: true });
+      }
     }
   </script>
 

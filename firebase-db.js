@@ -3,7 +3,7 @@
 
 import {
   collection, addDoc, query, where, getDocs, updateDoc,
-  doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc
+  doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 import { db } from './firebase-config.js';
 
@@ -124,9 +124,9 @@ export async function setTeamAccount(uid, isTeam, adminUid) {
   await updateDoc(doc(db, "user_records", uid), { teamAccount: !!isTeam, updatedAt: new Date().toISOString() });
 }
 
-export async function getAllUsers() {
+export async function getAllUsers(maxResults = 100) {
   try {
-    const snapshot = await getDocs(collection(db, "user_records"));
+    const snapshot = await getDocs(query(collection(db, "user_records"), limit(maxResults)));
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
     console.error("Error getting users:", e);
@@ -305,9 +305,9 @@ export async function getUserOrganizations(uid) {
   }
 }
 
-export async function getAllOrganizations() {
+export async function getAllOrganizations(maxResults = 100) {
   try {
-    const snapshot = await getDocs(collection(db, "organizations"));
+    const snapshot = await getDocs(query(collection(db, "organizations"), limit(maxResults)));
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch (e) {
     console.error("Error getting organizations:", e);
@@ -889,13 +889,13 @@ export async function getAllPendingSubmissions() {
   }
 }
 
-export async function getAllEditRequests(statusFilter) {
+export async function getAllEditRequests(statusFilter, maxResults = 100) {
   try {
     let q;
     if (statusFilter) {
-      q = query(collection(db, "edit_requests"), where("status", "==", statusFilter), orderBy("createdAt", "desc"));
+      q = query(collection(db, "edit_requests"), where("status", "==", statusFilter), orderBy("createdAt", "desc"), limit(maxResults));
     } else {
-      q = query(collection(db, "edit_requests"), orderBy("createdAt", "desc"));
+      q = query(collection(db, "edit_requests"), orderBy("createdAt", "desc"), limit(maxResults));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1034,13 +1034,13 @@ export async function requestChangesOnSubmission(submissionId, adminUid, comment
 }
 
 // Get all submissions with optional status filter (for admin queue)
-export async function getAllSubmissions(statusFilter) {
+export async function getAllSubmissions(statusFilter, maxResults = 100) {
   try {
     let q;
     if (statusFilter) {
-      q = query(collection(db, "submissions"), where("status", "==", statusFilter), orderBy("createdAt", "desc"));
+      q = query(collection(db, "submissions"), where("status", "==", statusFilter), orderBy("createdAt", "desc"), limit(maxResults));
     } else {
-      q = query(collection(db, "submissions"), orderBy("createdAt", "desc"));
+      q = query(collection(db, "submissions"), orderBy("createdAt", "desc"), limit(maxResults));
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1283,6 +1283,9 @@ export async function markReviewHelpful(reviewId, helpful = true) {
 
 export async function getUserReviewForApp(appId, userId) {
   try {
+    const directSnap = await getDoc(doc(db, "app_reviews", `${userId}_${appId}`));
+    if (directSnap.exists()) return { id: directSnap.id, ...directSnap.data() };
+
     const q = query(
       collection(db, "app_reviews"),
       where("appId", "==", appId),
@@ -1389,8 +1392,7 @@ export async function trackDownload(appId, userId) {
     });
     const appRef = doc(db, "apps", appId);
     await updateDoc(appRef, { downloads: increment(1) });
-    const updated = await getDoc(appRef);
-    return updated.data()?.downloads || 0;
+    return null;
   } catch (e) {
     console.error("Error tracking download:", e);
     return null;
@@ -1426,8 +1428,7 @@ export async function trackOpen(appId, userId) {
       const key = `open_${appId}`;
       const last = _anonOpenThrottle.get(key);
       if (last && Date.now() - last < 3600000) {
-        const snap = await getDoc(doc(db, "apps", appId));
-        return snap.data()?.opens || 0;
+        return null;
       }
       _anonOpenThrottle.set(key, Date.now());
     }
@@ -1446,8 +1447,7 @@ export async function trackOpen(appId, userId) {
         );
         const existing = await getDocs(q);
         if (!existing.empty) {
-          const snap = await getDoc(doc(db, "apps", appId));
-          return snap.data()?.opens || 0;
+          return null;
         }
       } catch (throttleErr) {
         console.warn("Open throttle check failed, allowing increment:", throttleErr);
@@ -1461,8 +1461,7 @@ export async function trackOpen(appId, userId) {
     });
     const appRef = doc(db, "apps", appId);
     await updateDoc(appRef, { opens: increment(1) });
-    const updated = await getDoc(appRef);
-    return updated.data()?.opens || 0;
+    return null;
   } catch (e) {
     console.error("Error tracking open:", e);
     return null;
@@ -1807,24 +1806,17 @@ export async function removeTeamMember(targetUid, adminUid) {
 export async function getTeamStats() {
   try {
     const members = await getTeamMembers();
-    const memberUids = members.map(m => m.id);
-
-    // Count apps added by team
-    let teamAppCount = 0;
-    const appsSnap = await getDocs(collection(db, "apps"));
-    appsSnap.docs.forEach(d => {
-      const data = d.data();
-      if (data.addedBy?.type === "openlib-team" || memberUids.includes(data.addedBy?.uid)) {
-        teamAppCount++;
-      }
-    });
+    const [totalAppsSnap, officialAppsSnap] = await Promise.all([
+      getCountFromServer(collection(db, "apps")),
+      getCountFromServer(query(collection(db, "apps"), where("addedBy.type", "==", "openlib-team")))
+    ]);
 
     return {
       memberCount: members.length,
       adminCount: members.filter(m => m.role === "admin").length,
       teamCount: members.filter(m => m.role === "openlib-team").length,
-      appsCurated: teamAppCount,
-      totalApps: appsSnap.size
+      appsCurated: officialAppsSnap.data().count,
+      totalApps: totalAppsSnap.data().count
     };
   } catch (e) {
     console.error("Error getting team stats:", e);
@@ -1839,8 +1831,8 @@ export async function getTeamStats() {
 /**
  * Fetch all reports, ordered newest first.
  */
-export async function getAllReports() {
-  const snap = await getDocs(query(collection(db, "reports"), orderBy("timestamp", "desc")));
+export async function getAllReports(maxResults = 100) {
+  const snap = await getDocs(query(collection(db, "reports"), orderBy("timestamp", "desc"), limit(maxResults)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
@@ -1881,12 +1873,12 @@ export async function logModerationAction(action) {
 /**
  * Get moderation log entries, optionally filtered by appId.
  */
-export async function getModerationLog(appId) {
+export async function getModerationLog(appId, maxResults = 100) {
   let q;
   if (appId) {
-    q = query(collection(db, "moderation_log"), where("appId", "==", appId), orderBy("timestamp", "desc"));
+    q = query(collection(db, "moderation_log"), where("appId", "==", appId), orderBy("timestamp", "desc"), limit(maxResults));
   } else {
-    q = query(collection(db, "moderation_log"), orderBy("timestamp", "desc"));
+    q = query(collection(db, "moderation_log"), orderBy("timestamp", "desc"), limit(maxResults));
   }
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1971,13 +1963,18 @@ export async function restoreExpiredSuspensions(adminUid) {
  * Get report statistics.
  */
 export async function getReportStats() {
-  const snap = await getDocs(collection(db, "reports"));
-  const reports = snap.docs.map(d => d.data());
+  const [totalSnap, pendingSnap, underReviewSnap, resolvedSnap, rejectedSnap] = await Promise.all([
+    getCountFromServer(collection(db, "reports")),
+    getCountFromServer(query(collection(db, "reports"), where("status", "==", "pending"))),
+    getCountFromServer(query(collection(db, "reports"), where("status", "==", "under_review"))),
+    getCountFromServer(query(collection(db, "reports"), where("status", "==", "resolved"))),
+    getCountFromServer(query(collection(db, "reports"), where("status", "==", "rejected")))
+  ]);
   return {
-    total: reports.length,
-    pending: reports.filter(r => r.status === "pending").length,
-    underReview: reports.filter(r => r.status === "under_review").length,
-    resolved: reports.filter(r => r.status === "resolved").length,
-    rejected: reports.filter(r => r.status === "rejected").length
+    total: totalSnap.data().count,
+    pending: pendingSnap.data().count,
+    underReview: underReviewSnap.data().count,
+    resolved: resolvedSnap.data().count,
+    rejected: rejectedSnap.data().count
   };
 }
