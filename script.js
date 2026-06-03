@@ -856,7 +856,7 @@ async function showAppDetail(appId) {
       url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
       robots: "noindex, follow"
     });
-    detailView.innerHTML = `<div class="empty-state"><h3>App not found</h3><p><a href="/">Back to library</a></p></div>`;
+    detailView.innerHTML = `<div class="empty-state"><h3>App not found</h3><p><a href="/">← Back to library</a></p></div>`;
     return;
   }
 
@@ -6050,9 +6050,12 @@ function showSeoLandingPage({ kind, slug }) {
     <div class="seo-page">
       <a href="/" class="back-link">Back to library</a>
       <header class="seo-page-header">
-        <h1>${esc(page.h1)}</h1>
+        <div class="seo-title-block">
+          <span class="seo-page-kicker">${appList.length} ${appList.length === 1 ? "app" : "apps"}</span>
+          <h1>${esc(page.h1)}</h1>
+        </div>
         <p>${esc(page.description)}</p>
-        <div class="seo-keywords">${page.keywords.map(keyword => `<span>${esc(keyword)}</span>`).join("")}</div>
+        <div class="seo-keywords" aria-label="Collection keywords">${page.keywords.map(keyword => `<span>${esc(keyword)}</span>`).join("")}</div>
       </header>
       ${renderSeoAppList(appList)}
       ${renderRelatedSeoLinks(page.path)}

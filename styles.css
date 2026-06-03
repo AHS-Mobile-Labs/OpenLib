@@ -1,3 +1,59 @@
+@font-face {
+  font-family: 'Syne';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('font/8vIH7w4qzmVxm2BL9A.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url('font/rP2Hp2ywxg089UriCZOIHQ.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url('font/rP2Wp2ywxg089UriCZaSExdy3sGt9zz86D3wyKy58Q.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('font/aFTR7PB1QTsUX8KYvrGyEYOtbQ.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('font/aFTU7PB1QTsUX8KYthqQBA.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('font/aFTR7PB1QTsUX8KYvumzEYOtbQ.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: italic;
+  font-weight: 300;
+  font-display: swap;
+  src: url('font/aFTT7PB1QTsUX8KYth-orYadb435.woff2') format('woff2');
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -8465,7 +8521,7 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
   width: 100%;
   border-top: 1px solid var(--border);
   background: var(--bg-2);
-  padding: 28px 24px 34px;
+  padding: 32px 24px 36px;
 }
 
 .seo-links-inner {
@@ -8476,13 +8532,14 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
 .seo-links-inner h2 {
   font-size: 18px;
   font-family: var(--font-display);
-  margin-bottom: 14px;
+  line-height: 1.25;
+  margin-bottom: 16px;
 }
 
 .seo-link-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 10px;
 }
 
 .seo-link-grid a,
@@ -8493,34 +8550,88 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
 }
 
 .seo-link-grid a {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   font-size: 13px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  transition: border-color var(--transition), background var(--transition), color var(--transition);
+}
+
+.seo-link-grid a:hover,
+.seo-related-links a:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+#seo-view.view-section {
+  width: 100%;
+  max-width: none;
+  padding: 0 24px;
 }
 
 .seo-page {
-  width: min(1120px, calc(100% - 32px));
+  width: min(1120px, 100%);
   margin: 0 auto;
-  padding: 34px 0 56px;
+  padding: 42px 0 64px;
+}
+
+.seo-page .back-link {
+  margin-bottom: 18px;
 }
 
 .seo-page-header {
-  margin: 18px 0 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  margin: 0 0 28px;
+  min-height: 240px;
+  padding: 8px 0 26px;
+  border-bottom: 1px solid var(--border);
+}
+
+.seo-title-block {
+  min-width: 0;
+}
+
+.seo-page-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-bottom: 10px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
 }
 
 .seo-page-header h1 {
   font-family: var(--font-display);
-  font-size: clamp(30px, 5vw, 52px);
-  line-height: 1.05;
-  margin-bottom: 12px;
+  font-size: 46px;
+  line-height: 1.08;
+  letter-spacing: 0;
+  margin: 0;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .seo-page-header p {
   max-width: 760px;
   color: var(--text-2);
   font-size: 16px;
+  line-height: 1.55;
+  margin: 0;
 }
 
 .seo-keywords,
@@ -8528,37 +8639,62 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 14px;
+}
+
+.seo-keywords {
+  justify-content: flex-start;
+  margin: 0;
+}
+
+.seo-app-meta {
+  margin-top: 12px;
 }
 
 .seo-keywords span,
 .seo-app-meta span,
 .seo-app-meta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  max-width: 100%;
   border: 1px solid var(--border);
   background: var(--surface);
   border-radius: 4px;
   padding: 3px 8px;
   font-family: var(--font-mono);
   font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .seo-app-list {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .seo-app-item {
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
   border-radius: var(--radius-sm);
-  padding: 14px;
+  padding: 16px;
+  overflow: hidden;
+  transition: border-color var(--transition), transform var(--transition), background var(--transition);
+}
+
+.seo-app-item:hover {
+  border-color: var(--border-2);
+  transform: translateY(-2px);
 }
 
 .seo-app-main {
   display: grid;
-  grid-template-columns: 52px 1fr;
-  gap: 12px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
+}
+
+.seo-app-main > div {
+  min-width: 0;
 }
 
 .seo-app-logo,
@@ -8568,6 +8704,7 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
   border-radius: 8px;
   object-fit: contain;
   background: var(--bg-3);
+  border: 1px solid var(--border);
 }
 
 .seo-app-logo-fallback {
@@ -8580,24 +8717,34 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
 }
 
 .seo-app-item h2 {
+  font-family: var(--font-display);
   font-size: 18px;
   line-height: 1.25;
   margin-bottom: 4px;
 }
 
 .seo-app-item h2 a {
+  display: inline-block;
+  max-width: 100%;
   color: var(--text);
   text-decoration: none;
+  overflow-wrap: anywhere;
 }
 
 .seo-app-item p,
 .policy-page section p {
   color: var(--text-2);
+  overflow-wrap: break-word;
+}
+
+.seo-app-item p {
+  max-width: 860px;
+  line-height: 1.55;
 }
 
 .seo-related-links {
-  margin-top: 30px;
-  padding-top: 22px;
+  margin-top: 34px;
+  padding-top: 24px;
   border-top: 1px solid var(--border);
 }
 
@@ -8605,15 +8752,128 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
 .policy-page h2 {
   font-family: var(--font-display);
   font-size: 20px;
+  line-height: 1.25;
   margin-bottom: 10px;
 }
 
 .seo-related-links div {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: 8px;
+}
+
+.seo-related-links a {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .policy-page section {
   margin: 22px 0;
+}
+
+@media (max-width: 1080px) {
+  .seo-page-header {
+    min-height: 260px;
+  }
+
+  .seo-page-header h1 {
+    font-size: 42px;
+  }
+}
+
+@media (max-width: 720px) {
+  #seo-view.view-section {
+    padding: 0 12px;
+  }
+
+  .seo-links-section {
+    padding: 24px 12px 28px;
+  }
+
+  .seo-page {
+    width: 100%;
+    padding: 28px 0 48px;
+  }
+
+  .seo-page-header {
+    gap: 14px;
+    min-height: 300px;
+    margin-bottom: 20px;
+    padding-bottom: 22px;
+  }
+
+  .seo-page-header h1 {
+    font-size: 34px;
+    line-height: 1.12;
+  }
+
+  .seo-page-header p {
+    max-width: none;
+    font-size: 15px;
+  }
+
+  .seo-keywords {
+    justify-content: flex-start;
+  }
+
+  .seo-app-item {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  #seo-view.view-section {
+    padding: 0 10px;
+  }
+
+  .seo-link-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .seo-page {
+    width: 100%;
+    padding-top: 22px;
+  }
+
+  .seo-page .back-link {
+    margin-bottom: 14px;
+  }
+
+  .seo-page-header h1 {
+    font-size: 30px;
+  }
+
+  .seo-page-header {
+    min-height: 330px;
+  }
+
+  .seo-page-kicker,
+  .seo-keywords span,
+  .seo-app-meta span,
+  .seo-app-meta a {
+    font-size: 10px;
+  }
+
+  .seo-app-main {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .seo-app-logo,
+  .seo-app-logo-fallback {
+    width: 44px;
+    height: 44px;
+  }
+
+  .seo-app-item h2 {
+    font-size: 17px;
+  }
 }
