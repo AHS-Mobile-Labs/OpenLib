@@ -296,8 +296,79 @@ function getAppRank(appId) {
 }
 
 // ── Rendering Helpers ────────────────────────────────────────────────────────
+const ICONS = {
+  account: "assets/Icons8/util/white-theme/icons8-account-100.png",
+  alert: "assets/Icons8/util/white-theme/icons8-alert-100.png",
+  apple: "assets/Icons8/util/white-theme/icons8-apple-100.png",
+  back: "assets/Icons8/util/white-theme/icons8-back-arrow-100.png",
+  bug: "assets/Icons8/util/white-theme/icons8-bug-100.png",
+  cancel: "assets/Icons8/util/white-theme/icons8-cancel-100.png",
+  copy: "assets/Icons8/util/white-theme/icons8-copy-100.png",
+  dislike: "assets/Icons8/util/white-theme/icons8-dislike-100.png",
+  download: "assets/Icons8/util/white-theme/icons8-download-100.png",
+  edit: "assets/Icons8/util/white-theme/icons8-edit-100.png",
+  filter: "assets/Icons8/util/white-theme/icons8-filter-100.png",
+  globe: "assets/Icons8/util/icons8-globe-100.png",
+  home: "assets/Icons8/util/white-theme/icons8-home-100.png",
+  info: "assets/Icons8/util/white-theme/icons8-info-100.png",
+  link: "assets/Icons8/util/white-theme/icons8-link-100.png",
+  license: "assets/Icons8/util/white-theme/icons8-license-100.png",
+  like: "assets/Icons8/util/white-theme/icons8-like-100.png",
+  logout: "assets/Icons8/util/white-theme/icons8-logout-100.png",
+  protect: "assets/Icons8/util/icons8-protect-100.png",
+  ranking: "assets/fontawesome%20icons/util/white-theme/ranking-star-solid-full%20%282%29.svg",
+  search: "assets/Icons8/util/white-theme/icons8-search-100.png",
+  settings: "assets/Icons8/util/white-theme/icons8-settings-100.png",
+  moon: "assets/Icons8/util/white-theme/icons8-moon-100.png",
+  sun: "assets/Icons8/util/black-theme/icons8-sun-100.png",
+  time: "assets/Icons8/util/white-theme/icons8-delivery-time-100.png",
+  upload: "assets/Icons8/util/white-theme/icons8-upload-100.png",
+  verified: "assets/Icons8/util/icons8-verified-account-100.png",
+  reddit: "assets/Icons8/social%20media%20icons/icons8-reddit-100.png",
+  whatsapp: "assets/Icons8/social%20media%20icons/icons8-whatsapp-logo.svg",
+  x: "assets/Icons8/social%20media%20icons/icons8-x-100.svg",
+  android: "assets/Icons8/os%20icons/icons8-android-os-100.png",
+  ios: "assets/Icons8/util/white-theme/icons8-apple-100.png",
+  linux: "assets/Icons8/os%20icons/icons8-linux-100.png",
+  macos: "assets/Icons8/os%20icons/icons8-mac-logo-100.png",
+  web: "assets/Icons8/os%20icons/icons8-web-100.png",
+  windows: "assets/Icons8/os%20icons/icons8-windows-10-100.png"
+};
+
+function iconImg(name, className = "ui-icon", alt = "") {
+  const src = ICONS[name];
+  if (!src) return "";
+  return `<img class="${esc(className)}" src="${escUrl(src)}" alt="${esc(alt)}"${alt ? "" : ' aria-hidden="true"'}>`;
+}
+
 function platformIcon(p) {
-  return { Linux:"🐧", Windows:"🪟", macOS:"🍎", Android:"🤖", iOS:"📱", Web:"🌐" }[p] || "💻";
+  const key = {
+    Linux: "linux",
+    Windows: "windows",
+    macOS: "macos",
+    Android: "android",
+    iOS: "ios",
+    Web: "web"
+  }[p] || "link";
+  return iconImg(key, "ui-icon platform-icon");
+}
+
+function statusIconFor(status) {
+  const key = {
+    active: "verified",
+    approved: "verified",
+    resolved: "verified",
+    merged: "verified",
+    pending: "time",
+    open: "time",
+    under_review: "info",
+    changes_requested: "edit",
+    rejected: "alert",
+    restricted: "alert",
+    removed: "alert",
+    closed: "alert"
+  }[status] || "time";
+  return iconImg(key);
 }
 
 function isWebOnly(platforms) {
@@ -585,11 +656,11 @@ function compCellHtml(val, colIdx) {
       <option value="dash" ${selType === "dash" ? "selected" : ""}>— N/A</option>
       <option value="text" ${selType === "text" ? "selected" : ""}>Text…</option>
       <optgroup label="Auto (from app data)">
-        <option value="@license" ${selType === "@license" ? "selected" : ""}>📄 License</option>
-        <option value="@platforms" ${selType === "@platforms" ? "selected" : ""}>💻 Platforms</option>
-        <option value="@cross-platform" ${selType === "@cross-platform" ? "selected" : ""}>🌐 Cross-Platform?</option>
-        <option value="@version" ${selType === "@version" ? "selected" : ""}>📦 Version</option>
-        <option value="@source" ${selType === "@source" ? "selected" : ""}>🔗 Has Source?</option>
+        <option value="@license" ${selType === "@license" ? "selected" : ""}>License</option>
+        <option value="@platforms" ${selType === "@platforms" ? "selected" : ""}>Platforms</option>
+        <option value="@cross-platform" ${selType === "@cross-platform" ? "selected" : ""}>Cross-Platform?</option>
+        <option value="@version" ${selType === "@version" ? "selected" : ""}>Version</option>
+        <option value="@source" ${selType === "@source" ? "selected" : ""}>Has Source?</option>
       </optgroup>
     </select>
     <input type="text" class="comp-cell-text" value="${esc(textVal)}" placeholder="Value" style="${selType === "text" ? "" : "display:none"}">
@@ -754,9 +825,9 @@ function renderComparisonHtml(app) {
     <div class="comparison-wrapper"><table class="comparison-table">
       <thead><tr><th>Feature</th><th>${esc(app.name)}</th><th>${esc(comparisonAlternative)}</th></tr></thead>
       <tbody>
-        <tr><td>Free</td><td class="comp-yes">✅</td><td class="comp-no">❌</td></tr>
-        <tr><td>Open Source</td><td class="comp-yes">✅</td><td class="comp-no">❌</td></tr>
-        <tr><td>Cross-Platform</td><td class="comp-yes">${(app.platforms || []).length > 1 ? "✅" : "—"}</td><td>—</td></tr>
+        <tr><td>Free</td><td class="comp-yes">✔</td><td class="comp-no">✖</td></tr>
+        <tr><td>Open Source</td><td class="comp-yes">✔</td><td class="comp-no">✖</td></tr>
+        <tr><td>Cross-Platform</td><td class="comp-yes">${(app.platforms || []).length > 1 ? "✔" : "—"}</td><td>—</td></tr>
         <tr><td>License</td><td>${esc(app.license || "Open Source")}</td><td>Proprietary</td></tr>
       </tbody>
     </table></div></div>`;
@@ -787,9 +858,9 @@ function buildCard(app, rankMap) {
       ${app.version || app.license ? `<div class="card-meta-pills">${app.version ? `<span class="card-pill">${esc(app.version)}</span>` : ""}${app.license ? `<span class="card-pill">${esc(app.license)}</span>` : ""}</div>` : ""}
       ${tagsHtml}
       <div class="app-stats-row">
-        <span class="stat-item" title="Views">👁 ${app.views || 0}</span>
-        <span class="stat-item like-stat" title="Score">👍 ${(app.likes || 0) - (app.dislikes || 0)}</span>
-        ${isWebOnly(app.platforms) ? `<span class="stat-item" title="Opens">↗ ${app.opens || 0}</span>` : `<span class="stat-item" title="Downloads">⬇ ${app.downloads || 0}</span>`}
+        <span class="stat-item" title="Views">${iconImg("time")} ${app.views || 0}</span>
+        <span class="stat-item like-stat" title="Score">${iconImg("like")} ${(app.likes || 0) - (app.dislikes || 0)}</span>
+        ${isWebOnly(app.platforms) ? `<span class="stat-item" title="Opens">${iconImg("globe")} ${app.opens || 0}</span>` : `<span class="stat-item" title="Downloads">${iconImg("download")} ${app.downloads || 0}</span>`}
         ${app.avgRating ? `<span class="stat-item card-rating" title="${app.avgRating} stars (${app.reviewCount || 0} reviews)">★ ${app.avgRating}</span>` : ""}
         <span class="stat-item">${addedByBadge(app.addedBy)}</span>
       </div>
@@ -801,10 +872,10 @@ function buildCard(app, rankMap) {
       </div>
       <div class="card-actions">
         ${isWebOnly(app.platforms)
-          ? `<a href="${esc(getAppPrimaryUrl(app))}" class="btn btn-primary btn-open-app open-track-link" target="_blank" rel="noopener" data-app-id="${esc(app.id)}" data-app-name="${esc(app.name)}">↗ Open App</a>`
-          : `<a href="${esc(app.download)}" class="btn btn-primary" target="_blank" rel="noopener" data-app-id="${esc(app.id)}" data-app-name="${esc(app.name)}">⬇ Download</a>`}
+          ? `<a href="${esc(getAppPrimaryUrl(app))}" class="btn btn-primary btn-open-app open-track-link" target="_blank" rel="noopener" data-app-id="${esc(app.id)}" data-app-name="${esc(app.name)}">${iconImg("globe")} Open App</a>`
+          : `<a href="${esc(app.download)}" class="btn btn-primary" target="_blank" rel="noopener" data-app-id="${esc(app.id)}" data-app-name="${esc(app.name)}">${iconImg("download")} Download</a>`}
         ${hasWebPlatform(app.platforms) && !isWebOnly(app.platforms) && app.website
-          ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-open-web" target="_blank" rel="noopener">🌐 Open Web App</a>`
+          ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-open-web" target="_blank" rel="noopener">${iconImg("globe")} Open Web App</a>`
           : ''}
         <a href="${esc(app.source)}" class="btn btn-secondary" target="_blank" rel="noopener" data-app-id="${esc(app.id)}" data-app-name="${esc(app.name)}">&lt;/&gt; Source</a>
       </div>
@@ -1034,7 +1105,7 @@ async function showAppDetail(appId) {
           <div class="install-method">
             <span class="install-label">${esc(m.label)}</span>
             <code class="install-cmd">${esc(m.command)}</code>
-            <button class="copy-cmd-btn" data-cmd="${esc(m.command)}" title="Copy">📋</button>
+            <button class="copy-cmd-btn" data-cmd="${esc(m.command)}" title="Copy">${iconImg("copy")}</button>
           </div>
         `).join("")}
       </div>
@@ -1057,20 +1128,20 @@ async function showAppDetail(appId) {
     <div class="detail-section security-badges">
       <h3>Security & Trust</h3>
       <div class="trust-badges">
-        ${app.source ? '<span class="trust-badge trust-verified">✅ Open Source Verified</span>' : ''}
-        ${isOfficialEntry ? '<span class="trust-badge trust-team">🛡️ OpenLib Reviewed</span>' : ''}
-        <span class="trust-badge trust-source">🔗 ${app.source?.includes("github.com") ? "GitHub" : app.source?.includes("gitlab") ? "GitLab" : app.source?.includes("bitbucket") ? "Bitbucket" : app.source?.includes("codeberg") ? "Codeberg" : app.source?.includes("sourceforge") ? "SourceForge" : "Official"} Source</span>
+        ${app.source ? `<span class="trust-badge trust-verified">${iconImg("verified")} Open Source Verified</span>` : ''}
+        ${isOfficialEntry ? `<span class="trust-badge trust-team">${iconImg("protect")} OpenLib Reviewed</span>` : ''}
+        <span class="trust-badge trust-source">${iconImg("link")} ${app.source?.includes("github.com") ? "GitHub" : app.source?.includes("gitlab") ? "GitLab" : app.source?.includes("bitbucket") ? "Bitbucket" : app.source?.includes("codeberg") ? "Codeberg" : app.source?.includes("sourceforge") ? "SourceForge" : "Official"} Source</span>
       </div>
     </div>`;
 
   // Changelog / Version info
   const versionInfoHtml = `
     <div class="detail-meta-bar">
-      ${app.version ? `<span class="meta-pill">📦 ${esc(app.version)}</span>` : ""}
-      ${app.license ? `<span class="meta-pill">📄 ${esc(app.license)}</span>` : ""}
-      ${app.fileSize ? `<span class="meta-pill">💾 ${esc(app.fileSize)}</span>` : ""}
-      ${app.updatedAt ? `<span class="meta-pill">🕐 Updated ${new Date(app.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>` : ""}
-      ${app.developer ? `<span class="meta-pill dev-pill">${app.developerUrl ? `<a href="${esc(app.developerUrl)}" target="_blank" rel="noopener">` : ""}👤 ${esc(app.developer)}${app.developerUrl ? "</a>" : ""}</span>` : ""}
+      ${app.version ? `<span class="meta-pill">${iconImg("info")} ${esc(app.version)}</span>` : ""}
+      ${app.license ? `<span class="meta-pill">${iconImg("license")} ${esc(app.license)}</span>` : ""}
+      ${app.fileSize ? `<span class="meta-pill">${iconImg("download")} ${esc(app.fileSize)}</span>` : ""}
+      ${app.updatedAt ? `<span class="meta-pill">${iconImg("time")} Updated ${new Date(app.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>` : ""}
+      ${app.developer ? `<span class="meta-pill dev-pill">${app.developerUrl ? `<a href="${esc(app.developerUrl)}" target="_blank" rel="noopener">` : ""}${iconImg("account")} ${esc(app.developer)}${app.developerUrl ? "</a>" : ""}</span>` : ""}
     </div>`;
 
   // Share button data
@@ -1093,7 +1164,7 @@ async function showAppDetail(appId) {
                 <span class="similar-name">${esc(sa.name)}</span>
                 <span class="similar-cat">${esc(sa.category)}</span>
               </div>
-              <span class="similar-likes">👍 ${sa.likes || 0}</span>
+            <span class="similar-likes">${iconImg("like")} ${sa.likes || 0}</span>
             </a>`;
         }).join("")}
       </div>
@@ -1142,7 +1213,7 @@ async function showAppDetail(appId) {
         <${profileTag} ${profileAttr} class="creator-card">
           ${creatorAvatar}
           <div class="creator-card-info">
-            <span class="creator-card-name">${esc(contributor.displayName)} ${contributor.teamAccount ? '<span class="badge badge-team" title="Team Account">⚡ Team</span>' : ""} ${contributor.verified ? '<span class="badge badge-verified" title="Verified">✓ Verified</span>' : ""} ${roleBadge(contributor.role)}</span>
+            <span class="creator-card-name">${esc(contributor.displayName)} ${contributor.teamAccount ? `<span class="badge badge-team" title="Team Account">${iconImg("account")} Team</span>` : ""} ${contributor.verified ? '<span class="badge badge-verified" title="Verified">✓ Verified</span>' : ""} ${roleBadge(contributor.role)}</span>
             ${contributor.bio ? `<span class="creator-card-bio">${esc(contributor.bio)}</span>` : ""}
             ${contributor.createdAt ? `<span class="creator-card-joined">Joined ${new Date(contributor.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</span>` : ""}
           </div>
@@ -1156,7 +1227,7 @@ async function showAppDetail(appId) {
     <div class="detail-section claim-section">
       <h3>Is this your app?</h3>
       <p class="claim-description">If you are the developer or maintainer of ${esc(app.name)}, you can claim ownership to manage its listing.</p>
-      <button class="btn btn-claim-ownership" id="claim-ownership-btn" data-app-id="${esc(appId)}">🔑 Claim App Ownership</button>
+      <button class="btn btn-claim-ownership" id="claim-ownership-btn" data-app-id="${esc(appId)}">${iconImg("account")} Claim App Ownership</button>
     </div>` : "";
 
   // Check if current user can edit (owner, admin, org member, or openlib team)
@@ -1176,7 +1247,7 @@ async function showAppDetail(appId) {
   const modStatus = app.moderationStatus || "active";
   const modBannerHtml = modStatus !== "active" ? `
     <div class="mod-banner mod-banner-${esc(modStatus)}">
-      <span class="mod-banner-icon">${modStatus === "restricted" ? "⚠️" : "🚫"}</span>
+      <span class="mod-banner-icon">${iconImg("alert", "ui-icon mod-icon")}</span>
       <div class="mod-banner-text">
         <strong>This app is currently ${modStatus === "restricted" ? "restricted" : "removed"}.</strong>
         ${app.moderationReason ? `<span>${esc(app.moderationReason)}</span>` : ""}
@@ -1201,12 +1272,12 @@ async function showAppDetail(appId) {
             ${bookmarked ? '★' : '☆'}
           </button>
           <div class="share-dropdown-wrap">
-            <button class="share-btn" id="share-btn" title="Share">🔗 Share</button>
+            <button class="share-btn" id="share-btn" title="Share">${iconImg("link")} Share</button>
             <div class="share-dropdown" id="share-dropdown">
-              <button class="share-option" data-action="copy" data-url="${esc(shareUrl)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy Link</button>
-              <a class="share-option" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(app.name + ' — Open source alternative to ' + alternativeLabelDescription + '. Check it out on OpenLib!')}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg" alt="X"> X (Twitter)</a>
-              <a class="share-option" href="https://wa.me/?text=${encodeURIComponent(app.name + ' — ' + shareUrl)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp"> WhatsApp</a>
-              <a class="share-option" href="https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(app.name + ' — Open Source Alternative to ' + alternativeLabelTitle)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/b/b4/Reddit_logo.svg" alt="Reddit"> Reddit</a>
+              <button class="share-option" data-action="copy" data-url="${esc(shareUrl)}">${iconImg("copy", "share-icon")} Copy Link</button>
+              <a class="share-option" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(app.name + ' — Open source alternative to ' + alternativeLabelDescription + '. Check it out on OpenLib!')}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener">${iconImg("x", "share-icon", "X")} X (Twitter)</a>
+              <a class="share-option" href="https://wa.me/?text=${encodeURIComponent(app.name + ' — ' + shareUrl)}" target="_blank" rel="noopener">${iconImg("whatsapp", "share-icon", "WhatsApp")} WhatsApp</a>
+              <a class="share-option" href="https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(app.name + ' — Open Source Alternative to ' + alternativeLabelTitle)}" target="_blank" rel="noopener">${iconImg("reddit", "share-icon", "Reddit")} Reddit</a>
             </div>
           </div>
         </div>
@@ -1255,22 +1326,22 @@ async function showAppDetail(appId) {
           <div class="detail-actions-row">
             <div class="vote-buttons">
               <button class="vote-btn like-btn ${userVote === 'like' ? 'active' : ''}" data-app-id="${esc(appId)}" data-vote="like">
-                👍 <span class="vote-count" id="vote-score-${esc(appId)}">${(app.likes || 0) - (app.dislikes || 0)}</span>
+                ${iconImg("like")} <span class="vote-count" id="vote-score-${esc(appId)}">${(app.likes || 0) - (app.dislikes || 0)}</span>
               </button>
               <button class="vote-btn dislike-btn ${userVote === 'dislike' ? 'active' : ''}" data-app-id="${esc(appId)}" data-vote="dislike">
-                👎
+                ${iconImg("dislike")}
               </button>
             </div>
             <div class="detail-links">
               ${isWebOnly(app.platforms)
-                ? `<a href="${esc(getAppPrimaryUrl(app))}" class="btn btn-primary btn-lg btn-open-app open-track-link" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">↗ Open App</a>`
-                : `<a href="${esc(app.download)}" class="btn btn-primary btn-lg download-track-link" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">⬇ Download</a>`}
+                ? `<a href="${esc(getAppPrimaryUrl(app))}" class="btn btn-primary btn-lg btn-open-app open-track-link" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">${iconImg("globe")} Open App</a>`
+                : `<a href="${esc(app.download)}" class="btn btn-primary btn-lg download-track-link" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">${iconImg("download")} Download</a>`}
               ${hasWebPlatform(app.platforms) && !isWebOnly(app.platforms) && app.website
-                ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-lg btn-open-web" target="_blank" rel="noopener">🌐 Open Web App</a>`
+                ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-lg btn-open-web" target="_blank" rel="noopener">${iconImg("globe")} Open Web App</a>`
                 : ''}
-              ${app.website && !isWebOnly(app.platforms) && !hasWebPlatform(app.platforms) ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">🌐 Website</a>` : ""}
+              ${app.website && !isWebOnly(app.platforms) && !hasWebPlatform(app.platforms) ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">${iconImg("globe")} Website</a>` : ""}
               <a href="${esc(app.source)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">&lt;/&gt; ${app.source?.includes("github.com") ? "GitHub" : app.source?.includes("gitlab") ? "GitLab" : app.source?.includes("bitbucket") ? "Bitbucket" : app.source?.includes("codeberg") ? "Codeberg" : app.source?.includes("sourceforge") ? "SourceForge" : "Source Code"}</a>
-              ${app.docs ? `<a href="${esc(app.docs)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">📖 Docs</a>` : ""}
+              ${app.docs ? `<a href="${esc(app.docs)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">${iconImg("link")} Docs</a>` : ""}
             </div>
           </div>
         </div>
@@ -1291,21 +1362,21 @@ async function showAppDetail(appId) {
           </div>
           <div class="video-fallback" style="display:none; margin-top:8px;">
             <p style="color: var(--text-2); font-size: 13px; margin-bottom: 8px;">Video player unavailable. </p>
-            <a href="${esc(app.youtube)}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">▶️ Watch on YouTube</a>
+            <a href="${esc(app.youtube)}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">Watch on YouTube</a>
           </div>
         </div>` : `
         <div class="detail-section video-section">
           <h3>Video</h3>
           <div class="video-fallback" style="margin-top:0;">
             <p style="color: var(--text-2); font-size: 13px; margin-bottom: 8px;">Invalid video URL. </p>
-            <a href="${esc(app.youtube)}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">▶️ Watch on YouTube</a>
+            <a href="${esc(app.youtube)}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">Watch on YouTube</a>
           </div>
         </div>`;
         })() : ""}
 
         <div class="detail-secondary-actions">
-            <button class="report-btn detail-report" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">⚑ Report this app</button>
-            <button class="btn btn-direct-edit" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">✏️ Edit App</button>
+            <button class="report-btn detail-report" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">${iconImg("alert")} Report this app</button>
+            <button class="btn btn-direct-edit" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">${iconImg("edit")} Edit App</button>
           </div>
 
         <!-- Reviews Section -->
@@ -1313,7 +1384,7 @@ async function showAppDetail(appId) {
           <div class="reviews-header">
             <h3>Reviews</h3>
             <div class="reviews-header-actions">
-              ${currentUser ? `<button class="btn btn-primary btn-sm write-review-btn" id="write-review-btn-${esc(appId)}">✏️ Write a Review</button>` : `<p class="review-signin-hint">Sign in to write a review.</p>`}
+              ${currentUser ? `<button class="btn btn-primary btn-sm write-review-btn" id="write-review-btn-${esc(appId)}">${iconImg("edit")} Write a Review</button>` : `<p class="review-signin-hint">Sign in to write a review.</p>`}
             </div>
           </div>
           ${currentUser ? `
@@ -1337,7 +1408,7 @@ async function showAppDetail(appId) {
             </form>
           </div>
           <div class="review-submitted-msg" id="review-submitted-${esc(appId)}" style="display:none;">
-            <span class="review-success-icon">✅</span> Your review has been submitted. Thank you!
+            <span class="review-success-icon">${iconImg("verified")}</span> Your review has been submitted. Thank you!
           </div>` : ""}
           <div class="reviews-list reviews-preview" id="reviews-list-${esc(appId)}">
             <p class="er-loading">Loading reviews…</p>
@@ -1552,7 +1623,7 @@ async function showAppDetail(appId) {
     } catch (err) {
       showToast(err.message || "Failed to submit claim");
       btn.disabled = false;
-      btn.textContent = "🔑 Claim App Ownership";
+      btn.innerHTML = `${iconImg("account")} Claim App Ownership`;
     }
   });
 
@@ -1663,8 +1734,8 @@ function renderReviewCard(r, showVoteState = false) {
       ${r.title ? `<h4 class="review-title">${esc(r.title)}</h4>` : ""}
       <p class="review-text">${esc(r.text)}</p>
       <div class="review-actions">
-        <button class="review-helpful-btn${helpfulActive}" data-review-id="${esc(r.id)}" data-vote-type="helpful">👍 Helpful (${r.helpful || 0})</button>
-        <button class="review-helpful-btn${unhelpfulActive}" data-review-id="${esc(r.id)}" data-vote-type="unhelpful">👎 (${r.unhelpful || 0})</button>
+        <button class="review-helpful-btn${helpfulActive}" data-review-id="${esc(r.id)}" data-vote-type="helpful">${iconImg("like")} Helpful (${r.helpful || 0})</button>
+        <button class="review-helpful-btn${unhelpfulActive}" data-review-id="${esc(r.id)}" data-vote-type="unhelpful">${iconImg("dislike")} Not Helpful (${r.unhelpful || 0})</button>
       </div>
     </div>`;
 }
@@ -1744,7 +1815,7 @@ function setupReviewForm(appId) {
   if (currentUser) {
     getUserReviewForApp(appId, currentUser.uid).then(existing => {
       if (existing && writeBtn) {
-        writeBtn.textContent = "✅ Already Reviewed";
+        writeBtn.innerHTML = `${iconImg("verified")} Already Reviewed`;
         writeBtn.disabled = true;
         writeBtn.classList.add("review-already-done");
       }
@@ -1801,7 +1872,7 @@ function setupReviewForm(appId) {
       // Hide form, show confirmation
       if (wrapper) wrapper.style.display = "none";
       if (submittedMsg) submittedMsg.style.display = "";
-      if (writeBtn) { writeBtn.textContent = "✅ Already Reviewed"; writeBtn.disabled = true; writeBtn.classList.add("review-already-done"); }
+      if (writeBtn) { writeBtn.innerHTML = `${iconImg("verified")} Already Reviewed`; writeBtn.disabled = true; writeBtn.classList.add("review-already-done"); }
       // Reload preview
       loadAppReviewsPreview(appId);
     } catch (err) {
@@ -1825,7 +1896,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
 
   // Set app ID
   document.getElementById("er-app-id").value = appId;
-  modal.querySelector(".modal-title").textContent = `✏️ Edit App — ${appName}`;
+  modal.querySelector(".modal-title").innerHTML = `${iconImg("edit", "ui-icon modal-title-icon")} Edit App — ${esc(appName)}`;
 
   // Pre-fill placeholders with current data
   document.getElementById("er-name").placeholder = app.name || "App name";
@@ -2084,7 +2155,7 @@ async function handleEditRequestSubmit(e) {
 function verifiedBadge(record) {
   if (!record) return "";
   let badges = "";
-  if (record.teamAccount) badges += '<span class="badge badge-team" title="Team Account">⚡ Team</span>';
+  if (record.teamAccount) badges += `<span class="badge badge-team" title="Team Account">${iconImg("account")} Team</span>`;
   if (record.verified) badges += '<span class="badge badge-verified" title="Verified">✓ Verified</span>';
   return badges;
 }
@@ -2141,7 +2212,7 @@ async function renderForYou() {
               <span class="rec-name">${esc(app.name)}</span>
               <span class="rec-cat">${esc(app.category)}</span>
             </div>
-            <span class="rec-rating">${app.avgRating ? `★ ${app.avgRating}` : `👍 ${app.likes || 0}`}</span>
+            <span class="rec-rating">${app.avgRating ? `★ ${app.avgRating}` : `${iconImg("like")} ${app.likes || 0}`}</span>
           </a>`;
       }).join("")}
     </div>
@@ -2183,7 +2254,7 @@ function renderTrendingHome() {
   if (!trending.length) { container.style.display = "none"; return; }
   container.style.display = "block";
   container.innerHTML = `
-    <h2 class="rec-title">🔥 Trending This Week</h2>
+    <h2 class="rec-title">${iconImg("time", "ui-icon title-icon")} Trending This Week</h2>
     <div class="rec-grid">
       ${trending.map(app => {
         const logoHtml = app.logo
@@ -2196,7 +2267,7 @@ function renderTrendingHome() {
               <span class="rec-name">${esc(app.name)}</span>
               <span class="rec-cat">${esc(app.category)}</span>
             </div>
-            <span class="rec-rating">${app.avgRating ? `★ ${app.avgRating}` : `👍 ${app.likes || 0}`}</span>
+            <span class="rec-rating">${app.avgRating ? `★ ${app.avgRating}` : `${iconImg("like")} ${app.likes || 0}`}</span>
           </a>`;
       }).join("")}
     </div>
@@ -2232,9 +2303,9 @@ function showTrending(period = "week") {
             <span class="ranking-cat">${esc(app.category)}</span>
           </div>
           <div class="ranking-metrics">
-            <span title="Score">👍 ${(app.likes || 0) - (app.dislikes || 0)}</span>
-            <span title="Views">👁 ${app.views || 0}</span>
-            ${isWebOnly(app.platforms) ? `<span title="Opens">↗ ${app.opens || 0}</span>` : `<span title="Downloads">⬇ ${app.downloads || 0}</span>`}
+            <span title="Score">${iconImg("like")} ${(app.likes || 0) - (app.dislikes || 0)}</span>
+            <span title="Views">${iconImg("time")} ${app.views || 0}</span>
+            ${isWebOnly(app.platforms) ? `<span title="Opens">${iconImg("globe")} ${app.opens || 0}</span>` : `<span title="Downloads">${iconImg("download")} ${app.downloads || 0}</span>`}
           </div>
         </a>`;
     }).join("") || '<div class="empty-state"><h3>No trending apps for this period</h3></div>';
@@ -2244,7 +2315,7 @@ function showTrending(period = "week") {
   view.innerHTML = `
     <div class="rankings-page">
       <a href="/" class="back-link">← Back to library</a>
-      <h1 class="rankings-title">🔥 Trending Apps</h1>
+      <h1 class="rankings-title">${iconImg("time", "ui-icon title-icon")} Trending Apps</h1>
       <p class="rankings-subtitle">Most active apps based on views, likes, and usage</p>
       <div class="trending-filters">
         ${["today", "week", "month"].map(p => `<button class="trending-filter-btn${p === period ? " active" : ""}" data-period="${p}">${periodLabels[p]}</button>`).join("")}
@@ -2335,7 +2406,7 @@ async function showProfile(uid) {
 
       ${isOwnProfile && ["admin", "openlib-team"].includes(record.role) ? `
         <div class="profile-team-actions">
-          <a href="/verify" class="btn btn-primary btn-verify-submissions" id="verify-submissions-btn">🛡️ Verify App Submissions</a>
+          <a href="/verify" class="btn btn-primary btn-verify-submissions" id="verify-submissions-btn">${iconImg("protect")} Verify App Submissions</a>
         </div>
       ` : ""}
 
@@ -2373,7 +2444,7 @@ async function showProfile(uid) {
         <div class="profile-list">
           ${orgs.length ? orgs.map(org => `
             <a href="/org/${esc(org.id)}" class="profile-list-item">
-              <span class="org-icon">🏢</span>
+              <span class="org-icon">${iconImg("account", "ui-icon title-icon")}</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(org.name)} ${org.verified ? '<span class="badge badge-verified">✓</span>' : ""}</span>
                 <span class="profile-list-meta">${org.members?.length || 0} members · ${org.apps?.length || 0} apps</span>
@@ -2389,7 +2460,7 @@ async function showProfile(uid) {
         <div class="profile-list">
           ${userApps.length ? userApps.map(app => `
             <a href="/app/${esc(app.id)}" class="profile-list-item">
-              <span class="org-icon">📦</span>
+              <span class="org-icon">${iconImg("verified", "ui-icon title-icon")}</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(app.name)}</span>
                 <span class="profile-list-meta">${esc(app.category)} · ${app.views || 0} views</span>
@@ -2403,7 +2474,7 @@ async function showProfile(uid) {
         <h3>Edit Requests (${editReqs.length})</h3>
         <div class="profile-list">
           ${editReqs.length ? editReqs.slice(0, 10).map(er => {
-            const statusIcon = er.status === "open" ? "🟢" : er.status === "merged" ? "🟣" : "🔴";
+            const statusIcon = statusIconFor(er.status);
             return `
               <div class="profile-list-item">
                 <span class="org-icon">${statusIcon}</span>
@@ -2425,7 +2496,7 @@ async function showProfile(uid) {
               <span class="org-icon">★</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(app.name)}</span>
-                <span class="profile-list-meta">${esc(app.category)} · 👍 ${app.likes || 0}</span>
+                <span class="profile-list-meta">${esc(app.category)} · ${iconImg("like")} ${app.likes || 0}</span>
               </div>
             </a>
           `).join("") : `<p class="profile-empty">No saved apps yet. Bookmark apps to find them here.</p>`}
@@ -2438,7 +2509,7 @@ async function showProfile(uid) {
         <h3>My Submissions (${userSubs.length})</h3>
         <div class="profile-list">
           ${userSubs.map(sub => {
-            const statusIcon = sub.status === "pending" ? "🟡" : sub.status === "approved" ? "🟢" : sub.status === "rejected" ? "🔴" : sub.status === "changes_requested" ? "🟠" : "⚪";
+            const statusIcon = statusIconFor(sub.status);
             const statusLabel = sub.status === "changes_requested" ? "Changes Requested" : sub.status.charAt(0).toUpperCase() + sub.status.slice(1);
             return `
               <div class="profile-list-item submission-item" data-sub-id="${esc(sub.id)}">
@@ -2446,8 +2517,8 @@ async function showProfile(uid) {
                 <div class="profile-list-info">
                   <span class="profile-list-name">${esc(sub.name)}</span>
                   <span class="profile-list-meta">${esc(statusLabel)} · ${esc(sub.category)} · ${new Date(sub.createdAt || sub.timestamp).toLocaleDateString()}</span>
-                  ${sub.status === "changes_requested" && sub.changesComment ? `<span class="profile-list-feedback">💬 "${esc(sub.changesComment)}"</span>` : ""}
-                  ${sub.status === "rejected" && sub.rejectReason ? `<span class="profile-list-feedback">❌ "${esc(sub.rejectReason)}"</span>` : ""}
+                  ${sub.status === "changes_requested" && sub.changesComment ? `<span class="profile-list-feedback">${iconImg("edit")} "${esc(sub.changesComment)}"</span>` : ""}
+                  ${sub.status === "rejected" && sub.rejectReason ? `<span class="profile-list-feedback">${iconImg("alert")} "${esc(sub.rejectReason)}"</span>` : ""}
                 </div>
                 ${sub.status === "changes_requested" ? `<button class="btn btn-sm btn-primary sub-edit-btn" data-sub-id="${esc(sub.id)}">Edit & Resubmit</button>` : ""}
               </div>`;
@@ -2551,10 +2622,10 @@ async function showOrgView(orgId) {
     <div class="org-page">
       <a href="/" class="back-link">← Back to library</a>
       <div class="org-header">
-        ${org.logoURL ? `<img class="org-logo" src="${escUrl(org.logoURL)}" alt="" data-fallback-char="?">` : `<div class="org-logo-fallback">🏢</div>`}
+        ${org.logoURL ? `<img class="org-logo" src="${escUrl(org.logoURL)}" alt="" data-fallback-char="?">` : `<div class="org-logo-fallback">${iconImg("account", "ui-icon title-icon")}</div>`}
         <div class="org-header-text">
           <h1 class="org-name">${esc(org.name)} ${org.verified ? '<span class="badge badge-verified">✓ Verified</span>' : ""}</h1>
-          ${org.ownerType === "corporation" ? `<span class="badge badge-corp">🏛 Corporation: ${esc(org.corporationName || "")}</span>` : ""}
+          ${org.ownerType === "corporation" ? `<span class="badge badge-corp">${iconImg("account")} Corporation: ${esc(org.corporationName || "")}</span>` : ""}
           ${org.description ? `<p class="org-desc">${esc(org.description)}</p>` : ""}
           ${org.website ? `<a href="${esc(org.website)}" class="org-website" target="_blank" rel="noopener">${esc(org.website)}</a>` : ""}
           <p class="org-meta">Created ${new Date(org.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}</p>
@@ -2618,10 +2689,10 @@ async function showOrgView(orgId) {
         <div class="profile-list">
           ${orgApps.length ? orgApps.map(app => `
             <a href="/app/${esc(app.id)}" class="profile-list-item">
-              <span class="org-icon">📦</span>
+              <span class="org-icon">${iconImg("verified", "ui-icon title-icon")}</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(app.name)}</span>
-                <span class="profile-list-meta">${esc(app.category)} · 👍 ${app.likes || 0}</span>
+                <span class="profile-list-meta">${esc(app.category)} · ${iconImg("like")} ${app.likes || 0}</span>
               </div>
             </a>
           `).join("") : `<p class="profile-empty">No apps yet.</p>`}
@@ -2706,9 +2777,9 @@ async function showVerifySubmissions() {
     verifyView.innerHTML = `
       <div class="verify-page">
         <a href="/profile" class="back-link">← Back to profile</a>
-        <h1 class="verify-title">🛡️ Verify App Submissions</h1>
+        <h1 class="verify-title">${iconImg("protect", "ui-icon title-icon")} Verify App Submissions</h1>
         <div class="admin-error-banner">
-          <strong>⚠️ Failed to load submissions:</strong> ${esc(loadError)}
+          <strong>${iconImg("alert")} Failed to load submissions:</strong> ${esc(loadError)}
           <p>This may be caused by missing Firestore indexes or permission issues. Check the browser console for details.</p>
         </div>
       </div>`;
@@ -2723,7 +2794,7 @@ async function showVerifySubmissions() {
   verifyView.innerHTML = `
     <div class="verify-page">
       <a href="/profile" class="back-link">← Back to profile</a>
-      <h1 class="verify-title">🛡️ Verify App Submissions</h1>
+      <h1 class="verify-title">${iconImg("protect", "ui-icon title-icon")} Verify App Submissions</h1>
       <p class="verify-subtitle">Review, accept, reject, or request changes on submitted apps.</p>
 
       <div class="verify-stats">
@@ -2734,10 +2805,10 @@ async function showVerifySubmissions() {
       </div>
 
       <div class="sub-filters" id="verify-filters">
-        <button class="sub-filter-btn active" data-filter="pending">🟡 Pending (${pendingCount})</button>
-        <button class="sub-filter-btn" data-filter="changes_requested">🟠 Changes Requested (${changesCount})</button>
-        <button class="sub-filter-btn" data-filter="approved">🟢 Approved (${approvedCount})</button>
-        <button class="sub-filter-btn" data-filter="rejected">🔴 Rejected (${rejectedCount})</button>
+        <button class="sub-filter-btn active" data-filter="pending">Pending (${pendingCount})</button>
+        <button class="sub-filter-btn" data-filter="changes_requested">Changes Requested (${changesCount})</button>
+        <button class="sub-filter-btn" data-filter="approved">Approved (${approvedCount})</button>
+        <button class="sub-filter-btn" data-filter="rejected">Rejected (${rejectedCount})</button>
         <button class="sub-filter-btn" data-filter="all">All (${submissions.length})</button>
       </div>
 
@@ -2769,7 +2840,7 @@ function renderVerifyCards(submissions, filter) {
   if (!filtered.length) return `<p class="admin-empty">No ${filter === "all" ? "" : filter.replace("_", " ")} submissions.</p>`;
 
   return filtered.map(sub => {
-    const statusIcon = sub.status === "pending" ? "🟡" : sub.status === "approved" ? "🟢" : sub.status === "rejected" ? "🔴" : sub.status === "changes_requested" ? "🟠" : "⚪";
+    const statusIcon = sub.status === "approved" ? iconImg("verified") : sub.status === "rejected" ? iconImg("alert") : iconImg("time");
     const statusLabel = sub.status === "changes_requested" ? "Changes Requested" : (sub.status || "unknown").charAt(0).toUpperCase() + (sub.status || "unknown").slice(1);
     const canAct = sub.status === "pending" || sub.status === "changes_requested";
 
@@ -2802,7 +2873,7 @@ function renderVerifyCards(submissions, filter) {
           <div class="verify-field"><label>Download</label><p>${sub.download ? `<a href="${esc(sub.download)}" target="_blank" rel="noopener">${esc(sub.download)}</a>` : "—"}</p></div>
           <div class="verify-field"><label>Source Code</label><p>${sub.source ? `<a href="${esc(sub.source)}" target="_blank" rel="noopener">${esc(sub.source)}</a>` : "—"}</p></div>
         </div>
-        ${isWebOnly(sub.platforms) ? `<div class="verify-web-notice"><span class="web-only-label">🌐 Runs in browser</span> — This is a web-only app. Website URL is the primary access link.</div>` : ''}
+        ${isWebOnly(sub.platforms) ? `<div class="verify-web-notice"><span class="web-only-label">${iconImg("globe")} Runs in browser</span> — This is a web-only app. Website URL is the primary access link.</div>` : ''}
         <div class="verify-field-row">
           <div class="verify-field"><label>Website</label><p>${sub.website ? `<a href="${esc(sub.website)}" target="_blank" rel="noopener">${esc(sub.website)}</a>` : "—"}</p></div>
           <div class="verify-field"><label>Documentation</label><p>${sub.docs ? `<a href="${esc(sub.docs)}" target="_blank" rel="noopener">${esc(sub.docs)}</a>` : "—"}</p></div>
@@ -2832,7 +2903,7 @@ function renderVerifyCards(submissions, filter) {
         </div>
         ${sub.ownerType === "organization" ? `
         <div class="verify-field-row">
-          <div class="verify-field"><label>Owner Type</label><p>🏢 Organization</p></div>
+          <div class="verify-field"><label>Owner Type</label><p>${iconImg("account")} Organization</p></div>
           <div class="verify-field"><label>Organization</label><p>${sub.orgName ? `<a href="/org/${esc(sub.ownerId)}">${esc(sub.orgName)}</a>` : esc(sub.ownerId || "—")}</p></div>
           ${sub.submittedByName ? `<div class="verify-field"><label>Submitted by member</label><p>${esc(sub.submittedByName)}</p></div>` : ""}
         </div>
@@ -2842,17 +2913,17 @@ function renderVerifyCards(submissions, filter) {
 
       ${sub.status === "changes_requested" && sub.changesComment ? `
         <div class="verify-feedback verify-feedback-changes">
-          <strong>💬 Requested changes:</strong> ${esc(sub.changesComment)}
+          <strong>${iconImg("edit")} Requested changes:</strong> ${esc(sub.changesComment)}
         </div>
       ` : ""}
       ${sub.status === "rejected" && sub.rejectReason ? `
         <div class="verify-feedback verify-feedback-rejected">
-          <strong>❌ Rejection reason:</strong> ${esc(sub.rejectReason)}
+          <strong>${iconImg("alert")} Rejection reason:</strong> ${esc(sub.rejectReason)}
         </div>
       ` : ""}
       ${sub.status === "approved" && sub.reviewedBy ? `
         <div class="verify-feedback verify-feedback-approved">
-          <strong>✅ Approved</strong> on ${sub.reviewedAt ? new Date(sub.reviewedAt).toLocaleDateString() : ""}
+          <strong>${iconImg("verified")} Approved</strong> on ${sub.reviewedAt ? new Date(sub.reviewedAt).toLocaleDateString() : ""}
         </div>
       ` : ""}
 
@@ -3018,12 +3089,12 @@ async function showOpenLibTeamPage() {
           <h1 class="team-profile-name">${esc(config.displayName || "OpenLib")} <span class="badge badge-role badge-admin">Official</span></h1>
           <p class="team-profile-bio">${esc(config.bio || "")}</p>
           <div class="team-profile-links">
-            ${config.website ? `<a href="${esc(config.website)}" target="_blank" rel="noopener" class="team-link">🌐 Website</a>` : ""}
-            ${config.github ? `<a href="${esc(config.github)}" target="_blank" rel="noopener" class="team-link">💻 GitHub</a>` : ""}
-            ${config.established ? `<span class="team-link-text">📅 Est. ${esc(config.established)}</span>` : ""}
+            ${config.website ? `<a href="${esc(config.website)}" target="_blank" rel="noopener" class="team-link">${iconImg("globe")} Website</a>` : ""}
+            ${config.github ? `<a href="${esc(config.github)}" target="_blank" rel="noopener" class="team-link">${iconImg("link")} GitHub</a>` : ""}
+            ${config.established ? `<span class="team-link-text">${iconImg("time")} Est. ${esc(config.established)}</span>` : ""}
           </div>
         </div>
-        ${canManage ? `<a href="/team/manage" class="btn btn-secondary team-manage-btn" id="team-manage-link">⚙️ Manage Team</a>` : ""}
+        ${canManage ? `<a href="/team/manage" class="btn btn-secondary team-manage-btn" id="team-manage-link">${iconImg("settings")} Manage Team</a>` : ""}
       </div>
 
       <!-- Team Stats -->
@@ -3048,7 +3119,7 @@ async function showOpenLibTeamPage() {
 
       <!-- Admins Section -->
       <div class="team-section">
-        <h2 class="team-section-title">👑 Admins</h2>
+        <h2 class="team-section-title">${iconImg("protect", "ui-icon title-icon")} Admins</h2>
         <p class="team-section-desc">Full platform control — manage apps, users, teams, and all settings.</p>
         <div class="team-members-grid">
           ${admins.length ? admins.map(m => renderTeamMemberCard(m, "admin")).join("") : `<p class="team-empty">No admins configured.</p>`}
@@ -3057,7 +3128,7 @@ async function showOpenLibTeamPage() {
 
       <!-- Team Members Section -->
       <div class="team-section">
-        <h2 class="team-section-title">⚡ Team Members</h2>
+        <h2 class="team-section-title">${iconImg("account", "ui-icon title-icon")} Team Members</h2>
         <p class="team-section-desc">Review submissions, curate apps, and assist with platform moderation. Permissions set by admins.</p>
         <div class="team-members-grid">
           ${teamMembers.length ? teamMembers.map(m => renderTeamMemberCard(m, "openlib-team")).join("") : `<p class="team-empty">No team members yet.</p>`}
@@ -3066,7 +3137,7 @@ async function showOpenLibTeamPage() {
 
       <!-- Curated Apps Preview -->
       <div class="team-section">
-        <h2 class="team-section-title">📦 Recently Curated</h2>
+        <h2 class="team-section-title">${iconImg("verified", "ui-icon title-icon")} Recently Curated</h2>
         <div class="team-curated-grid">
           ${teamApps.slice(0, 8).map(a => `
             <a href="/app/${esc(a.id)}" class="team-curated-card">
@@ -3171,7 +3242,7 @@ async function showTeamManagePage() {
   manageView.innerHTML = `
     <div class="team-manage-page">
       <a href="/team" class="back-link">← Back to team page</a>
-      <h1 class="admin-title">⚙️ Team Management</h1>
+      <h1 class="admin-title">${iconImg("settings", "ui-icon title-icon")} Team Management</h1>
 
       <!-- Tabs -->
       <div class="admin-tabs">
@@ -3254,12 +3325,12 @@ function renderTMMembersTab(members) {
     <div class="tm-section">
       <h3>Current Team (${members.length})</h3>
 
-      <h4 class="tm-sub-title">👑 Admins (${admins.length})</h4>
+      <h4 class="tm-sub-title">${iconImg("protect")} Admins (${admins.length})</h4>
       <div class="tm-members-list">
         ${admins.map(m => renderTMMemberRow(m, false)).join("")}
       </div>
 
-      <h4 class="tm-sub-title" style="margin-top:20px">⚡ Team Members (${team.length})</h4>
+      <h4 class="tm-sub-title" style="margin-top:20px">${iconImg("account")} Team Members (${team.length})</h4>
       <div class="tm-members-list">
         ${team.length ? team.map(m => renderTMMemberRow(m, true)).join("") : `<p class="team-empty">No team members. Use the "Add Member" tab.</p>`}
       </div>
@@ -3524,7 +3595,7 @@ async function showAdminDashboard() {
 
   const errorBanner = loadErrors.length ? `
     <div class="admin-error-banner">
-      <strong>⚠️ Some data failed to load:</strong>
+      <strong>${iconImg("alert")} Some data failed to load:</strong>
       <ul>${loadErrors.map(e => `<li>${esc(e)}</li>`).join("")}</ul>
       <p>This may be caused by missing Firestore indexes or permission issues. Check the browser console for details.</p>
     </div>` : "";
@@ -3534,7 +3605,7 @@ async function showAdminDashboard() {
   adminView.innerHTML = `
     <div class="admin-page">
       <a href="/" class="back-link">← Back to library</a>
-      <h1 class="admin-title">⚙️ Admin Dashboard</h1>
+      <h1 class="admin-title">${iconImg("settings", "ui-icon title-icon")} Admin Dashboard</h1>
       ${errorBanner}
 
       <div class="admin-stats">
@@ -3587,15 +3658,15 @@ function renderAdminSubmissions(submissions) {
   const statusFilters = `
     <div class="sub-filters">
       <button class="sub-filter-btn active" data-filter="all">All (${submissions.length})</button>
-      <button class="sub-filter-btn" data-filter="pending">🟡 Pending (${submissions.filter(s => s.status === "pending").length})</button>
-      <button class="sub-filter-btn" data-filter="changes_requested">🟠 Changes Requested (${submissions.filter(s => s.status === "changes_requested").length})</button>
-      <button class="sub-filter-btn" data-filter="approved">🟢 Approved (${submissions.filter(s => s.status === "approved").length})</button>
-      <button class="sub-filter-btn" data-filter="rejected">🔴 Rejected (${submissions.filter(s => s.status === "rejected").length})</button>
+      <button class="sub-filter-btn" data-filter="pending">Pending (${submissions.filter(s => s.status === "pending").length})</button>
+      <button class="sub-filter-btn" data-filter="changes_requested">Changes Requested (${submissions.filter(s => s.status === "changes_requested").length})</button>
+      <button class="sub-filter-btn" data-filter="approved">Approved (${submissions.filter(s => s.status === "approved").length})</button>
+      <button class="sub-filter-btn" data-filter="rejected">Rejected (${submissions.filter(s => s.status === "rejected").length})</button>
     </div>
   `;
 
   const cards = submissions.map(sub => {
-    const statusIcon = sub.status === "pending" ? "🟡" : sub.status === "approved" ? "🟢" : sub.status === "rejected" ? "🔴" : sub.status === "changes_requested" ? "🟠" : "⚪";
+    const statusIcon = statusIconFor(sub.status);
     const statusLabel = sub.status === "changes_requested" ? "Changes Requested" : (sub.status || "unknown").charAt(0).toUpperCase() + (sub.status || "unknown").slice(1);
     const canAct = sub.status === "pending" || sub.status === "changes_requested";
 
@@ -3650,7 +3721,7 @@ function renderAdminSubmissions(submissions) {
         </div>
         <div class="sub-review-row">
           <span class="sub-review-label">Screenshots</span>
-          <span class="sub-review-value">${(sub.screenshots || []).length ? sub.screenshots.map(s => `<a href="${escUrl(s)}" target="_blank" rel="noopener" class="sub-screenshot-link">📸 ${esc(s.split('/').pop())}</a>`).join(" ") : "—"}</span>
+          <span class="sub-review-value">${(sub.screenshots || []).length ? sub.screenshots.map(s => `<a href="${escUrl(s)}" target="_blank" rel="noopener" class="sub-screenshot-link">${iconImg("link")} ${esc(s.split('/').pop())}</a>`).join(" ") : "—"}</span>
         </div>
         <div class="sub-review-row">
           <span class="sub-review-label">Install Methods</span>
@@ -3662,7 +3733,7 @@ function renderAdminSubmissions(submissions) {
           <span class="sub-review-value">
             <span class="sub-submitter-uid" title="${esc(sub.userId || "")}">${esc(sub.userId ? sub.userId.slice(0, 12) + "…" : "—")}</span>
             ${(sub.userEmail || sub.submitterEmail) ? ` <span class="sub-submitter-email">(${esc(sub.userEmail || sub.submitterEmail)})</span>` : ""}
-            <button class="btn btn-sm btn-secondary sub-lookup-user-btn" data-uid="${esc(sub.userId || "")}" title="Lookup submitter profile">👤 Lookup</button>
+            <button class="btn btn-sm btn-secondary sub-lookup-user-btn" data-uid="${esc(sub.userId || "")}" title="Lookup submitter profile">${iconImg("account")} Lookup</button>
           </span>
         </div>
         ${sub.updatedAt ? `<div class="sub-review-row"><span class="sub-review-label">Last updated</span><span class="sub-review-value">${new Date(sub.updatedAt).toLocaleString()}</span></div>` : ""}
@@ -3670,12 +3741,12 @@ function renderAdminSubmissions(submissions) {
 
       ${sub.status === "changes_requested" && sub.changesComment ? `
         <div class="sub-review-feedback">
-          <strong>💬 Requested changes:</strong> ${esc(sub.changesComment)}
+          <strong>${iconImg("edit")} Requested changes:</strong> ${esc(sub.changesComment)}
         </div>
       ` : ""}
       ${sub.status === "rejected" && sub.rejectReason ? `
         <div class="sub-review-feedback sub-review-rejected">
-          <strong>❌ Rejection reason:</strong> ${esc(sub.rejectReason)}
+          <strong>${iconImg("alert")} Rejection reason:</strong> ${esc(sub.rejectReason)}
         </div>
       ` : ""}
 
@@ -3712,12 +3783,12 @@ function renderAdminEditRequests(editRequests) {
       <div class="admin-card" data-id="${esc(er.id)}">
         <div class="admin-card-header">
           <strong>App: ${esc(er.appId)}</strong>
-          <span class="changelog-type changelog-status-open">🟢 open</span>
+          <span class="changelog-type changelog-status-open">${statusIconFor("open")} open</span>
           <span class="admin-card-date">${new Date(er.createdAt).toLocaleDateString()}</span>
         </div>
         <div class="changelog-tags">
           ${changedFields.map(f => `<span class="changelog-field-tag">${esc(FIELD_LABELS[f] || f)}</span>`).join("")}
-          <button class="btn btn-sm btn-secondary changelog-diff-toggle er-diff-toggle" data-er-id="${esc(er.id)}" data-app-id="${esc(er.appId)}" data-changes="${encodeURIComponent(JSON.stringify(er.changes || {}))}">📋 View Changes (${changedFields.length})</button>
+          <button class="btn btn-sm btn-secondary changelog-diff-toggle er-diff-toggle" data-er-id="${esc(er.id)}" data-app-id="${esc(er.appId)}" data-changes="${encodeURIComponent(JSON.stringify(er.changes || {}))}">${iconImg("edit")} View Changes (${changedFields.length})</button>
         </div>
         <div class="changelog-diff-panel er-diff-container" id="er-diff-${esc(er.id)}"></div>
         ${er.changes?.reason ? `<p class="changelog-message" style="font-style:italic;color:var(--text-2);padding-left:10px;border-left:2px solid var(--border-2);">"${esc(er.changes.reason)}"</p>` : ""}
@@ -3752,7 +3823,7 @@ function renderAdminUsers(users) {
               ${u.verified ? "✓ Verified" : "Verify"}
             </button>
             <button class="btn btn-sm ${u.teamAccount ? 'btn-active' : 'btn-secondary'} admin-toggle-team" data-uid="${esc(u.uid)}" data-team="${u.teamAccount}">
-              ${u.teamAccount ? "⚡ Team" : "Set Team"}
+              ${u.teamAccount ? `${iconImg("account")} Team` : "Set Team"}
             </button>
           </div>
         </div>
@@ -3783,7 +3854,7 @@ function renderAdminAddApp() {
           <div class="logo-input-group">
             <input type="url" id="aa-logo" placeholder="https://…/logo.png" class="logo-url-input">
             <span class="logo-or">or</span>
-            <label class="logo-upload-label" for="aa-logo-file">📁 Upload</label>
+            <label class="logo-upload-label" for="aa-logo-file">${iconImg("upload")} Upload</label>
             <input type="file" id="aa-logo-file" accept=".jpg,.jpeg,.png,.webp" class="logo-file-input">
             <span class="logo-file-name" id="aa-logo-filename"></span>
           </div>
@@ -3854,7 +3925,7 @@ function renderAdminAddApp() {
           <div class="form-group"><label for="aa-filesize">File Size <span class="optional">(optional)</span></label><input type="text" id="aa-filesize" maxlength="30" placeholder="e.g. 45 MB"></div>
           <div class="form-group"><label for="aa-tags">Tags <span class="optional">(comma-separated)</span></label><input type="text" id="aa-tags" maxlength="200" placeholder="privacy, encryption, chat"></div>
         </div>
-        <div class="form-group"><label for="aa-features">Key Features <span class="optional">(one per line)</span></label><textarea id="aa-features" rows="4" maxlength="2000" placeholder="🎥 Live streaming&#10;🎙 Audio mixing&#10;🖥 Multi-scene support"></textarea></div>
+        <div class="form-group"><label for="aa-features">Key Features <span class="optional">(one per line)</span></label><textarea id="aa-features" rows="4" maxlength="2000" placeholder="Live streaming&#10;Audio mixing&#10;Multi-scene support"></textarea></div>
       </fieldset>
 
       <!-- ── Section: Media ── -->
@@ -3865,7 +3936,7 @@ function renderAdminAddApp() {
           <div class="screenshot-upload-area" id="aa-screenshot-area">
             <div class="screenshot-previews" id="aa-screenshot-previews"></div>
             <div class="screenshot-controls">
-              <label class="btn btn-secondary btn-sm screenshot-upload-btn" for="aa-screenshot-files">📁 Upload Images</label>
+              <label class="btn btn-secondary btn-sm screenshot-upload-btn" for="aa-screenshot-files">${iconImg("upload")} Upload Images</label>
               <input type="file" id="aa-screenshot-files" accept=".jpg,.jpeg,.png,.webp" multiple class="screenshot-file-input">
               <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 6 screenshots</span>
             </div>
@@ -3893,14 +3964,14 @@ function renderAdminAddApp() {
         <div class="form-group">
           <label>Supported Platforms <span class="required">*</span></label>
           <div class="checkbox-group">
-            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Linux"> 🐧 Linux</label>
-            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Windows"> 🪟 Windows</label>
-            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="macOS"> 🍎 macOS</label>
-            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Android"> 🤖 Android</label>
-            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="iOS"> 📱 iOS</label>
-            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Web"> 🌐 Web</label>
+            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Linux"> ${platformIcon("Linux")} Linux</label>
+            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Windows"> ${platformIcon("Windows")} Windows</label>
+            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="macOS"> ${platformIcon("macOS")} macOS</label>
+            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Android"> ${platformIcon("Android")} Android</label>
+            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="iOS"> ${platformIcon("iOS")} iOS</label>
+            <label class="checkbox-label"><input type="checkbox" name="aa-platforms" value="Web"> ${platformIcon("Web")} Web</label>
           </div>
-          <span class="web-only-label initially-hidden" id="aa-web-only-badge">🌐 Web-only app detected</span>
+          <span class="web-only-label initially-hidden" id="aa-web-only-badge">${iconImg("globe")} Web-only app detected</span>
           <p class="web-only-hint initially-hidden" id="aa-web-only-hint">This app runs in the browser — users will open it instead of downloading.<br><span class="web-only-preview-hint">Detail page button will show "Open App" instead of "Download"</span></p>
         </div>
         <div class="form-group"><label for="aa-install-methods">Installation Methods <span class="optional">(one per line: label | command or URL)</span></label><textarea id="aa-install-methods" rows="3" maxlength="2000" placeholder="apt | sudo apt install appname&#10;brew | brew install appname&#10;winget | winget install AppName"></textarea></div>
@@ -3909,7 +3980,7 @@ function renderAdminAddApp() {
 
       <!-- ── Section: Admin / Moderation ── -->
       <fieldset class="admin-fieldset admin-fieldset-mod">
-        <legend class="admin-fieldset-legend">🔒 Admin Controls</legend>
+        <legend class="admin-fieldset-legend">${iconImg("settings")} Admin Controls</legend>
         <div class="form-row">
           <div class="form-group"><label for="aa-added-by">Added By <span class="required">*</span></label>
             <select id="aa-added-by" required>
@@ -3942,7 +4013,7 @@ function renderAdminAddApp() {
 
       <div class="form-msg" role="alert"></div>
       <div class="admin-form-actions">
-        <button type="submit" class="btn btn-primary btn-lg">🚀 Publish App (Admin)</button>
+        <button type="submit" class="btn btn-primary btn-lg">${iconImg("upload")} Publish App (Admin)</button>
         <button type="reset" class="btn btn-secondary">Reset Form</button>
       </div>
     </form>`;
@@ -3955,14 +4026,14 @@ function renderAdminReports(reports) {
   const statusFilters = `
     <div class="sub-filters">
       <button class="sub-filter-btn active" data-filter="all">All (${reports.length})</button>
-      <button class="sub-filter-btn" data-filter="pending">🟡 Pending (${reports.filter(r => r.status === "pending").length})</button>
-      <button class="sub-filter-btn" data-filter="under_review">🔵 Under Review (${reports.filter(r => r.status === "under_review").length})</button>
-      <button class="sub-filter-btn" data-filter="resolved">🟢 Resolved (${reports.filter(r => r.status === "resolved").length})</button>
-      <button class="sub-filter-btn" data-filter="rejected">🔴 Rejected (${reports.filter(r => r.status === "rejected").length})</button>
+      <button class="sub-filter-btn" data-filter="pending">Pending (${reports.filter(r => r.status === "pending").length})</button>
+      <button class="sub-filter-btn" data-filter="under_review">Under Review (${reports.filter(r => r.status === "under_review").length})</button>
+      <button class="sub-filter-btn" data-filter="resolved">Resolved (${reports.filter(r => r.status === "resolved").length})</button>
+      <button class="sub-filter-btn" data-filter="rejected">Rejected (${reports.filter(r => r.status === "rejected").length})</button>
     </div>`;
 
   const cards = reports.map(r => {
-    const statusIcon = r.status === "pending" ? "🟡" : r.status === "under_review" ? "🔵" : r.status === "resolved" ? "🟢" : r.status === "rejected" ? "🔴" : "⚪";
+    const statusIcon = statusIconFor(r.status);
     const statusLabel = r.status === "under_review" ? "Under Review" : (r.status || "unknown").charAt(0).toUpperCase() + (r.status || "unknown").slice(1);
     const canAct = r.status === "pending" || r.status === "under_review";
     const date = (r.createdAt || r.timestamp) ? new Date(r.createdAt || r.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
@@ -3976,14 +4047,14 @@ function renderAdminReports(reports) {
             <span class="report-status-icon">${statusIcon}</span>
             <strong>${esc(r.appName || r.appId)}</strong>
             <span class="badge badge-role">${esc(statusLabel)}</span>
-            ${appModStatus !== "active" ? `<span class="badge badge-mod-${esc(appModStatus)}">${appModStatus === "restricted" ? "⚠️ Restricted" : "🚫 Removed"}</span>` : ""}
+            ${appModStatus !== "active" ? `<span class="badge badge-mod-${esc(appModStatus)}">${iconImg("alert")} ${appModStatus === "restricted" ? "Restricted" : "Removed"}</span>` : ""}
           </div>
           <span class="report-card-date">${date}</span>
         </div>
         <div class="report-card-body">
           <div class="report-field"><span class="report-field-label">Reason:</span> <span class="report-field-value">${esc(r.reason)}</span></div>
           <div class="report-field"><span class="report-field-label">Details:</span> <span class="report-field-value">${esc(r.details || "No additional details")}</span></div>
-          <div class="report-field"><span class="report-field-label">Reporter:</span> <span class="report-field-value">${esc(r.userId || "Anonymous")}</span> <button class="btn btn-secondary btn-xs report-lookup-user" data-uid="${esc(r.userId || "")}">👤 Lookup</button></div>
+          <div class="report-field"><span class="report-field-label">Reporter:</span> <span class="report-field-value">${esc(r.userId || "Anonymous")}</span> <button class="btn btn-secondary btn-xs report-lookup-user" data-uid="${esc(r.userId || "")}">${iconImg("account")} Lookup</button></div>
           <div class="report-field"><span class="report-field-label">App:</span> <a href="/app/${esc(r.appId)}" class="report-app-link">${esc(r.appName || r.appId)} →</a></div>
           ${r.adminNotes ? `<div class="report-field"><span class="report-field-label">Admin Notes:</span> <span class="report-field-value">${esc(r.adminNotes)}</span></div>` : ""}
           ${r.resolvedBy ? `<div class="report-field"><span class="report-field-label">Resolved by:</span> <span class="report-field-value">${esc(r.resolvedBy)}</span></div>` : ""}
@@ -3991,16 +4062,16 @@ function renderAdminReports(reports) {
         ${canAct ? `
         <div class="report-card-actions">
           <div class="report-actions-row">
-            <button class="btn btn-primary btn-sm report-resolve-btn" data-id="${esc(r.id)}">✅ Resolve</button>
-            <button class="btn btn-secondary btn-sm report-reject-btn" data-id="${esc(r.id)}">❌ Reject</button>
-            <button class="btn btn-secondary btn-sm report-review-btn" data-id="${esc(r.id)}">🔍 Mark Under Review</button>
+            <button class="btn btn-primary btn-sm report-resolve-btn" data-id="${esc(r.id)}">${iconImg("verified")} Resolve</button>
+            <button class="btn btn-secondary btn-sm report-reject-btn" data-id="${esc(r.id)}">${iconImg("alert")} Reject</button>
+            <button class="btn btn-secondary btn-sm report-review-btn" data-id="${esc(r.id)}">${iconImg("info")} Mark Under Review</button>
           </div>
           <div class="report-enforcement-row">
             <span class="report-enforcement-label">Enforcement:</span>
-            <button class="btn btn-warning btn-sm report-restrict-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">⚠️ Restrict App</button>
-            <button class="btn btn-danger btn-sm report-remove-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">🚫 Remove App</button>
-            <button class="btn btn-secondary btn-sm report-suspend-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">⏱️ Timed Suspension</button>
-            ${appModStatus !== "active" ? `<button class="btn btn-secondary btn-sm report-restore-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">♻️ Restore App</button>` : ""}
+            <button class="btn btn-warning btn-sm report-restrict-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">${iconImg("alert")} Restrict App</button>
+            <button class="btn btn-danger btn-sm report-remove-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">${iconImg("alert")} Remove App</button>
+            <button class="btn btn-secondary btn-sm report-suspend-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">${iconImg("time")} Timed Suspension</button>
+            ${appModStatus !== "active" ? `<button class="btn btn-secondary btn-sm report-restore-btn" data-app-id="${esc(r.appId)}" data-app-name="${esc(r.appName || r.appId)}">${iconImg("verified")} Restore App</button>` : ""}
           </div>
         </div>` : ""}
       </div>`;
@@ -4108,7 +4179,7 @@ function attachAdminHandlers(tab) {
           showToast("Lookup failed: " + err.message);
         }
         btn.disabled = false;
-        btn.textContent = "👤 Lookup";
+        btn.innerHTML = `${iconImg("account")} Lookup`;
       });
     });
   }
@@ -4330,7 +4401,7 @@ function attachAdminHandlers(tab) {
           }
         } catch (err) { showToast("Lookup failed: " + err.message); }
         btn.disabled = false;
-        btn.textContent = "👤 Lookup";
+        btn.innerHTML = `${iconImg("account")} Lookup`;
       });
     });
   }
@@ -4414,7 +4485,7 @@ function attachAdminHandlers(tab) {
         } catch (uploadErr) {
           showFormError(form, "Logo upload failed: " + uploadErr.message);
           submitBtn.disabled = false;
-          submitBtn.textContent = "🚀 Publish App (Admin)";
+          submitBtn.innerHTML = `${iconImg("upload")} Publish App (Admin)`;
           return;
         }
       } else if (logoUrl && !isValidLogoURL(logoUrl)) {
@@ -4437,7 +4508,7 @@ function attachAdminHandlers(tab) {
       } catch (ssErr) {
         showFormError(form, ssErr.message || "Screenshot upload failed.");
         submitBtn.disabled = false;
-        submitBtn.textContent = "🚀 Publish App (Admin)";
+        submitBtn.innerHTML = `${iconImg("upload")} Publish App (Admin)`;
         return;
       }
 
@@ -4506,7 +4577,7 @@ function attachAdminHandlers(tab) {
         showFormError(form, err.message);
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = "🚀 Publish App (Admin)";
+        submitBtn.innerHTML = `${iconImg("upload")} Publish App (Admin)`;
       }
     });
   }
@@ -4516,7 +4587,7 @@ function attachAdminHandlers(tab) {
 function renderVersionCard(v, appId, opts = {}) {
   const date = new Date(v.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const changedFields = Object.keys(v.changes || {});
-  const typeIcon = v.type === "initial" ? "🎉" : v.type === "restore" ? "⏪" : v.type === "ownership_transfer" ? "🔄" : "📝";
+  const typeIcon = v.type === "initial" ? iconImg("verified") : v.type === "restore" ? iconImg("back") : v.type === "ownership_transfer" ? iconImg("account") : iconImg("edit");
   const typeLabel = v.type === "initial" ? "Initial" : v.type === "restore" ? "Restore" : v.type === "ownership_transfer" ? "Transfer" : "Edit";
   const vNum = v.versionNumber != null ? `#${v.versionNumber}` : "";
   const avatar = v.authorPhoto
@@ -4530,7 +4601,7 @@ function renderVersionCard(v, appId, opts = {}) {
         <div class="changelog-header-left">
           <span class="changelog-number">${vNum}</span>
           <span class="changelog-type changelog-type-${esc(v.type)}">${typeIcon} ${typeLabel}</span>
-          ${v.editRequestId ? `<a class="changelog-er-link" href="/app/${esc(appId)}/edit-requests" title="Linked edit request">🔗 ER</a>` : ""}
+          ${v.editRequestId ? `<a class="changelog-er-link" href="/app/${esc(appId)}/edit-requests" title="Linked edit request">${iconImg("link")} ER</a>` : ""}
         </div>
         <span class="changelog-date">${date}</span>
       </div>
@@ -4545,7 +4616,7 @@ function renderVersionCard(v, appId, opts = {}) {
         <div class="changelog-tags">
           ${changedFields.map(f => `<span class="changelog-field-tag">${esc(FIELD_LABELS[f] || f)}</span>`).join("")}
         </div>
-        <button class="btn btn-sm btn-secondary changelog-diff-toggle version-diff-toggle" data-version-id="${esc(v.id)}">📋 View Changes (${changedFields.length})</button>
+        <button class="btn btn-sm btn-secondary changelog-diff-toggle version-diff-toggle" data-version-id="${esc(v.id)}">${iconImg("edit")} View Changes (${changedFields.length})</button>
         <div class="changelog-diff-panel version-changes" id="version-diff-${esc(v.id)}" style="display:none;">
           <table class="diff-table">
             <thead><tr><th>Field</th><th class="diff-old">Before</th><th class="diff-new">After</th></tr></thead>
@@ -4562,7 +4633,7 @@ function renderVersionCard(v, appId, opts = {}) {
           </table>
         </div>
       ` : ""}
-      ${canRestore ? `<button class="btn btn-sm btn-secondary version-restore-btn" data-version-id="${esc(v.id)}" data-app-id="${esc(appId)}">⏪ Restore to this version</button>` : ""}
+      ${canRestore ? `<button class="btn btn-sm btn-secondary version-restore-btn" data-version-id="${esc(v.id)}" data-app-id="${esc(appId)}">${iconImg("back")} Restore to this version</button>` : ""}
     </div>`;
 }
 
@@ -4593,7 +4664,7 @@ function bindVersionCardHandlers(container, appId, reloadFn) {
       } catch (err) {
         showToast(err.message);
         btn.disabled = false;
-        btn.textContent = "⏪ Restore to this version";
+        btn.innerHTML = `${iconImg("back")} Restore to this version`;
       }
     });
   });
@@ -4642,7 +4713,7 @@ function formatFieldValue(val, fieldKey) {
 function formatComparisonDataDiff(data) {
   if (!data || !data.columns?.length || !data.rows?.length) return '<span class="diff-empty">—</span>';
   const hdr = data.columns.map(c => `<th>${esc(c)}</th>`).join("");
-  const bindingLabel = { "@license": "📄 Auto: License", "@platforms": "💻 Auto: Platforms", "@cross-platform": "🌐 Auto: Cross-Platform", "@version": "📦 Auto: Version", "@source": "🔗 Auto: Has Source" };
+  const bindingLabel = { "@license": "Auto: License", "@platforms": "Auto: Platforms", "@cross-platform": "Auto: Cross-Platform", "@version": "Auto: Version", "@source": "Auto: Has Source" };
   const body = data.rows.map(r => {
     const cells = (r.values || []).map(v => {
       if (v === true) return '<td class="comp-yes">✔</td>';
@@ -4728,7 +4799,7 @@ async function toggleDiffView(erId, appId, changesJson, toggleBtn, snapshotJson)
 function renderERCard(er, appId, opts = {}) {
   const date = new Date(er.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const statusClass = er.status === "open" ? "changelog-status-open" : er.status === "merged" ? "changelog-status-merged" : "changelog-status-closed";
-  const statusIcon = er.status === "open" ? "🟢" : er.status === "merged" ? "🟣" : "🔴";
+  const statusIcon = statusIconFor(er.status);
   const changedFields = Object.keys(er.changes || {}).filter(k => k !== "reason");
   const submitter = er.submitter || {};
   const avatarHtml = submitter.photoURL
@@ -4744,7 +4815,7 @@ function renderERCard(er, appId, opts = {}) {
       <div class="changelog-header">
         <div class="changelog-header-left">
           <span class="changelog-type ${statusClass}">${statusIcon} ${esc(er.status)}</span>
-          ${er.locked ? '<span class="changelog-type" style="background:var(--bg-tertiary);">🔒 Locked</span>' : ""}
+          ${er.locked ? `<span class="changelog-type" style="background:var(--bg-tertiary);">${iconImg("protect")} Locked</span>` : ""}
           ${approvals.length ? `<span class="changelog-type" style="background:var(--bg-tertiary);">✓ ${approvals.length} approval${approvals.length > 1 ? "s" : ""}</span>` : ""}
         </div>
         <span class="changelog-date">${date}</span>
@@ -4761,7 +4832,7 @@ function renderERCard(er, appId, opts = {}) {
         <div class="changelog-tags">
           ${changedFields.map(f => `<span class="changelog-field-tag">${esc(FIELD_LABELS[f] || f)}</span>`).join("")}
         </div>
-        <button class="btn btn-sm btn-secondary changelog-diff-toggle er-diff-toggle" data-er-id="${esc(er.id)}" data-app-id="${esc(appId)}" data-changes="${encodeURIComponent(JSON.stringify(er.changes || {}))}" ${snapshotAttr}>📋 View Changes (${changedFields.length})</button>
+        <button class="btn btn-sm btn-secondary changelog-diff-toggle er-diff-toggle" data-er-id="${esc(er.id)}" data-app-id="${esc(appId)}" data-changes="${encodeURIComponent(JSON.stringify(er.changes || {}))}" ${snapshotAttr}>${iconImg("edit")} View Changes (${changedFields.length})</button>
         <div class="changelog-diff-panel er-diff-container" id="er-diff-${esc(er.id)}"></div>
       ` : ""}
       <div class="er-comments-section" id="er-comments-${esc(er.id)}"></div>
@@ -4947,7 +5018,7 @@ function showRankings() {
   rankView.innerHTML = `
     <div class="rankings-page">
       <a href="/" class="back-link">← Back to library</a>
-      <h1 class="rankings-title">🏆 App Rankings</h1>
+      <h1 class="rankings-title">${iconImg("ranking", "ui-icon title-icon")} App Rankings</h1>
       <p class="rankings-subtitle">Ranked by community likes and popularity</p>
       <div class="rankings-list">
         ${ranked.map((app, i) => {
@@ -4964,8 +5035,8 @@ function showRankings() {
                 <span class="ranking-cat">${esc(app.category)}</span>
               </div>
               <div class="ranking-metrics">
-                <span title="Score">👍 ${(app.likes || 0) - (app.dislikes || 0)}</span>
-                <span title="Views">👁 ${app.views || 0}</span>
+                <span title="Score">${iconImg("like")} ${(app.likes || 0) - (app.dislikes || 0)}</span>
+                <span title="Views">${iconImg("time")} ${app.views || 0}</span>
               </div>
               <span class="ranking-score" title="Score">${score} pts</span>
             </a>`;
@@ -5104,7 +5175,7 @@ function openSubmitModal(preselectedOrgId) {
   const ownerSelect = document.getElementById("sub-owner");
   const ownerGroup = document.getElementById("submit-as-group");
   getUserOrgsWithPermission(currentUser.uid, "contributor").then(orgs => {
-    ownerSelect.innerHTML = '<option value="user">👤 Personal account</option>';
+    ownerSelect.innerHTML = '<option value="user">Personal account</option>';
     orgs.forEach(org => {
       ownerSelect.innerHTML += `<option value="org:${esc(org.id)}">${esc(org.name)}</option>`;
     });
@@ -5299,7 +5370,7 @@ function openResubmitModal(sub) {
 
   // Show feedback from reviewer
   if (sub.changesComment) {
-    feedback.innerHTML = `<div class="resubmit-feedback-box"><strong>🟠 Reviewer feedback:</strong> ${esc(sub.changesComment)}</div>`;
+    feedback.innerHTML = `<div class="resubmit-feedback-box"><strong>${iconImg("edit")} Reviewer feedback:</strong> ${esc(sub.changesComment)}</div>`;
   } else {
     feedback.innerHTML = "";
   }
@@ -5621,14 +5692,27 @@ function showProfileLookupModal(title, record) {
 function initTheme() {
   const saved = localStorage.getItem("openlib_theme") || "dark";
   document.documentElement.setAttribute("data-theme", saved);
-  document.getElementById("theme-icon").textContent = saved === "dark" ? "☀️" : "🌙";
+  updateThemeIcon(saved);
 }
 
 function toggleTheme() {
   const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
   localStorage.setItem("openlib_theme", next);
-  document.getElementById("theme-icon").textContent = next === "dark" ? "☀️" : "🌙";
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById("theme-icon");
+  if (!icon) return;
+  const nextMode = theme === "dark" ? "light" : "dark";
+  const label = nextMode === "light" ? "Switch to light theme" : "Switch to dark theme";
+  icon.innerHTML = iconImg(theme === "dark" ? "sun" : "moon", "ui-icon theme-mode-icon");
+  const toggle = document.getElementById("theme-toggle");
+  if (toggle) {
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+  }
 }
 
 // ── Auth UI ──────────────────────────────────────────────────────────────────
@@ -5665,15 +5749,15 @@ async function updateAuthUI(user) {
         <div class="user-provider">Signed in via ${esc(linkedDisplay || providerName)}</div>
         <div class="user-role">${roleBadge(userRecord?.role || "user")}</div>
       </div>
-      <a href="/profile" class="auth-option profile-link">👤 My Profile</a>
-      <button class="auth-option signout" id="signout-btn">← Sign Out</button>
+      <a href="/profile" class="auth-option profile-link">${iconImg("account")} My Profile</a>
+      <button class="auth-option signout" id="signout-btn">${iconImg("logout")} Sign Out</button>
     `;
   } else {
     userRecord = null;
     isAdmin = false;
     if (adminLink) adminLink.style.display = "none";
     if (profileLink) profileLink.style.display = "none";
-    trigger.innerHTML = `<span id="auth-icon">👤</span><span id="auth-label">Sign in</span>`;
+    trigger.innerHTML = `<span id="auth-icon">${iconImg("account")}</span><span id="auth-label">Sign in</span>`;
     content.innerHTML = `
       <button class="auth-option google" id="google-signin-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
@@ -6353,8 +6437,8 @@ async function showReviewsPage(appId) {
         <h2>Reviews for ${esc(app.name)}</h2>
         <div class="reviews-page-actions">
           ${currentUser ? (hasReviewed
-            ? `<button class="btn btn-secondary btn-sm write-review-btn review-already-done" disabled>✅ Already Reviewed</button>`
-            : `<button class="btn btn-primary btn-sm write-review-btn" id="write-review-page-btn">✏️ Write a Review</button>`)
+            ? `<button class="btn btn-secondary btn-sm write-review-btn review-already-done" disabled>${iconImg("verified")} Already Reviewed</button>`
+            : `<button class="btn btn-primary btn-sm write-review-btn" id="write-review-page-btn">${iconImg("edit")} Write a Review</button>`)
             : `<p class="review-signin-hint">Sign in to write a review.</p>`}
         </div>
       </div>
@@ -6379,7 +6463,7 @@ async function showReviewsPage(appId) {
         </form>
       </div>
       <div class="review-submitted-msg" id="review-submitted-page" style="display:none;">
-        <span class="review-success-icon">✅</span> Your review has been submitted. Thank you!
+        <span class="review-success-icon">${iconImg("verified")}</span> Your review has been submitted. Thank you!
       </div>` : ""}
       <div class="review-sort-btns">
         <button class="review-sort-btn active" data-sort="latest">Latest</button>

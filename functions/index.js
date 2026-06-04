@@ -386,6 +386,7 @@ function buildPage({ title, description, url, image, type, jsonLd, body, robots 
   <footer>
     <p><strong>OpenLib</strong> — A curated open-source app library.
     <a href="${GITHUB_URL}">Contribute on GitHub</a></p>
+    <p>Icons by <a href="https://icons8.com/">Icons8</a> and <a href="https://fontawesome.com/">Font Awesome</a>.</p>
     <nav>
       <a href="/rankings">Rankings</a> ·
       <a href="/trending">Trending</a> ·

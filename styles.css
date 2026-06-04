@@ -86,6 +86,7 @@
   --font-body: 'DM Sans', sans-serif;
   --font-mono: 'DM Mono', monospace;
   --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --mono-icon-filter: invert(1);
 }
 
 [data-theme="light"] {
@@ -108,6 +109,7 @@
   --blue-dim: #2b6fd418;
   --shadow: 0 4px 24px rgba(0,0,0,0.08);
   --shadow-hover: 0 8px 40px rgba(0,0,0,0.14);
+  --mono-icon-filter: none;
 }
 
 html {
@@ -249,6 +251,17 @@ header {
   background: var(--surface-2);
   border-color: var(--border-2);
   transform: rotate(20deg);
+}
+
+.theme-toggle #theme-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-mode-icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* ── Auth Menu ── */
@@ -984,6 +997,52 @@ header {
 
 .empty-state p {
   font-size: 14px;
+}
+
+/* ── Icons ── */
+.ui-icon {
+  width: 1em;
+  height: 1em;
+  display: inline-block;
+  object-fit: contain;
+  flex: 0 0 auto;
+  vertical-align: -0.15em;
+}
+
+.ui-icon[src*="/white-theme/"],
+.ui-icon[src*="fontawesome%20icons/util/white-theme/"] {
+  filter: var(--mono-icon-filter);
+}
+
+.platform-icon,
+.footer-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.title-icon,
+.modal-title-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-link,
+.footer-link,
+.team-link,
+.team-link-text,
+.meta-pill,
+.platform-tag,
+.sub-status-badge,
+.changelog-type,
+.logo-upload-label,
+.screenshot-upload-btn,
+.web-only-label,
+.admin-title,
+.team-section-title,
+.verify-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ── Footer ── */
@@ -3112,7 +3171,12 @@ a.added-by-link:hover {
 }
 
 .edit-requests-section h3::before {
-  content: "✏️";
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: url("assets/Icons8/util/white-theme/icons8-edit-100.png") center / contain no-repeat;
+  filter: var(--mono-icon-filter);
+  flex: 0 0 auto;
 }
 
 .edit-requests-list {
@@ -4106,7 +4170,12 @@ a.added-by-link:hover {
 }
 
 .version-history-section h3::before {
-  content: "📋";
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: url("assets/Icons8/util/white-theme/icons8-edit-100.png") center / contain no-repeat;
+  filter: var(--mono-icon-filter);
+  flex: 0 0 auto;
 }
 
 .version-history-list {
@@ -5184,7 +5253,9 @@ a.added-by-link:hover {
 }
 
 .platform-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 1px 6px;
   font-family: var(--font-mono);
   font-size: 10px;
