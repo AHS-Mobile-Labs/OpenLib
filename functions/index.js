@@ -5,7 +5,7 @@
 // Routes handled: /app/*, /rankings, /trending
 // Bot detection via User-Agent header.
 
-const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
@@ -911,7 +911,7 @@ function renderNotFound(urlPath) {
 }
 
 // ── Main Cloud Function ──────────────────────────────────────────────────────
-exports.prerender = functions.https.onRequest(async (req, res) => {
+exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, async (req, res) => {
   // Enable CORS
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
