@@ -67,6 +67,20 @@ function slugify(value) {
     .replace(/(^-|-$)/g, "");
 }
 
+function splitAlternativeTargets(value) {
+  const seen = new Set();
+  return String(value || "")
+    .split(/[,\n;]/)
+    .map(target => target.trim())
+    .filter(Boolean)
+    .filter(target => {
+      const key = target.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
 function isPublicApp(app) {
   return (app.moderationStatus || "active") === "active";
 }
@@ -168,8 +182,9 @@ function buildPages(apps) {
       const slug = slugify(app.category);
       categories.set(slug, maxDate(categories.get(slug), lastmod));
     }
-    if (app.alternative) {
-      const slug = slugify(app.alternative);
+    for (const target of splitAlternativeTargets(app.alternative)) {
+      const slug = slugify(target);
+      if (!slug) continue;
       alternatives.set(slug, maxDate(alternatives.get(slug), lastmod));
     }
     for (const tag of app.tags || []) {

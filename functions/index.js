@@ -106,6 +106,83 @@ function slugify(value) {
     .replace(/(^-|-$)/g, "");
 }
 
+function splitAlternativeTargets(value) {
+  const rawTargets = Array.isArray(value)
+    ? value
+    : String(value || "").split(/[,\n;]/);
+  const seen = new Set();
+  return rawTargets
+    .map(target => {
+      if (target && typeof target === "object") return target.name || target.label || "";
+      return String(target || "");
+    })
+    .map(target => target.trim())
+    .filter(Boolean)
+    .filter(target => {
+      const key = target.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function getAlternativeTargets(app) {
+  return splitAlternativeTargets(app?.alternative);
+}
+
+function formatReadableList(items) {
+  if (!items.length) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+function formatAlternativeTargets(app, fallback = "") {
+  const targets = getAlternativeTargets(app);
+  return targets.length ? formatReadableList(targets) : fallback;
+}
+
+function matchesAlternativeSlug(app, slug) {
+  return getAlternativeTargets(app).some(target => slugify(target) === slug);
+}
+
+function getAlternativeLabelForSlug(apps, slug) {
+  for (const app of apps) {
+    const target = getAlternativeTargets(app).find(item => slugify(item) === slug);
+    if (target) return target;
+  }
+  const combinedMatch = apps.find(app => slugify(app.alternative) === slug);
+  return combinedMatch ? formatAlternativeTargets(combinedMatch, titleCaseFromSlug(slug)) : titleCaseFromSlug(slug);
+}
+
+function getAlternativeTargetsForSlug(apps, slug) {
+  const matchedTargets = [];
+  const seen = new Set();
+  for (const app of apps) {
+    for (const target of getAlternativeTargets(app)) {
+      if (slugify(target) !== slug && slugify(app.alternative) !== slug) continue;
+      const key = target.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      matchedTargets.push(target);
+    }
+  }
+  return matchedTargets;
+}
+
+function alternativeTargetsJsonLd(targets) {
+  return targets.map(target => ({
+    "@type": "SoftwareApplication",
+    name: target,
+  }));
+}
+
+function renderAlternativeLinks(app, { prefix = false } = {}) {
+  return getAlternativeTargets(app)
+    .map(target => `<a href="/alternatives/${slugify(target)}">${esc(prefix ? `Alternative to ${target}` : target)}</a>`)
+    .join(" ");
+}
+
 function isPublicApp(app) {
   return (app.moderationStatus || "active") === "active";
 }
@@ -356,7 +433,7 @@ function renderAppList(apps) {
     ${apps.slice(0, 100).map((app, i) => `
       <li>
         <a href="/app/${encodeURIComponent(app.id)}">${esc(app.name)}</a>
-        ${app.alternative ? ` - open-source alternative to <a href="/alternatives/${slugify(app.alternative)}">${esc(app.alternative)}</a>` : ""}
+        ${getAlternativeTargets(app).length ? ` - ${renderAlternativeLinks(app, { prefix: true })}` : ""}
         ${app.category ? ` in <a href="/category/${slugify(app.category)}">${esc(app.category)}</a>` : ""}
         <p>${esc(truncate(app.description || app.uses || "", 140))}</p>
       </li>`).join("")}
@@ -373,7 +450,7 @@ function relatedCollectionLinks(apps, currentPath = "") {
   return `<section><h2>Related Collections</h2><p>${links.slice(0, 18).map(link => `<a href="${link.href}">${esc(link.label)}</a>`).join(" · ")}</p></section>`;
 }
 
-function collectionJsonLd({ url, name, description, apps }) {
+function collectionJsonLd({ url, name, description, apps, about }) {
   return {
     "@graph": [
       breadcrumbJsonLd([
@@ -387,6 +464,7 @@ function collectionJsonLd({ url, name, description, apps }) {
         url,
         description,
         isPartOf: { "@id": `${BASE_URL}/#website` },
+        ...(about?.length ? { about } : {}),
       },
       {
         "@type": "ItemList",
@@ -441,14 +519,18 @@ async function renderCollection(kind, slug) {
       keywords: [`${label.toLowerCase()} open source software`, `${label.toLowerCase()} apps`],
     };
   } else if (kind === "alternative") {
-    pageApps = allApps.filter(app => slugify(app.alternative) === slug);
-    const label = pageApps[0]?.alternative || titleCaseFromSlug(slug);
+    pageApps = allApps.filter(app => matchesAlternativeSlug(app, slug) || slugify(app.alternative) === slug);
+    const label = getAlternativeLabelForSlug(pageApps, slug);
+    const alternativeTargets = getAlternativeTargetsForSlug(pageApps, slug);
     page = {
       path: `/alternatives/${slug}`,
       title: `Open Source Alternatives to ${label} | OpenLib`,
       h1: `Open source alternatives to ${label}`,
       description: `Compare free and open-source alternatives to ${label} on OpenLib, including ${summarizeList(pageApps, "privacy-friendly software options")}.`,
-      keywords: [`open source alternative to ${label}`, `free ${label} alternative`, `${label} alternatives`],
+      keywords: alternativeTargets.length
+        ? alternativeTargets.map(target => `alternative to ${target}`)
+        : [`open source alternative to ${label}`, `free ${label} alternative`, `${label} alternatives`],
+      alternativeTargets,
     };
   }
 
@@ -472,7 +554,13 @@ async function renderCollection(kind, slug) {
     description: page.description,
     url,
     type: "website",
-    jsonLd: collectionJsonLd({ url, name: page.h1, description: page.description, apps: pageApps }),
+    jsonLd: collectionJsonLd({
+      url,
+      name: page.h1,
+      description: page.description,
+      apps: pageApps,
+      about: page.alternativeTargets?.length ? alternativeTargetsJsonLd(page.alternativeTargets) : undefined,
+    }),
     body,
   });
 }
@@ -486,7 +574,8 @@ async function renderApp(appId) {
     const app = { id: snap.id, ...snap.data() };
     if (!isPublicApp(app)) return null;
 
-    const alt = app.alternative || "proprietary software";
+    const alternativeTargets = getAlternativeTargets(app);
+    const alt = formatAlternativeTargets(app, "proprietary software");
     const title = `${app.name} - Free Open Source Alternative to ${alt} | OpenLib`;
     const desc = truncate(`${app.name} is a free, open-source alternative to ${alt}. ${app.description || app.uses || ""}`);
     const url = `${BASE_URL}/app/${encodeURIComponent(appId)}`;
@@ -509,6 +598,7 @@ async function renderApp(appId) {
           operatingSystem: (app.platforms || []).join(", ") || "All",
           image: app.logo || OG_IMAGE,
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          ...(alternativeTargets.length && { about: alternativeTargetsJsonLd(alternativeTargets) }),
           ...(app.license && { license: app.license }),
           ...(app.download && { downloadUrl: app.download }),
           ...(app.source && { codeRepository: app.source }),
@@ -538,10 +628,13 @@ async function renderApp(appId) {
       .join("");
     const useCases = [
       app.uses,
-      app.alternative ? `${app.name} is useful when you want an open-source alternative to ${app.alternative}.` : "",
+      alternativeTargets.length ? `${app.name} is useful when you want an open-source alternative to ${alt}.` : "",
       app.category ? `It belongs to the ${app.category} category on OpenLib.` : "",
       platforms ? `It supports ${platforms}.` : "",
     ].filter(Boolean);
+    const alternativeList = alternativeTargets
+      .map(target => `<li><a href="/alternatives/${slugify(target)}">${esc(target)}</a></li>`)
+      .join("");
     const relatedTopics = SEO_TOPIC_PAGES
       .filter(topic => topic.match(app))
       .slice(0, 4)
@@ -552,7 +645,7 @@ async function renderApp(appId) {
     <article>
       <h1>${esc(app.name)}</h1>
       ${app.logo ? `<p><img src="${esc(app.logo)}" alt="${esc(app.name)} logo" width="96" height="96" loading="eager"></p>` : ""}
-      ${app.alternative ? `<p><strong>Free, open-source alternative to <a href="/alternatives/${slugify(app.alternative)}">${esc(app.alternative)}</a></strong></p>` : ""}
+      ${alternativeList ? `<section><h2>Alternative To</h2><ul>${alternativeList}</ul></section>` : ""}
       <p>${esc(app.description || `${app.name} is a free and open-source software listing on OpenLib.`)}</p>
 
       ${app.fullDescription ? `<section><h2>About ${esc(app.name)}</h2><p>${esc(app.fullDescription)}</p></section>` : ""}
@@ -635,7 +728,7 @@ async function renderRankings() {
       .slice(0, 100)
       .map(
         (app, i) =>
-          `<li><a href="/app/${encodeURIComponent(app.id)}">#${i + 1} ${esc(app.name)}</a>${app.alternative ? ` — alternative to ${esc(app.alternative)}` : ""} — ${esc((app.description || "").slice(0, 120))}</li>`
+          `<li><a href="/app/${encodeURIComponent(app.id)}">#${i + 1} ${esc(app.name)}</a>${getAlternativeTargets(app).length ? ` — alternative to ${esc(formatAlternativeTargets(app))}` : ""} — ${esc((app.description || "").slice(0, 120))}</li>`
       )
       .join("\n        ");
 
@@ -691,7 +784,7 @@ async function renderTrending() {
       .slice(0, 50)
       .map(
         (app) =>
-          `<li><a href="/app/${encodeURIComponent(app.id)}">${esc(app.name)}</a>${app.alternative ? ` — alternative to ${esc(app.alternative)}` : ""} — ${esc((app.description || "").slice(0, 120))}</li>`
+          `<li><a href="/app/${encodeURIComponent(app.id)}">${esc(app.name)}</a>${getAlternativeTargets(app).length ? ` — alternative to ${esc(formatAlternativeTargets(app))}` : ""} — ${esc((app.description || "").slice(0, 120))}</li>`
       )
       .join("\n        ");
 

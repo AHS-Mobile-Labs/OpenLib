@@ -804,8 +804,34 @@ header {
 }
 
 .alt-name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   color: var(--accent-2);
   font-weight: 500;
+}
+
+.alternative-target {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  max-width: 100%;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-3);
+  color: var(--accent-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.25;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.alternative-target:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+  color: var(--text);
 }
 
 /* ── Card: platforms ── */

@@ -415,7 +415,7 @@ function getAppsForTagSlug(slug) {
 }
 
 function getAppsForAlternativeSlug(slug) {
-  return apps.filter(app => slugify(app.alternative) === slug);
+  return apps.filter(app => matchesAlternativeSlug(app, slug) || slugify(app.alternative) === slug);
 }
 
 function titleCaseFromSlug(slug) {
@@ -429,6 +429,83 @@ function titleCaseFromSlug(slug) {
 function summarizeList(appList, fallback) {
   const names = appList.slice(0, 4).map(app => app.name).join(", ");
   return names ? `${names}${appList.length > 4 ? " and more" : ""}` : fallback;
+}
+
+function splitAlternativeTargets(value) {
+  const rawTargets = Array.isArray(value)
+    ? value
+    : String(value || "").split(/[,\n;]/);
+  const seen = new Set();
+  return rawTargets
+    .map(target => {
+      if (target && typeof target === "object") return target.name || target.label || "";
+      return String(target || "");
+    })
+    .map(target => target.trim())
+    .filter(Boolean)
+    .filter(target => {
+      const key = target.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function getAlternativeTargets(app) {
+  return splitAlternativeTargets(app?.alternative);
+}
+
+function formatReadableList(items) {
+  if (!items.length) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
+function formatAlternativeTargets(app, fallback = "") {
+  const targets = getAlternativeTargets(app);
+  return targets.length ? formatReadableList(targets) : fallback;
+}
+
+function matchesAlternativeSlug(app, slug) {
+  return getAlternativeTargets(app).some(target => slugify(target) === slug);
+}
+
+function getAlternativeLabelForSlug(appList, slug) {
+  for (const app of appList) {
+    const target = getAlternativeTargets(app).find(item => slugify(item) === slug);
+    if (target) return target;
+  }
+  const combinedMatch = appList.find(app => slugify(app.alternative) === slug);
+  return combinedMatch ? formatAlternativeTargets(combinedMatch, titleCaseFromSlug(slug)) : titleCaseFromSlug(slug);
+}
+
+function getAlternativeTargetsForSlug(appList, slug) {
+  const matchedTargets = [];
+  const seen = new Set();
+  for (const app of appList) {
+    for (const target of getAlternativeTargets(app)) {
+      if (slugify(target) !== slug && slugify(app.alternative) !== slug) continue;
+      const key = target.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      matchedTargets.push(target);
+    }
+  }
+  return matchedTargets;
+}
+
+function alternativeTargetsJsonLd(targets) {
+  return targets.map(target => ({
+    "@type": "SoftwareApplication",
+    "name": target
+  }));
+}
+
+function renderAlternativeTargetLinks(app, { prefix = false } = {}) {
+  return getAlternativeTargets(app)
+    .map(target => `<a href="/alternatives/${esc(slugify(target))}" class="alternative-target">${esc(prefix ? `Alternative to ${target}` : target)}</a>`)
+    .join("");
 }
 
 function extractYouTubeVideoId(url) {
@@ -672,9 +749,10 @@ function renderComparisonHtml(app) {
       <div class="comparison-wrapper"><table class="comparison-table"><thead><tr><th>Feature</th>${hdr}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   }
   if (!app.alternative) return "";
+  const comparisonAlternative = formatAlternativeTargets(app, app.alternative);
   return `<div class="detail-section"><h3>Comparison</h3>
     <div class="comparison-wrapper"><table class="comparison-table">
-      <thead><tr><th>Feature</th><th>${esc(app.name)}</th><th>${esc(app.alternative)}</th></tr></thead>
+      <thead><tr><th>Feature</th><th>${esc(app.name)}</th><th>${esc(comparisonAlternative)}</th></tr></thead>
       <tbody>
         <tr><td>Free</td><td class="comp-yes">✅</td><td class="comp-no">❌</td></tr>
         <tr><td>Open Source</td><td class="comp-yes">✅</td><td class="comp-no">❌</td></tr>
@@ -860,9 +938,12 @@ async function showAppDetail(appId) {
     return;
   }
 
+  const alternativeLabelTitle = formatAlternativeTargets(app, "Proprietary Apps");
+  const alternativeLabelDescription = formatAlternativeTargets(app, "proprietary software");
+
   updatePageMeta({
-    title: `${app.name} - Free Open Source Alternative to ${app.alternative || "Proprietary Apps"} | OpenLib`,
-    description: `${app.name} is a free, open-source alternative to ${app.alternative || "proprietary software"}. ${(app.description || "").slice(0, 140)}`,
+    title: `${app.name} - Free Open Source Alternative to ${alternativeLabelTitle} | OpenLib`,
+    description: `${app.name} is a free, open-source alternative to ${alternativeLabelDescription}. ${(app.description || "").slice(0, 140)}`,
     url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
     image: app.logo || `${BASE_URL}/og-image.png`
   });
@@ -908,6 +989,7 @@ async function showAppDetail(appId) {
   // Generate tags HTML
   const tags = app.tags || [];
   const tagsHtml = tags.length ? tags.map(t => `<a href="/tag/${esc(slugify(t))}" class="detail-tag">${esc(t)}</a>`).join("") : "";
+  const alternativeTargetsHtml = renderAlternativeTargetLinks(app);
 
   // Screenshots gallery
   const screenshots = app.screenshots || [];
@@ -1122,9 +1204,9 @@ async function showAppDetail(appId) {
             <button class="share-btn" id="share-btn" title="Share">🔗 Share</button>
             <div class="share-dropdown" id="share-dropdown">
               <button class="share-option" data-action="copy" data-url="${esc(shareUrl)}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg> Copy Link</button>
-              <a class="share-option" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(app.name + ' — Open source alternative to ' + (app.alternative || '') + '. Check it out on OpenLib!')}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg" alt="X"> X (Twitter)</a>
+              <a class="share-option" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(app.name + ' — Open source alternative to ' + alternativeLabelDescription + '. Check it out on OpenLib!')}&url=${encodeURIComponent(shareUrl)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg" alt="X"> X (Twitter)</a>
               <a class="share-option" href="https://wa.me/?text=${encodeURIComponent(app.name + ' — ' + shareUrl)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp"> WhatsApp</a>
-              <a class="share-option" href="https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(app.name + ' — Open Source Alternative to ' + (app.alternative || ''))}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/b/b4/Reddit_logo.svg" alt="Reddit"> Reddit</a>
+              <a class="share-option" href="https://reddit.com/submit?url=${encodeURIComponent(shareUrl)}&title=${encodeURIComponent(app.name + ' — Open Source Alternative to ' + alternativeLabelTitle)}" target="_blank" rel="noopener"><img class="share-icon" src="https://upload.wikimedia.org/wikipedia/commons/b/b4/Reddit_logo.svg" alt="Reddit"> Reddit</a>
             </div>
           </div>
         </div>
@@ -1147,7 +1229,7 @@ async function showAppDetail(appId) {
           </div>
           <div class="detail-section">
             <h3>Alternative to</h3>
-            <p class="alt-name">${app.alternative ? `<a href="/alternatives/${esc(slugify(app.alternative))}">${esc(app.alternative)}</a>` : "Open source software"}</p>
+            <div class="alt-name">${alternativeTargetsHtml || "<span>Open source software</span>"}</div>
           </div>
           <div class="detail-section">
             <h3>Platforms</h3>
@@ -1749,7 +1831,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
   document.getElementById("er-name").placeholder = app.name || "App name";
   document.getElementById("er-description").placeholder = app.description || "Description";
   document.getElementById("er-uses").placeholder = app.uses || "Uses";
-  document.getElementById("er-alternative").placeholder = app.alternative || "Alternative of";
+  document.getElementById("er-alternative").placeholder = formatAlternativeTargets(app, "Alternative target");
   document.getElementById("er-logo").placeholder = app.logo || "Logo URL";
   document.getElementById("er-download").placeholder = app.download || "Download URL";
   document.getElementById("er-source").placeholder = app.source || "Source URL";
@@ -1793,7 +1875,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
         erCompInitBtn.style.display = "";
         erCompInitBtn.onclick = () => {
           const appName = app.name || "This App";
-          const alt = app.alternative || "Alternative";
+          const alt = formatAlternativeTargets(app, "Alternative");
           initComparisonEditor(erCompContainer, {
             columns: [appName, alt],
             rows: [
@@ -5852,6 +5934,7 @@ function breadcrumbJsonLd(items) {
 
 function injectAppJsonLd(app) {
   const appUrl = `${BASE_URL}/app/${encodeURIComponent(app.id)}`;
+  const alternativeTargets = getAlternativeTargets(app);
   updateJsonLd({
     "@graph": [
       breadcrumbJsonLd([
@@ -5869,6 +5952,7 @@ function injectAppJsonLd(app) {
         "operatingSystem": (app.platforms || []).join(", ") || "All",
         "image": app.logo || `${BASE_URL}/og-image.png`,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        ...(alternativeTargets.length ? { "about": alternativeTargetsJsonLd(alternativeTargets) } : {}),
         ...(app.license ? { "license": app.license } : {}),
         ...(app.download ? { "downloadUrl": app.download } : {}),
         ...(app.source ? { "codeRepository": app.source } : {}),
@@ -5921,7 +6005,7 @@ function renderSeoAppList(appList) {
               <p>${esc(app.description || `${app.name} is an open-source ${app.category || "software"} option listed on OpenLib.`)}</p>
               <div class="seo-app-meta">
                 ${app.category ? `<a href="/category/${esc(slugify(app.category))}">${esc(app.category)}</a>` : ""}
-                ${app.alternative ? `<a href="/alternatives/${esc(slugify(app.alternative))}">Alternative to ${esc(app.alternative)}</a>` : ""}
+                ${renderAlternativeTargetLinks(app, { prefix: true })}
                 ${(app.platforms || []).slice(0, 3).map(platform => `<span>${esc(platform)}</span>`).join("")}
                 ${app.license ? `<span>${esc(app.license)}</span>` : ""}
               </div>
@@ -5990,13 +6074,17 @@ function showSeoLandingPage({ kind, slug }) {
     };
   } else if (kind === "alternative") {
     appList = getPublicApps(getAppsForAlternativeSlug(slug));
-    const label = appList[0]?.alternative || titleCaseFromSlug(slug);
+    const label = getAlternativeLabelForSlug(appList, slug);
+    const alternativeTargets = getAlternativeTargetsForSlug(appList, slug);
     page = {
       path: `/alternatives/${slug}`,
       title: `Open Source Alternatives to ${label} | OpenLib`,
       h1: `Open source alternatives to ${label}`,
       description: `Compare free and open-source alternatives to ${label} on OpenLib, including ${summarizeList(appList, "privacy-friendly software options")}.`,
-      keywords: [`open source alternative to ${label}`, `free ${label} alternative`, `${label} alternatives`]
+      keywords: alternativeTargets.length
+        ? alternativeTargets.map(target => `alternative to ${target}`)
+        : [`open source alternative to ${label}`, `free ${label} alternative`, `${label} alternatives`],
+      alternativeTargets
     };
   }
 
@@ -6030,7 +6118,7 @@ function showSeoLandingPage({ kind, slug }) {
         "url": url,
         "description": page.description,
         "isPartOf": { "@id": `${BASE_URL}/#website` },
-        "about": page.keywords
+        "about": page.alternativeTargets?.length ? alternativeTargetsJsonLd(page.alternativeTargets) : page.keywords
       },
       {
         "@type": "ItemList",
@@ -6172,9 +6260,11 @@ function handleRoute() {
   } else if (path.startsWith("/app/")) {
     const appId = decodeURIComponent(path.replace("/app/", ""));
     const app = apps.find(a => a.id === appId);
+    const routeAlternativeTitle = app ? formatAlternativeTargets(app, "Proprietary Apps") : "";
+    const routeAlternativeDescription = app ? formatAlternativeTargets(app, "proprietary software") : "";
     updatePageMeta({
-      title: app ? `${app.name} — Free Open Source Alternative to ${app.alternative || 'Proprietary Apps'} | OpenLib` : "App — OpenLib",
-      description: app ? `${app.name} is a free, open-source alternative to ${app.alternative || 'proprietary software'}. ${(app.description || '').slice(0, 120)}` : "Open-source app details on OpenLib.",
+      title: app ? `${app.name} — Free Open Source Alternative to ${routeAlternativeTitle} | OpenLib` : "App — OpenLib",
+      description: app ? `${app.name} is a free, open-source alternative to ${routeAlternativeDescription}. ${(app.description || '').slice(0, 120)}` : "Open-source app details on OpenLib.",
       url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
       image: app?.logo || `${BASE_URL}/og-image.png`
     });
