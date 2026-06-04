@@ -6095,7 +6095,7 @@ function showSeoLandingPage({ kind, slug }) {
       url: `${BASE_URL}${location.pathname}`,
       robots: "noindex, follow"
     });
-    seoView.innerHTML = `<div class="seo-page"><a href="/" class="back-link">Back to library</a><h1>Collection not found</h1><p>This collection is not available yet.</p></div>`;
+    seoView.innerHTML = `<div class="seo-page"><a href="/" class="back-link">← Back to library</a><h1>Collection not found</h1><p>This collection is not available yet.</p></div>`;
     return;
   }
 
@@ -6136,7 +6136,7 @@ function showSeoLandingPage({ kind, slug }) {
 
   seoView.innerHTML = `
     <div class="seo-page">
-      <a href="/" class="back-link">Back to library</a>
+      <a href="/" class="back-link">← Back to library</a>
       <header class="seo-page-header">
         <div class="seo-title-block">
           <span class="seo-page-kicker">${appList.length} ${appList.length === 1 ? "app" : "apps"}</span>
@@ -6182,7 +6182,7 @@ function showPolicyPage(kind) {
   seoView.style.display = "block";
   seoView.innerHTML = `
     <div class="seo-page policy-page">
-      <a href="/" class="back-link">Back to library</a>
+      <a href="/" class="back-link">← Back to library</a>
       <header class="seo-page-header">
         <h1>${h1}</h1>
         <p>${description}</p>
@@ -6221,7 +6221,7 @@ function showNotFoundPage() {
     { name: "OpenLib", url: `${BASE_URL}/` },
     { name: "Page Not Found", url: `${BASE_URL}${location.pathname}` }
   ]));
-  seoView.innerHTML = `<div class="seo-page"><a href="/" class="back-link">Back to library</a><h1>Page not found</h1><p>This page is not available. Explore the OpenLib app library instead.</p>${renderRelatedSeoLinks(location.pathname)}</div>`;
+  seoView.innerHTML = `<div class="seo-page"><a href="/" class="back-link">← Back to library</a><h1>Page not found</h1><p>This page is not available. Explore the OpenLib app library instead.</p>${renderRelatedSeoLinks(location.pathname)}</div>`;
 }
 
 // ── Router ───────────────────────────────────────────────────────────────────
