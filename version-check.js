@@ -4,14 +4,15 @@
 // Firestore. Other users with older builds see a dismissible update banner.
 
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js';
+import { db } from './firebase-config.js?v=1780942023';
 
 // ── Auto-stamped by predeploy hook — DO NOT EDIT MANUALLY ────────────────────
-const DEPLOY_TIMESTAMP = 1780941193;
+const DEPLOY_TIMESTAMP = 1780942023;
 
 const LS_KEY = "openlib_deploy_ts";
 const LS_LAST_CHECK_KEY = "openlib_deploy_last_check";
 const SS_DISMISS_KEY = "openlib_update_dismissed";
+const REFRESH_PARAM = "_ol_refresh";
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 /**
@@ -36,14 +37,12 @@ export async function checkForUpdates() {
         autoSyncVersion();
       }
       localStorage.setItem(LS_KEY, String(DEPLOY_TIMESTAMP));
+      clearRefreshParam();
       return;
     }
 
     // This build is outdated
-    const localTs = Number(localStorage.getItem(LS_KEY) || "0");
-    if (localTs >= remoteTs) return; // already seen / dismissed
-
-    showUpdateBanner();
+    showUpdateBanner(remoteTs);
   } catch (_) {
     // Version check must never break the app
   }
@@ -64,7 +63,7 @@ async function autoSyncVersion() {
   }
 }
 
-function showUpdateBanner() {
+function showUpdateBanner(remoteTs) {
   // Prevent duplicates
   if (document.getElementById("version-update-banner")) return;
 
@@ -85,13 +84,25 @@ function showUpdateBanner() {
   // Trigger entrance animation on next frame
   requestAnimationFrame(() => banner.classList.add("visible"));
 
-  document.getElementById("version-btn-update").addEventListener("click", () => applyUpdate());
+  document.getElementById("version-btn-update").addEventListener("click", () => applyUpdate(remoteTs));
   document.getElementById("version-btn-dismiss").addEventListener("click", () => dismissBanner(banner));
 }
 
-async function applyUpdate() {
-  // Update stored timestamp
-  localStorage.setItem(LS_KEY, String(DEPLOY_TIMESTAMP));
+async function applyUpdate(remoteTs) {
+  const btn = document.getElementById("version-btn-update");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Updating…";
+  }
+
+  // Force the next load to re-check immediately. The current build should not
+  // mark the newer remote deploy as loaded until the fresh bundle actually runs.
+  try {
+    localStorage.removeItem(LS_LAST_CHECK_KEY);
+    sessionStorage.removeItem(SS_DISMISS_KEY);
+  } catch (_) {
+    // Storage can fail in private/restricted modes; the reload still matters.
+  }
 
   // Clear service worker caches if present
   if ("caches" in window) {
@@ -109,8 +120,11 @@ async function applyUpdate() {
     } catch (_) { /* best effort */ }
   }
 
-  // Hard reload — bypass browser cache
-  location.reload(true);
+  // Force a fresh document request. index.html versions JS/CSS URLs with the
+  // deploy timestamp, so a fresh document also loads fresh modules and styles.
+  const url = new URL(window.location.href);
+  url.searchParams.set(REFRESH_PARAM, String(remoteTs || Date.now()));
+  window.location.replace(url.toString());
 }
 
 function dismissBanner(banner) {
@@ -119,4 +133,16 @@ function dismissBanner(banner) {
   banner.addEventListener("transitionend", () => banner.remove(), { once: true });
   // Fallback removal if transition doesn't fire
   setTimeout(() => { if (banner.parentNode) banner.remove(); }, 500);
+}
+
+function clearRefreshParam() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(REFRESH_PARAM)) return;
+    url.searchParams.delete(REFRESH_PARAM);
+    const next = url.pathname + (url.search ? url.search : "") + url.hash;
+    window.history.replaceState(window.history.state, "", next);
+  } catch (_) {
+    // Cosmetic cleanup only.
+  }
 }
