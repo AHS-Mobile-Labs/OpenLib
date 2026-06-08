@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1780946951';
+} from './firebase-config.js?v=1780947825';
 
-import { checkForUpdates } from './version-check.js?v=1780946951';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1780947825';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1780946951';
+} from './firebase-db.js?v=1780947825';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -5728,6 +5728,7 @@ async function updateAuthUI(user) {
     // Create/update user record in Firestore
     userRecord = await createOrUpdateUserRecord(user);
     isAdmin = userRecord && ["admin", "openlib-team"].includes(userRecord.role);
+    if (isAdmin) syncCurrentVersion({ force: true });
 
     // Show/hide admin link; hide Profile nav link (use auth dropdown instead)
     if (adminLink) adminLink.style.display = isAdmin ? "inline-flex" : "none";
@@ -6691,11 +6692,7 @@ async function init() {
   initAuth();
 
   // Defer version update checks so homepage rendering never waits on config reads.
-  if ("requestIdleCallback" in window) {
-    requestIdleCallback(() => checkForUpdates(), { timeout: 5000 });
-  } else {
-    setTimeout(() => checkForUpdates(), 2500);
-  }
+  startUpdateChecks();
 
   // Load data from Firestore
   await loadApps();

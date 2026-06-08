@@ -1,74 +1,179 @@
 // ── Version Update Detection ─────────────────────────────────────────────────
 // Fully automatic: a predeploy hook stamps DEPLOY_TIMESTAMP on every
-// `firebase deploy`. When an admin visits, the timestamp is auto-pushed to
-// Firestore. Other users with older builds see a dismissible update banner.
+// `firebase deploy`. Clients compare this build against static deploy metadata,
+// while admins also sync Firestore for older deployed clients.
 
-import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1780946951';
+import { doc, getDoc, getDocFromServer, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+import { db } from './firebase-config.js?v=1780947825';
 
 // ── Auto-stamped by predeploy hook — DO NOT EDIT MANUALLY ────────────────────
-const DEPLOY_TIMESTAMP = 1780946951;
+const DEPLOY_TIMESTAMP = 1780947825;
 
 const LS_KEY = "openlib_deploy_ts";
 const LS_LAST_CHECK_KEY = "openlib_deploy_last_check";
+const LS_SYNCED_KEY = "openlib_deploy_synced_ts";
+const LS_SYNC_ATTEMPT_KEY = "openlib_deploy_sync_attempt";
 const SS_DISMISS_KEY = "openlib_update_dismissed";
 const REFRESH_PARAM = "_ol_refresh";
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const VERSION_MANIFEST = "/version.json";
+const VERSION_SCRIPT = "/version-check.js";
+const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const SYNC_RETRY_MS = 2 * 60 * 1000;
+
+let updateChecksStarted = false;
+let checkInFlight = false;
+let syncInFlight = false;
+
+/**
+ * Start initial, periodic, and resume-triggered update checks.
+ */
+export function startUpdateChecks() {
+  if (updateChecksStarted) return;
+  updateChecksStarted = true;
+
+  queueUpdateCheck({ force: hasRefreshParam() });
+  setInterval(() => checkForUpdates(), CHECK_INTERVAL_MS);
+
+  window.addEventListener("focus", () => checkForUpdates());
+  window.addEventListener("online", () => checkForUpdates({ force: true }));
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) checkForUpdates();
+  });
+}
 
 /**
  * Run the version check after app initialises.
  * Non-blocking — call with `checkForUpdates()` (no await needed on critical path).
  */
-export async function checkForUpdates() {
+export async function checkForUpdates({ force = false } = {}) {
+  if (checkInFlight) return;
+  checkInFlight = true;
   try {
-    if (sessionStorage.getItem(SS_DISMISS_KEY)) return;
     if (!DEPLOY_TIMESTAMP) return; // local dev — not stamped
-    const lastCheck = Number(localStorage.getItem(LS_LAST_CHECK_KEY) || "0");
-    if (lastCheck && Date.now() - lastCheck < CHECK_INTERVAL_MS) return;
-    localStorage.setItem(LS_LAST_CHECK_KEY, String(Date.now()));
 
-    const snap = await getDoc(doc(db, "config", "app_version"));
-    const remoteTs = snap.exists() ? (snap.data().deployTimestamp || 0) : 0;
+    const knownTs = readTimestamp(getStored(localStorage, LS_KEY));
+    if (knownTs > DEPLOY_TIMESTAMP && !isDismissedFor(knownTs)) {
+      showUpdateBanner(knownTs);
+    }
 
-    if (DEPLOY_TIMESTAMP >= remoteTs) {
+    if (!force && !shouldCheckNow()) return;
+    setStored(localStorage, LS_LAST_CHECK_KEY, String(Date.now()));
+
+    const latestTs = Math.max(await fetchLatestDeployTimestamp(), knownTs);
+    if (latestTs) {
+      setStored(localStorage, LS_KEY, String(Math.max(latestTs, DEPLOY_TIMESTAMP)));
+    }
+
+    if (DEPLOY_TIMESTAMP >= latestTs) {
       // This build is current or newer
-      if (DEPLOY_TIMESTAMP > remoteTs) {
-        // Newer build — auto-push to Firestore (only succeeds for admins)
-        autoSyncVersion();
-      }
-      localStorage.setItem(LS_KEY, String(DEPLOY_TIMESTAMP));
+      setStored(localStorage, LS_KEY, String(DEPLOY_TIMESTAMP));
       clearRefreshParam();
       return;
     }
 
     // This build is outdated
-    showUpdateBanner(remoteTs);
+    if (!isDismissedFor(latestTs)) showUpdateBanner(latestTs);
   } catch (_) {
     // Version check must never break the app
+  } finally {
+    checkInFlight = false;
   }
 }
 
 /**
- * Auto-push current deploy timestamp to Firestore.
- * Only succeeds for admin users (Firestore rules reject others silently).
+ * Sync the current deploy timestamp to Firestore for older clients that still
+ * use config/app_version as their update source. Call after auth has resolved.
  */
-async function autoSyncVersion() {
+export async function syncCurrentVersion({ force = false } = {}) {
+  if (syncInFlight || !DEPLOY_TIMESTAMP) return false;
+  if (readTimestamp(getStored(localStorage, LS_SYNCED_KEY)) === DEPLOY_TIMESTAMP) return true;
+
+  const attempt = readSyncAttempt();
+  const tooSoon = attempt.deployTimestamp === DEPLOY_TIMESTAMP && Date.now() - attempt.at < SYNC_RETRY_MS;
+  if (!force && tooSoon) return false;
+
+  syncInFlight = true;
+  setStored(localStorage, LS_SYNC_ATTEMPT_KEY, JSON.stringify({
+    deployTimestamp: DEPLOY_TIMESTAMP,
+    at: Date.now()
+  }));
+
   try {
     await setDoc(doc(db, "config", "app_version"), {
       deployTimestamp: DEPLOY_TIMESTAMP,
       updatedAt: new Date().toISOString()
     });
+    setStored(localStorage, LS_SYNCED_KEY, String(DEPLOY_TIMESTAMP));
+    return true;
   } catch (_) {
-    // Not admin — silently ignore, Firestore rules will reject
+    // Not admin or auth not ready — silently ignore, Firestore rules will reject
+    return false;
+  } finally {
+    syncInFlight = false;
+  }
+}
+
+async function fetchLatestDeployTimestamp() {
+  const [manifestTs, scriptTs] = await Promise.all([
+    fetchManifestDeployTimestamp(),
+    fetchStampedScriptDeployTimestamp()
+  ]);
+  if (manifestTs || scriptTs) return Math.max(manifestTs, scriptTs);
+  return fetchFirestoreDeployTimestamp();
+}
+
+async function fetchManifestDeployTimestamp() {
+  try {
+    const url = new URL(VERSION_MANIFEST, window.location.href);
+    url.searchParams.set("_", String(Date.now()));
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
+      credentials: "same-origin"
+    });
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return readTimestamp(data.deployTimestamp);
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function fetchStampedScriptDeployTimestamp() {
+  try {
+    const text = await fetchFreshText(VERSION_SCRIPT);
+    const match = text.match(/const\s+DEPLOY_TIMESTAMP\s*=\s*(\d+)\s*;/);
+    return match ? readTimestamp(match[1]) : 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
+async function fetchFirestoreDeployTimestamp() {
+  try {
+    const ref = doc(db, "config", "app_version");
+    let snap;
+    try {
+      snap = await getDocFromServer(ref);
+    } catch (_) {
+      snap = await getDoc(ref);
+    }
+    return snap.exists() ? readTimestamp(snap.data().deployTimestamp) : 0;
+  } catch (_) {
+    return 0;
   }
 }
 
 function showUpdateBanner(remoteTs) {
   // Prevent duplicates
-  if (document.getElementById("version-update-banner")) return;
+  const existing = document.getElementById("version-update-banner");
+  if (existing) {
+    existing.dataset.remoteTs = String(Math.max(readTimestamp(existing.dataset.remoteTs), remoteTs));
+    return;
+  }
 
   const banner = document.createElement("div");
   banner.id = "version-update-banner";
+  banner.dataset.remoteTs = String(remoteTs || 0);
   banner.setAttribute("role", "alert");
   banner.innerHTML =
     `<div class="version-banner-inner">` +
@@ -85,7 +190,7 @@ function showUpdateBanner(remoteTs) {
   requestAnimationFrame(() => banner.classList.add("visible"));
 
   document.getElementById("version-btn-update").addEventListener("click", () => applyUpdate(remoteTs));
-  document.getElementById("version-btn-dismiss").addEventListener("click", () => dismissBanner(banner));
+  document.getElementById("version-btn-dismiss").addEventListener("click", () => dismissBanner(banner, remoteTs));
 }
 
 async function applyUpdate(remoteTs) {
@@ -95,10 +200,11 @@ async function applyUpdate(remoteTs) {
     btn.textContent = "Updating…";
   }
 
-  // Force the next load to re-check immediately. The current build should not
-  // mark the newer remote deploy as loaded until the fresh bundle actually runs.
+  // Force the next load to re-check immediately and remember the newest deploy
+  // we have seen, so a cached old bundle can still show the banner right away.
   try {
     localStorage.removeItem(LS_LAST_CHECK_KEY);
+    localStorage.setItem(LS_KEY, String(Math.max(remoteTs || 0, DEPLOY_TIMESTAMP)));
     sessionStorage.removeItem(SS_DISMISS_KEY);
   } catch (_) {
     // Storage can fail in private/restricted modes; the reload still matters.
@@ -127,8 +233,8 @@ async function applyUpdate(remoteTs) {
   window.location.replace(url.toString());
 }
 
-function dismissBanner(banner) {
-  sessionStorage.setItem(SS_DISMISS_KEY, "1");
+function dismissBanner(banner, remoteTs) {
+  setStored(sessionStorage, SS_DISMISS_KEY, String(remoteTs || DEPLOY_TIMESTAMP));
   banner.classList.remove("visible");
   banner.addEventListener("transitionend", () => banner.remove(), { once: true });
   // Fallback removal if transition doesn't fire
@@ -145,4 +251,77 @@ function clearRefreshParam() {
   } catch (_) {
     // Cosmetic cleanup only.
   }
+}
+
+function queueUpdateCheck(options) {
+  const run = () => checkForUpdates(options);
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(run, { timeout: 5000 });
+  } else {
+    setTimeout(run, 2500);
+  }
+}
+
+function shouldCheckNow() {
+  if (hasRefreshParam()) return true;
+  const lastCheck = readTimestamp(getStored(localStorage, LS_LAST_CHECK_KEY));
+  return !lastCheck || Date.now() - lastCheck >= CHECK_INTERVAL_MS;
+}
+
+function hasRefreshParam() {
+  try {
+    return new URL(window.location.href).searchParams.has(REFRESH_PARAM);
+  } catch (_) {
+    return false;
+  }
+}
+
+function isDismissedFor(remoteTs) {
+  const dismissedTs = readTimestamp(getStored(sessionStorage, SS_DISMISS_KEY));
+  return remoteTs > 0 && dismissedTs >= remoteTs;
+}
+
+function readSyncAttempt() {
+  try {
+    const raw = getStored(localStorage, LS_SYNC_ATTEMPT_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    return {
+      deployTimestamp: readTimestamp(data.deployTimestamp),
+      at: Number(data.at) || 0
+    };
+  } catch (_) {
+    return { deployTimestamp: 0, at: 0 };
+  }
+}
+
+function readTimestamp(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+function getStored(storage, key) {
+  try {
+    return storage.getItem(key);
+  } catch (_) {
+    return null;
+  }
+}
+
+function setStored(storage, key, value) {
+  try {
+    storage.setItem(key, value);
+  } catch (_) {
+    // Storage may be unavailable in private/restricted modes.
+  }
+}
+
+async function fetchFreshText(path) {
+  const url = new URL(path, window.location.href);
+  url.searchParams.set("_", String(Date.now()));
+  const res = await fetch(url.toString(), {
+    cache: "no-store",
+    credentials: "same-origin"
+  });
+  if (!res.ok) return "";
+  return res.text();
 }
