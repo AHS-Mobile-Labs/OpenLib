@@ -1010,7 +1010,7 @@ header {
 }
 
 .ui-icon[src*="/white-theme/"],
-.ui-icon[src*="fontawesome%20icons/util/white-theme/"] {
+.ui-icon[src*="tabler-icons-3.44.0/icons/"] {
   filter: var(--mono-icon-filter);
 }
 
@@ -3174,7 +3174,7 @@ a.added-by-link:hover {
   content: "";
   width: 16px;
   height: 16px;
-  background: url("assets/Icons8/util/white-theme/icons8-edit-100.png") center / contain no-repeat;
+  background: url("assets/tabler-icons-3.44.0/icons/outline/edit.svg") center / contain no-repeat;
   filter: var(--mono-icon-filter);
   flex: 0 0 auto;
 }
@@ -4173,7 +4173,7 @@ a.added-by-link:hover {
   content: "";
   width: 16px;
   height: 16px;
-  background: url("assets/Icons8/util/white-theme/icons8-edit-100.png") center / contain no-repeat;
+  background: url("assets/tabler-icons-3.44.0/icons/outline/edit.svg") center / contain no-repeat;
   filter: var(--mono-icon-filter);
   flex: 0 0 auto;
 }
