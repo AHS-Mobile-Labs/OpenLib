@@ -5,7 +5,7 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1780942023';
+import { db } from './firebase-config.js?v=1780946951';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  USER RECORDS — Collection: user_records/{uid}

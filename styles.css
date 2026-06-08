@@ -2556,8 +2556,14 @@ a.added-by-link:hover {
 }
 
 /* ── Rankings Page ── */
+#rankings-view.view-section,
+#trending-view.view-section {
+  width: 100%;
+}
+
 .rankings-page {
-  max-width: 800px;
+  width: min(100%, 1120px);
+  max-width: 1120px;
   margin: 0 auto;
   padding: 32px 0;
 }
@@ -2581,13 +2587,15 @@ a.added-by-link:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .ranking-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
+  gap: 18px;
+  padding: 16px 24px;
+  width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2678,10 +2686,11 @@ a.added-by-link:hover {
 
 .ranking-metrics {
   display: flex;
-  gap: 14px;
+  gap: 18px;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-2);
+  margin-left: auto;
 }
 
 .ranking-score {
@@ -2691,6 +2700,12 @@ a.added-by-link:hover {
   color: var(--accent);
   min-width: 60px;
   text-align: right;
+}
+
+@media (min-width: 960px) {
+  .rankings-page {
+    min-width: 900px;
+  }
 }
 
 /* ── Login Prompt Modal ── */

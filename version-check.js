@@ -4,10 +4,10 @@
 // Firestore. Other users with older builds see a dismissible update banner.
 
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1780942023';
+import { db } from './firebase-config.js?v=1780946951';
 
 // ── Auto-stamped by predeploy hook — DO NOT EDIT MANUALLY ────────────────────
-const DEPLOY_TIMESTAMP = 1780942023;
+const DEPLOY_TIMESTAMP = 1780946951;
 
 const LS_KEY = "openlib_deploy_ts";
 const LS_LAST_CHECK_KEY = "openlib_deploy_last_check";
