@@ -10,6 +10,8 @@ const PROJECT_ID = "openlib-f7bf1";
 const BASE_URL = "https://www.openlib.online";
 const COLLECTION = "apps";
 const TODAY = new Date().toISOString().split("T")[0];
+const MIN_SITEMAP_URLS = Number(process.env.MIN_SITEMAP_URLS || "25");
+const ALLOW_STATIC_SITEMAP_FALLBACK = process.env.ALLOW_STATIC_SITEMAP_FALLBACK === "1";
 
 const TOPIC_PAGES = [
   "/open-source-alternatives",
@@ -248,10 +250,16 @@ async function main() {
     apps = await fetchApps();
     console.log(`Fetched ${apps.length} public apps from Firestore`);
   } catch (e) {
-    console.warn(`Could not fetch apps from Firestore (${e.message}). Generating sitemap with static pages only.`);
+    if (!ALLOW_STATIC_SITEMAP_FALLBACK) {
+      throw new Error(`Could not fetch apps from Firestore (${e.message}). Refusing to write a static-only sitemap.`);
+    }
+    console.warn(`Could not fetch apps from Firestore (${e.message}). Generating sitemap with static pages only because ALLOW_STATIC_SITEMAP_FALLBACK=1.`);
   }
 
   const pages = buildPages(apps);
+  if (pages.length < MIN_SITEMAP_URLS && !ALLOW_STATIC_SITEMAP_FALLBACK) {
+    throw new Error(`Generated sitemap is unexpectedly small (${pages.length} URLs; expected at least ${MIN_SITEMAP_URLS}).`);
+  }
   writeSitemap(pages);
   writeRobots();
   console.log(`sitemap.xml -> ${pages.length} URLs`);

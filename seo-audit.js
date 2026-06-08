@@ -10,6 +10,12 @@ const path = require("path");
 
 const ROOT = __dirname;
 const BASE_URL = "https://www.openlib.online";
+const CANONICAL_HOST = new URL(BASE_URL).hostname;
+const APEX_URL = "https://openlib.online/";
+const MIN_SITEMAP_URLS = Number(process.env.MIN_SITEMAP_URLS || "25");
+const NORMAL_UA = "OpenLib SEO Audit";
+const GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+const STATIC_ASSET_PATHS = ["/favicon.ico", "/favicon.svg", "/favicon.png", "/og-image.png"];
 const REQUIRED_PATHS = [
   "/",
   "/rankings",
@@ -49,6 +55,11 @@ function read(file) {
   return fs.readFileSync(path.join(ROOT, file), "utf-8");
 }
 
+function productionUrls(text) {
+  return [...text.matchAll(/https?:\/\/(?:www\.)?openlib\.online[^\s"'<>)]*/gi)]
+    .map(match => match[0]);
+}
+
 function parseSitemap(xml) {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
 }
@@ -67,7 +78,7 @@ function isRouteSupported(pathname, firebaseConfig) {
   if (/^\/profile(\/.*)?$/.test(pathname)) return true;
   if (/^\/org\/[^/]+$/.test(pathname)) return true;
   if (["/admin", "/verify", "/team/manage"].includes(pathname)) return true;
-  if (["/privacy.txt", "/terms.txt", "/sitemap.xml", "/robots.txt", "/favicon.svg", "/favicon.png", "/og-image.png"].includes(pathname)) return true;
+  if (["/privacy.txt", "/terms.txt", "/sitemap.xml", "/robots.txt", "/favicon.ico", "/favicon.svg", "/favicon.png", "/og-image.png"].includes(pathname)) return true;
 
   const rewrites = firebaseConfig.hosting?.rewrites || [];
   return rewrites.some(rewrite => {
@@ -102,8 +113,40 @@ function fileExistsForPath(pathname) {
   return fs.existsSync(path.join(ROOT, clean)) || fs.existsSync(path.join(ROOT, `${clean}.html`));
 }
 
+function checkProductionUrls(label, text) {
+  for (const url of productionUrls(text)) {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") fail(`${label} contains non-HTTPS production URL: ${url}`);
+    if (parsed.hostname !== CANONICAL_HOST) fail(`${label} contains non-canonical production host: ${url}`);
+  }
+
+  if (/location\.hostname\s*===\s*['"]openlib\.online['"]/i.test(text) && /location\.replace/i.test(text)) {
+    fail(`${label} contains a client-side apex-to-www redirect; keep host redirects at the hosting/domain layer.`);
+  }
+}
+
+function checkCanonicalMetadata(fileLabel, html) {
+  const canonical = html.match(/<link\s+rel="canonical"[^>]+href="([^"]+)"/i)?.[1];
+  const ogUrl = html.match(/<meta\s+property="og:url"[^>]+content="([^"]+)"/i)?.[1];
+  const twitterUrl = html.match(/<meta\s+name="twitter:url"[^>]+content="([^"]+)"/i)?.[1];
+  for (const [fieldLabel, url] of [["canonical", canonical], ["og:url", ogUrl], ["twitter:url", twitterUrl]]) {
+    if (!url) {
+      fail(`${fileLabel} missing ${fieldLabel} URL`);
+      continue;
+    }
+    if (url !== `${BASE_URL}/`) fail(`${fileLabel} ${fieldLabel} must point to ${BASE_URL}/, found ${url}`);
+  }
+  if (!html.includes('href="/favicon.ico"')) fail(`${fileLabel} does not advertise /favicon.ico`);
+}
+
+function checkStaticAssets() {
+  for (const pathname of STATIC_ASSET_PATHS) {
+    if (!fileExistsForPath(pathname)) fail(`Missing static asset: ${pathname}`);
+  }
+}
+
 function checkStaticFiles() {
-  for (const file of ["index.html", "robots.txt", "sitemap.xml", "firebase.json", "functions/index.js"]) {
+  for (const file of ["index.html", "robots.txt", "sitemap.xml", "firebase.json", "functions/index.js", "favicon.ico"]) {
     if (!fs.existsSync(path.join(ROOT, file))) fail(`Missing required file: ${file}`);
   }
 }
@@ -131,6 +174,7 @@ function checkMetadata(indexHtml) {
 
 function checkSitemap(urls, robots) {
   if (!urls.length) fail("sitemap.xml has no URLs");
+  if (urls.length < MIN_SITEMAP_URLS) fail(`sitemap.xml is unexpectedly small (${urls.length} URLs; expected at least ${MIN_SITEMAP_URLS})`);
   const paths = urls.map(pathnameFromUrl);
   const disallows = parseDisallows(robots);
   for (const requiredPath of REQUIRED_PATHS) {
@@ -175,19 +219,16 @@ function checkRewrites(firebaseConfig, sitemapUrls) {
   }
 }
 
-function requestHead(url, redirects = 0) {
+function requestHead(url, { redirects = 0, userAgent = NORMAL_UA } = {}) {
   return new Promise(resolve => {
-    const req = https.request(url, { method: "HEAD", headers: { "User-Agent": "OpenLib SEO Audit" } }, res => {
+    const req = https.request(url, { method: "HEAD", headers: { "User-Agent": userAgent } }, res => {
       const location = res.headers.location;
       if ([301, 302, 307, 308].includes(res.statusCode) && location && redirects < 6) {
         const nextUrl = new URL(location, url).toString();
-        requestHead(nextUrl, redirects + 1).then(result => resolve({
-          ...result,
-          redirects: result.redirects + 1,
-        }));
+        requestHead(nextUrl, { redirects: redirects + 1, userAgent }).then(resolve);
         return;
       }
-      resolve({ url, status: res.statusCode, redirects });
+      resolve({ url, status: res.statusCode, redirects, contentType: res.headers["content-type"] || "" });
     });
     req.on("error", error => resolve({ url, status: 0, redirects, error: error.message }));
     req.setTimeout(10000, () => {
@@ -199,23 +240,51 @@ function requestHead(url, redirects = 0) {
 }
 
 async function checkLive(urls) {
+  const apexResult = await requestHead(APEX_URL);
+  if (!apexResult.status || apexResult.status >= 400) fail(`Apex redirect failed (${apexResult.status || apexResult.error}): ${APEX_URL}`);
+  if (apexResult.url !== `${BASE_URL}/`) fail(`Apex URL must redirect to ${BASE_URL}/, got ${apexResult.url}`);
+  if (apexResult.redirects !== 1) warn(`Apex redirect should be one hop, got ${apexResult.redirects}`);
+
+  for (const pathname of STATIC_ASSET_PATHS) {
+    const assetUrl = `${BASE_URL}${pathname}`;
+    const result = await requestHead(assetUrl);
+    if (!result.status || result.status >= 400) fail(`Live static asset failed (${result.status || result.error}): ${assetUrl}`);
+    if (/^text\/html\b/i.test(result.contentType)) fail(`Live static asset is falling through to HTML (${result.contentType}): ${assetUrl}`);
+  }
+
   const sample = urls.slice(0, liveLimit);
   for (const url of sample) {
     const result = await requestHead(url);
     if (!result.status || result.status >= 400) fail(`Live URL failed (${result.status || result.error}): ${url}`);
     if (result.redirects > 1) warn(`Redirect chain has ${result.redirects} hops: ${url}`);
+
+    const botResult = await requestHead(url, { userAgent: GOOGLEBOT_UA });
+    if (!botResult.status || botResult.status >= 400) fail(`Googlebot URL failed (${botResult.status || botResult.error}): ${url}`);
+    if (botResult.redirects > 1) warn(`Googlebot redirect chain has ${botResult.redirects} hops: ${url}`);
   }
-  pass(`Checked ${sample.length} live URLs`);
+  pass(`Checked ${sample.length} live URLs and ${sample.length} Googlebot URLs`);
 }
 
 async function main() {
   checkStaticFiles();
   const indexHtml = read("index.html");
+  const spaHtml = fs.existsSync(path.join(ROOT, "functions/spa.html")) ? read("functions/spa.html") : null;
+  const appJs = read("script.js");
+  const prerenderJs = read("functions/index.js");
   const robots = read("robots.txt");
   const sitemapUrls = parseSitemap(read("sitemap.xml"));
   const firebaseConfig = JSON.parse(read("firebase.json"));
 
   checkMetadata(indexHtml);
+  checkCanonicalMetadata("index.html", indexHtml);
+  checkProductionUrls("index.html", indexHtml);
+  if (spaHtml) {
+    checkCanonicalMetadata("functions/spa.html", spaHtml);
+    checkProductionUrls("functions/spa.html", spaHtml);
+  }
+  checkProductionUrls("script.js", appJs);
+  checkProductionUrls("functions/index.js", prerenderJs);
+  checkStaticAssets();
   checkRobots(robots);
   checkSitemap(sitemapUrls, robots);
   checkLinks(indexHtml, firebaseConfig);
