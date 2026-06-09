@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1780994528';
+} from './firebase-config.js?v=1781002191';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1780994528';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781002191';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1780994528';
+} from './firebase-db.js?v=1781002191';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -506,7 +506,7 @@ function summarizeList(appList, fallback) {
 function splitAlternativeTargets(value) {
   const rawTargets = Array.isArray(value)
     ? value
-    : String(value || "").split(/[,\n;]/);
+    : String(value || "").split(/[,，\n;]/);
   const seen = new Set();
   return rawTargets
     .map(target => {
@@ -521,6 +521,10 @@ function splitAlternativeTargets(value) {
       seen.add(key);
       return true;
     });
+}
+
+function normalizeAlternativeInput(value) {
+  return splitAlternativeTargets(value).join(", ");
 }
 
 function getAlternativeTargets(app) {
@@ -1904,7 +1908,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
   document.getElementById("er-name").placeholder = app.name || "App name";
   document.getElementById("er-description").placeholder = app.description || "Description";
   document.getElementById("er-uses").placeholder = app.uses || "Uses";
-  document.getElementById("er-alternative").placeholder = formatAlternativeTargets(app, "Alternative target");
+  document.getElementById("er-alternative").placeholder = formatAlternativeTargets(app, "e.g. WhatsApp, Telegram");
   document.getElementById("er-logo").placeholder = app.logo || "Logo URL";
   document.getElementById("er-download").placeholder = app.download || "Download URL";
   document.getElementById("er-source").placeholder = app.source || "Source URL";
@@ -2016,7 +2020,9 @@ async function handleEditRequestSubmit(e) {
   ];
 
   fields.forEach(({ id, key }) => {
-    const val = document.getElementById(id).value.trim();
+    const val = key === "alternative"
+      ? normalizeAlternativeInput(document.getElementById(id).value)
+      : document.getElementById(id).value.trim();
     if (val) changes[key] = val;
   });
 
@@ -2868,7 +2874,7 @@ function renderVerifyCards(submissions, filter) {
         ${sub.fullDescription ? `<div class="verify-field"><label>Full Description</label><p>${sf(sub.fullDescription)}</p></div>` : ""}
         <div class="verify-field"><label>Uses / Problem solved</label><p>${sf(sub.uses)}</p></div>
         <div class="verify-field-row">
-          <div class="verify-field"><label>Alternative of</label><p>${sf(sub.alternative)}</p></div>
+          <div class="verify-field"><label>Alternative to</label><p>${sf(sub.alternative)}</p></div>
           <div class="verify-field"><label>Maintainer</label><p>${sf(sub.maintainer)}</p></div>
         </div>
         <div class="verify-field-row">
@@ -3694,7 +3700,7 @@ function renderAdminSubmissions(submissions) {
         ${field("Description", sub.description)}
         ${field("Full Description", sub.fullDescription)}
         ${field("Uses", sub.uses)}
-        ${field("Alternative of", sub.alternative)}
+        ${field("Alternative to", sub.alternative)}
         ${field("Download", sub.download, true)}
         ${field("Source", sub.source, true)}
         ${field("Website", sub.website, true)}
@@ -3864,7 +3870,7 @@ function renderAdminAddApp() {
         <div class="form-group"><label for="aa-description">Short Description <span class="required">*</span></label><textarea id="aa-description" rows="2" required maxlength="300" placeholder="One-sentence app description."></textarea></div>
         <div class="form-group"><label for="aa-full-description">Full Description <span class="optional">(optional)</span></label><textarea id="aa-full-description" rows="4" maxlength="5000" placeholder="Detailed description with features, highlights, who it's for…"></textarea></div>
         <div class="form-group"><label for="aa-uses">Uses / Problem it solves <span class="required">*</span></label><textarea id="aa-uses" rows="2" required maxlength="300" placeholder="What specific problem does this app solve?"></textarea></div>
-        <div class="form-group"><label for="aa-alternative">Alternative of <span class="required">*</span></label><input type="text" id="aa-alternative" required maxlength="100" placeholder="e.g. Adobe Photoshop"></div>
+        <div class="form-group"><label for="aa-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label><input type="text" id="aa-alternative" required maxlength="200" placeholder="e.g. WhatsApp, Telegram"></div>
       </fieldset>
 
       <!-- ── Section: Links ── -->
@@ -4446,7 +4452,7 @@ function attachAdminHandlers(tab) {
     if (aaCompInitBtn && aaCompContainer) {
       aaCompInitBtn.addEventListener("click", () => {
         const appName = document.getElementById("aa-name").value.trim() || "This App";
-        const alt = document.getElementById("aa-alternative").value.trim() || "Alternative";
+        const alt = normalizeAlternativeInput(document.getElementById("aa-alternative").value) || "Alternative";
         initComparisonEditor(aaCompContainer, {
           columns: [appName, alt],
           rows: [
@@ -4537,7 +4543,7 @@ function attachAdminHandlers(tab) {
         description: document.getElementById("aa-description").value.trim(),
         fullDescription: document.getElementById("aa-full-description").value.trim(),
         uses: document.getElementById("aa-uses").value.trim(),
-        alternative: document.getElementById("aa-alternative").value.trim(),
+        alternative: normalizeAlternativeInput(document.getElementById("aa-alternative").value),
         download: document.getElementById("aa-download").value.trim(),
         source: document.getElementById("aa-source").value.trim(),
         website: document.getElementById("aa-website").value.trim(),
@@ -5409,7 +5415,7 @@ async function handleSubmitApp(e) {
     fullDescription: (form.querySelector("#sub-full-description")?.value || "").trim(),
     features,
     uses,
-    alternative: form.querySelector("#sub-alternative").value.trim(),
+    alternative: normalizeAlternativeInput(form.querySelector("#sub-alternative").value),
     download: form.querySelector("#sub-download").value.trim(),
     source: form.querySelector("#sub-source").value.trim(),
     website: (form.querySelector("#sub-website")?.value || "").trim(),
@@ -5538,7 +5544,7 @@ async function handleResubmit(e) {
     category: document.getElementById("resub-category").value,
     description: document.getElementById("resub-description").value.trim(),
     uses: document.getElementById("resub-uses").value.trim(),
-    alternative: document.getElementById("resub-alternative").value.trim(),
+    alternative: normalizeAlternativeInput(document.getElementById("resub-alternative").value),
     download: document.getElementById("resub-download").value.trim(),
     source: document.getElementById("resub-source").value.trim(),
     maintainer: document.getElementById("resub-maintainer").value,

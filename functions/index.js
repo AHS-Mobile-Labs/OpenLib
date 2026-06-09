@@ -109,7 +109,7 @@ function slugify(value) {
 function splitAlternativeTargets(value) {
   const rawTargets = Array.isArray(value)
     ? value
-    : String(value || "").split(/[,\n;]/);
+    : String(value || "").split(/[,，\n;]/);
   const seen = new Set();
   return rawTargets
     .map(target => {
