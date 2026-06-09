@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781002191';
+} from './firebase-config.js?v=1781003408';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781002191';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781003408';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781002191';
+} from './firebase-db.js?v=1781003408';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -6322,14 +6322,117 @@ function showSeoLandingPage({ kind, slug }) {
     </div>`;
 }
 
-function showPolicyPage(kind) {
-  const isPrivacy = kind === "privacy";
-  const path = isPrivacy ? "/privacy" : "/terms";
-  const title = isPrivacy ? "Privacy Policy | OpenLib" : "Terms and Conditions | OpenLib";
-  const h1 = isPrivacy ? "Privacy Policy" : "Terms and Conditions";
-  const description = isPrivacy
-    ? "Read OpenLib's privacy policy for app discovery, submissions, account data, analytics, and community features."
-    : "Read OpenLib's terms and conditions for app submissions, reviews, community use, ownership, and acceptable behavior.";
+const POLICY_PAGE_CONFIG = {
+  privacy: {
+    path: "/privacy",
+    file: "/privacy.txt",
+    title: "Privacy Policy | OpenLib",
+    h1: "Privacy Policy",
+    description: "Read OpenLib's privacy policy for app discovery, submissions, account data, analytics, and community features.",
+    linkLabel: "privacy.txt"
+  },
+  terms: {
+    path: "/terms",
+    file: "/terms.txt",
+    title: "Terms and Conditions | OpenLib",
+    h1: "Terms and Conditions",
+    description: "Read OpenLib's terms and conditions for app submissions, reviews, community use, ownership, and acceptable behavior.",
+    linkLabel: "terms.txt"
+  }
+};
+
+function renderPolicyInline(text) {
+  return String(text || "").split(/(https?:\/\/[^\s]+)/g).map(part => {
+    if (!part) return "";
+    if (/^https?:\/\//.test(part)) {
+      return `<a href="${escUrl(part)}" target="_blank" rel="noopener">${esc(part)}</a>`;
+    }
+    return esc(part);
+  }).join("");
+}
+
+function renderPolicyText(text) {
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+  let html = "";
+  let paragraph = [];
+  let inList = false;
+  let hasTitle = false;
+
+  function closeList() {
+    if (!inList) return;
+    html += "</ul>";
+    inList = false;
+  }
+
+  function flushParagraph() {
+    if (!paragraph.length) return;
+    html += `<p>${renderPolicyInline(paragraph.join(" "))}</p>`;
+    paragraph = [];
+  }
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      closeList();
+      return;
+    }
+
+    if (!hasTitle) {
+      html += `<p class="policy-doc-title">${renderPolicyInline(line)}</p>`;
+      hasTitle = true;
+      return;
+    }
+
+    if (/^Last Updated:/i.test(line)) {
+      flushParagraph();
+      closeList();
+      html += `<p class="policy-updated">${renderPolicyInline(line)}</p>`;
+      return;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      flushParagraph();
+      closeList();
+      html += `<h2>${renderPolicyInline(line)}</h2>`;
+      return;
+    }
+
+    if (/^[a-z]\)\s+/i.test(line)) {
+      flushParagraph();
+      closeList();
+      html += `<h3>${renderPolicyInline(line)}</h3>`;
+      return;
+    }
+
+    if (/^-\s+/.test(line)) {
+      flushParagraph();
+      if (!inList) {
+        html += "<ul>";
+        inList = true;
+      }
+      html += `<li>${renderPolicyInline(line.replace(/^-\s+/, ""))}</li>`;
+      return;
+    }
+
+    paragraph.push(line);
+  });
+
+  flushParagraph();
+  closeList();
+  return html || "<p>Policy text is currently unavailable.</p>";
+}
+
+async function loadPolicyText(kind) {
+  const config = POLICY_PAGE_CONFIG[kind] || POLICY_PAGE_CONFIG.privacy;
+  const response = await fetch(config.file, { cache: "no-cache" });
+  if (!response.ok) throw new Error(`Could not load ${config.file}`);
+  return response.text();
+}
+
+async function showPolicyPage(kind) {
+  const config = POLICY_PAGE_CONFIG[kind] || POLICY_PAGE_CONFIG.privacy;
+  const { path, title, h1, description } = config;
 
   updatePageMeta({ title, description, url: `${BASE_URL}${path}` });
   updateJsonLd({
@@ -6352,6 +6455,17 @@ function showPolicyPage(kind) {
   const seoView = document.getElementById("seo-view");
   switchView("seo-view");
   seoView.style.display = "block";
+  seoView.innerHTML = `<div class="seo-page policy-page"><a href="/" class="back-link">← Back to library</a><div class="detail-loading">Loading ${esc(h1.toLowerCase())}…</div></div>`;
+
+  let policyText = "";
+  try {
+    policyText = await loadPolicyText(kind);
+  } catch (err) {
+    console.warn("Policy text load failed:", err);
+  }
+
+  if (location.pathname !== path) return;
+
   seoView.innerHTML = `
     <div class="seo-page policy-page">
       <a href="/" class="back-link">← Back to library</a>
@@ -6359,22 +6473,10 @@ function showPolicyPage(kind) {
         <h1>${h1}</h1>
         <p>${description}</p>
       </header>
-      <section>
-        <h2>${isPrivacy ? "What OpenLib collects" : "Using OpenLib"}</h2>
-        <p>${isPrivacy
-          ? "OpenLib uses Firebase services for accounts, app submissions, reviews, moderation, and basic analytics. Public app listings and community content are used to operate the open-source software directory."
-          : "OpenLib is a community-curated directory for discovering open-source software. Users are responsible for submitting accurate app information, respecting project licenses, and using linked third-party software at their own discretion."}</p>
-      </section>
-      <section>
-        <h2>${isPrivacy ? "How data is used" : "Community content"}</h2>
-        <p>${isPrivacy
-          ? "Data is used to provide discovery, recommendations, moderation, rankings, security review workflows, and abuse prevention while keeping the platform lightweight."
-          : "Reviews, ratings, reports, edit requests, and app metadata may be moderated to keep listings useful, accurate, and safe for the OpenLib community."}</p>
-      </section>
-      <section>
-        <h2>Full text</h2>
-        <p>Read the plain-text ${isPrivacy ? `<a href="/privacy.txt">privacy policy</a>` : `<a href="/terms.txt">terms and conditions</a>`} for the complete legal text.</p>
-      </section>
+      <article class="policy-text">
+        ${policyText ? renderPolicyText(policyText) : `<p>Could not load the policy text inline. You can still open the plain-text file below.</p>`}
+      </article>
+      <p class="policy-raw-link">Plain text: <a href="${esc(config.file)}">${esc(config.linkLabel)}</a></p>
       ${renderRelatedSeoLinks(path)}
     </div>`;
 }

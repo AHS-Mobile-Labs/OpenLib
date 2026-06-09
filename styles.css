@@ -8934,7 +8934,9 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
 }
 
 .seo-app-item p,
-.policy-page section p {
+.policy-page section p,
+.policy-text p,
+.policy-text li {
   color: var(--text-2);
   overflow-wrap: break-word;
 }
@@ -8979,6 +8981,56 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
 
 .policy-page section {
   margin: 22px 0;
+}
+
+.policy-text {
+  max-width: 860px;
+}
+
+.policy-doc-title {
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.policy-updated,
+.policy-raw-link {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.policy-text h2 {
+  margin: 28px 0 10px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.policy-text h3 {
+  margin: 16px 0 6px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.policy-text p {
+  margin: 0 0 12px;
+  line-height: 1.7;
+}
+
+.policy-text ul {
+  margin: 0 0 14px 20px;
+}
+
+.policy-text li {
+  margin: 5px 0;
+  line-height: 1.6;
+}
+
+.policy-raw-link {
+  margin-top: 24px;
 }
 
 @media (max-width: 1080px) {

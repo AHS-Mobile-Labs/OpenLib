@@ -401,6 +401,100 @@ function buildPage({ title, description, url, image, type, jsonLd, body, robots 
 </html>`;
 }
 
+function renderPolicyInline(text) {
+  return String(text || "").split(/(https?:\/\/[^\s]+)/g).map(part => {
+    if (!part) return "";
+    if (/^https?:\/\//.test(part)) {
+      return `<a href="${esc(part)}" rel="noopener">${esc(part)}</a>`;
+    }
+    return esc(part);
+  }).join("");
+}
+
+function renderPolicyText(text) {
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+  let html = "";
+  let paragraph = [];
+  let inList = false;
+  let hasTitle = false;
+
+  function closeList() {
+    if (!inList) return;
+    html += "</ul>";
+    inList = false;
+  }
+
+  function flushParagraph() {
+    if (!paragraph.length) return;
+    html += `<p>${renderPolicyInline(paragraph.join(" "))}</p>`;
+    paragraph = [];
+  }
+
+  lines.forEach(rawLine => {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      closeList();
+      return;
+    }
+
+    if (!hasTitle) {
+      html += `<p><strong>${renderPolicyInline(line)}</strong></p>`;
+      hasTitle = true;
+      return;
+    }
+
+    if (/^Last Updated:/i.test(line)) {
+      flushParagraph();
+      closeList();
+      html += `<p><em>${renderPolicyInline(line)}</em></p>`;
+      return;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      flushParagraph();
+      closeList();
+      html += `<h2>${renderPolicyInline(line)}</h2>`;
+      return;
+    }
+
+    if (/^[a-z]\)\s+/i.test(line)) {
+      flushParagraph();
+      closeList();
+      html += `<h3>${renderPolicyInline(line)}</h3>`;
+      return;
+    }
+
+    if (/^-\s+/.test(line)) {
+      flushParagraph();
+      if (!inList) {
+        html += "<ul>";
+        inList = true;
+      }
+      html += `<li>${renderPolicyInline(line.replace(/^-\s+/, ""))}</li>`;
+      return;
+    }
+
+    paragraph.push(line);
+  });
+
+  flushParagraph();
+  closeList();
+  return html || "<p>Policy text is currently unavailable.</p>";
+}
+
+function readPolicyText(kind) {
+  const filename = kind === "privacy" ? "privacy.txt" : "terms.txt";
+  const candidates = [
+    path.join(__dirname, filename),
+    path.join(__dirname, "..", filename),
+  ];
+  for (const filePath of candidates) {
+    if (fs.existsSync(filePath)) return fs.readFileSync(filePath, "utf-8");
+  }
+  return "";
+}
+
 async function getLimitedAppsByEngagement(maxDocs = PRERENDER_LIST_LIMIT) {
   const fields = APP_PRERENDER_FIELDS;
   const [viewsSnap, likesSnap] = await Promise.all([
@@ -812,23 +906,14 @@ function renderPolicy(kind) {
     ? "Read OpenLib's privacy policy for app discovery, submissions, account data, analytics, and community features."
     : "Read OpenLib's terms and conditions for app submissions, reviews, community use, ownership, and acceptable behavior.";
   const url = `${BASE_URL}${pathName}`;
+  const policyFile = isPrivacy ? "/privacy.txt" : "/terms.txt";
+  const policyText = readPolicyText(kind);
   const body = `
     <article>
       <h1>${h1}</h1>
       <p>${esc(desc)}</p>
-      <section>
-        <h2>${isPrivacy ? "What OpenLib Collects" : "Using OpenLib"}</h2>
-        <p>${isPrivacy
-          ? "OpenLib uses Firebase services for accounts, app submissions, reviews, moderation, and basic analytics. Public app listings and community content are used to operate the open-source software directory."
-          : "OpenLib is a community-curated directory for discovering open-source software. Users are responsible for submitting accurate app information, respecting project licenses, and using linked third-party software at their own discretion."}</p>
-      </section>
-      <section>
-        <h2>${isPrivacy ? "How Data Is Used" : "Community Content"}</h2>
-        <p>${isPrivacy
-          ? "Data is used to provide discovery, recommendations, moderation, rankings, security review workflows, and abuse prevention while keeping the platform lightweight."
-          : "Reviews, ratings, reports, edit requests, and app metadata may be moderated to keep listings useful, accurate, and safe for the OpenLib community."}</p>
-      </section>
-      <p>Full text: <a href="${isPrivacy ? "/privacy.txt" : "/terms.txt"}">${isPrivacy ? "privacy.txt" : "terms.txt"}</a></p>
+      ${policyText ? renderPolicyText(policyText) : "<p>Policy text is currently unavailable.</p>"}
+      <p>Plain text: <a href="${policyFile}">${isPrivacy ? "privacy.txt" : "terms.txt"}</a></p>
     </article>`;
 
   return buildPage({

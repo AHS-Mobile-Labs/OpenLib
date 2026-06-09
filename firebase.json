@@ -8,7 +8,11 @@
   },
   "functions": {
     "source": "functions",
-    "predeploy": ["cp index.html functions/spa.html"]
+    "predeploy": [
+      "cp index.html functions/spa.html",
+      "cp privacy.txt functions/privacy.txt",
+      "cp terms.txt functions/terms.txt"
+    ]
   },
   "hosting": {
     "public": ".",
