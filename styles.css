@@ -4918,6 +4918,85 @@ a.added-by-link:hover {
   overflow: auto;
 }
 
+.diff-image-list {
+  display: grid;
+  gap: 10px;
+}
+
+.diff-image-item {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.diff-image-preview-link {
+  display: block;
+  width: 96px;
+  height: 72px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-2);
+}
+
+.diff-image-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.diff-image-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.diff-image-label {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.diff-image-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.diff-image-action:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.diff-image-action .ui-icon {
+  width: 13px;
+  height: 13px;
+}
+
 /* Structured diff renderers for complex fields */
 .diff-json {
   font-family: var(--font-mono);
@@ -4977,6 +5056,11 @@ a.added-by-link:hover {
   .diff-table th.diff-new { width: 37.5%; }
   .diff-field-name { font-size: 10px; }
   .diff-row-long .diff-cell { max-height: 100px; }
+  .diff-image-item { grid-template-columns: 1fr; }
+  .diff-image-preview-link {
+    width: 100%;
+    height: 110px;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════

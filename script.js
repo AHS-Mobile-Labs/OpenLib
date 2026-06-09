@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781014725';
+} from './firebase-config.js?v=1781015449';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781014725';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781015449';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781014725';
+} from './firebase-db.js?v=1781015449';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -4646,6 +4646,7 @@ function renderVersionCard(v, appId, opts = {}) {
 }
 
 function bindVersionCardHandlers(container, appId, reloadFn) {
+  bindDiffImageActions(container);
   container.querySelectorAll(".changelog-diff-toggle.version-diff-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
       const diffEl = document.getElementById(`version-diff-${btn.dataset.versionId}`);
@@ -4678,6 +4679,22 @@ function bindVersionCardHandlers(container, appId, reloadFn) {
   });
 }
 
+function bindDiffImageActions(container) {
+  if (!container || container.dataset.diffImageActionsBound === "true") return;
+  container.dataset.diffImageActionsBound = "true";
+  container.addEventListener("click", e => {
+    const btn = e.target.closest(".diff-image-copy");
+    if (!btn) return;
+    const url = btn.dataset.url || "";
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast("Image URL copied!");
+    }).catch(() => {
+      showToast("Could not copy image URL");
+    });
+  });
+}
+
 async function loadVersionHistory(appId) {
   const container = document.getElementById(`version-history-${appId}`);
   const viewAllBtn = document.getElementById(`view-all-versions-${appId}`);
@@ -4702,18 +4719,68 @@ async function loadVersionHistory(appId) {
 
 // ── Enhanced Edit Request with Review Comments ───────────────────────────────
 /* ── Diff View Helper ── */
+const IMAGE_DIFF_FIELDS = new Set(["logo", "screenshots"]);
+
+function looksLikeImageUrl(value) {
+  if (typeof value !== "string") return false;
+  const url = value.trim();
+  if (!/^https?:\/\//i.test(url)) return false;
+  return /\.(png|jpe?g|webp|gif|svg)(?:[?#].*)?$/i.test(url)
+    || /firebasestorage\.googleapis\.com/i.test(url)
+    || /images?|screenshots?|logos?/i.test(url);
+}
+
+function imageUrlLabel(url) {
+  try {
+    const parsed = new URL(url);
+    const rawName = decodeURIComponent(parsed.pathname.split("/").pop() || parsed.hostname);
+    const cleanName = rawName.replace(/\?.*$/, "").slice(0, 42);
+    return cleanName || parsed.hostname;
+  } catch (_) {
+    return "Image";
+  }
+}
+
+function renderImageDiffItem(url) {
+  const safeUrl = escUrl(url);
+  return `
+    <div class="diff-image-item">
+      <a class="diff-image-preview-link" href="${safeUrl}" target="_blank" rel="noopener" title="Open image">
+        <img class="diff-image-preview" src="${safeUrl}" alt="Image preview" loading="lazy" referrerpolicy="no-referrer">
+      </a>
+      <div class="diff-image-meta">
+        <span class="diff-image-label">${esc(imageUrlLabel(url))}</span>
+        <div class="diff-image-actions">
+          <button type="button" class="diff-image-action diff-image-copy" data-url="${esc(url)}">${iconImg("copy")} Copy URL</button>
+          <a class="diff-image-action" href="${safeUrl}" target="_blank" rel="noopener">${iconImg("link")} Open</a>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderImageDiffValue(value) {
+  const urls = (Array.isArray(value) ? value : [value])
+    .filter(item => typeof item === "string")
+    .map(item => item.trim())
+    .filter(Boolean);
+  if (!urls.length) return '<span class="diff-empty">—</span>';
+  return `<div class="diff-image-list">${urls.map(renderImageDiffItem).join("")}</div>`;
+}
+
 function formatFieldValue(val, fieldKey) {
   if (val == null || val === "") return '<span class="diff-empty">—</span>';
   if (fieldKey === "comparisonData") return formatComparisonDataDiff(val);
   if (fieldKey === "installMethods") return formatInstallMethodsDiff(val);
   if (Array.isArray(val)) {
     if (!val.length) return '<span class="diff-empty">—</span>';
+    if (fieldKey === "screenshots" || val.every(looksLikeImageUrl)) return renderImageDiffValue(val);
     // Handle arrays of objects (generic)
     if (typeof val[0] === "object" && val[0] !== null) {
       return val.map(v => `<span class="diff-tag">${esc(JSON.stringify(v))}</span>`).join(" ");
     }
     return val.map(v => `<span class="diff-tag">${esc(String(v))}</span>`).join(" ");
   }
+  if (IMAGE_DIFF_FIELDS.has(fieldKey) || looksLikeImageUrl(val)) return renderImageDiffValue(val);
   if (typeof val === "object") return `<pre class="diff-json">${esc(JSON.stringify(val, null, 2))}</pre>`;
   return esc(String(val));
 }
@@ -4929,6 +4996,7 @@ function renderERCard(er, appId, opts = {}) {
 }
 
 function bindERCardHandlers(container, appId, reloadFn) {
+  bindDiffImageActions(container);
   // Diff toggle handlers
   container.querySelectorAll(".er-diff-toggle").forEach(btn => {
     btn.addEventListener("click", () => {
