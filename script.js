@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781006485';
+} from './firebase-config.js?v=1781012502';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781006485';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781012502';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781006485';
+} from './firebase-db.js?v=1781012502';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -6016,8 +6016,11 @@ function debounce(fn, ms) {
 const BASE_URL = CANONICAL_ORIGIN;
 
 function navigateTo(path) {
-  history.pushState(null, "", path);
+  if (path !== location.pathname + location.search + location.hash) {
+    history.pushState(null, "", path);
+  }
   handleRoute();
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 }
 
 function updatePageMeta({ title, description, url, robots = "index, follow, max-snippet:-1, max-image-preview:large", image }) {
