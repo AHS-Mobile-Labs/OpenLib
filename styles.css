@@ -3325,9 +3325,10 @@ a.added-by-link:hover {
 
 /* ── Dedicated Edit Requests Page ── */
 .er-page {
-  max-width: 800px;
+  width: min(1120px, calc(100vw - 48px)) !important;
+  max-width: none !important;
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 32px 0;
 }
 .er-page-header {
   margin-bottom: 20px;
@@ -3375,6 +3376,15 @@ a.added-by-link:hover {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+}
+
+.er-page .er-contributors-wrap,
+.er-full-list .changelog-card,
+.version-full-list .changelog-card {
+  width: 100%;
+  max-width: none;
+  padding: 20px 24px;
 }
 
 /* ── Responsive for Edit Requests / Version History ── */
@@ -4491,9 +4501,10 @@ a.added-by-link:hover {
 
 /* ── Dedicated Version History Page ── */
 .version-page {
-  max-width: 800px;
+  width: min(1120px, calc(100vw - 48px)) !important;
+  max-width: none !important;
   margin: 0 auto;
-  padding: 24px 0;
+  padding: 32px 0;
 }
 .version-page-header {
   margin-bottom: 20px;
@@ -4516,6 +4527,7 @@ a.added-by-link:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
 }
 
 /* ── Creator Profile Card ────────────────────────────────────────────────── */
