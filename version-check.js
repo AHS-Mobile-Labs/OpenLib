@@ -4,10 +4,10 @@
 // while admins also sync Firestore for older deployed clients.
 
 import { doc, getDoc, getDocFromServer, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1780949617';
+import { db } from './firebase-config.js?v=1780994528';
 
 // ── Auto-stamped by predeploy hook — DO NOT EDIT MANUALLY ────────────────────
-const DEPLOY_TIMESTAMP = 1780949617;
+const DEPLOY_TIMESTAMP = 1780994528;
 
 const LS_KEY = "openlib_deploy_ts";
 const LS_LAST_CHECK_KEY = "openlib_deploy_last_check";

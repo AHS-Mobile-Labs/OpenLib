@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1780949617';
+} from './firebase-config.js?v=1780994528';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1780949617';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1780994528';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1780949617';
+} from './firebase-db.js?v=1780994528';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -1419,6 +1419,7 @@ async function showAppDetail(appId) {
 
         <div class="edit-requests-section" id="edit-requests-${esc(appId)}">
           <h3>Edit Requests</h3>
+          <div class="er-contributors-wrap" id="er-contributors-${esc(appId)}" hidden></div>
           <div class="edit-requests-list" id="er-list-${esc(appId)}">
             <p class="er-loading">Loading edit requests…</p>
           </div>
@@ -4750,6 +4751,73 @@ const FIELD_LABELS = {
   systemRequirements: "System Requirements", comparisonData: "Comparison Table"
 };
 
+function addEditContributor(contributors, person) {
+  if (!person) return;
+  const name = String(person.displayName || person.authorName || person.name || "").trim();
+  const uid = String(person.uid || person.authorUid || "").trim();
+  if (!name && !uid) return;
+
+  const key = uid || `${name}:${person.photoURL || person.authorPhoto || ""}`;
+  const existing = contributors.get(key) || {
+    uid,
+    displayName: name || "Anonymous",
+    photoURL: person.photoURL || person.authorPhoto || "",
+    count: 0
+  };
+  existing.count += 1;
+  if (!existing.photoURL && (person.photoURL || person.authorPhoto)) {
+    existing.photoURL = person.photoURL || person.authorPhoto;
+  }
+  contributors.set(key, existing);
+}
+
+function collectEditContributors(requests, comments = []) {
+  const contributors = new Map();
+  requests.forEach(er => addEditContributor(contributors, er.submitter));
+  comments.forEach(comment => addEditContributor(contributors, comment));
+  return [...contributors.values()].sort((a, b) =>
+    (b.count - a.count) || a.displayName.localeCompare(b.displayName)
+  );
+}
+
+function renderEditRequestContributors(appId, requests, opts = {}) {
+  const container = document.getElementById(`er-contributors-${appId}`);
+  if (!container) return;
+
+  const contributors = collectEditContributors(requests || [], opts.comments || []);
+  if (!contributors.length) {
+    container.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+
+  const maxVisible = opts.maxVisible || 14;
+  const visible = contributors.slice(0, maxVisible);
+  const remaining = contributors.length - visible.length;
+  const allHref = opts.allHref || `/app/${encodeURIComponent(appId)}/edit-requests`;
+
+  container.hidden = false;
+  container.innerHTML = `
+    <div class="er-contributors-title">
+      <span>Contributors</span>
+      <span class="er-contributors-count">${contributors.length}</span>
+    </div>
+    <div class="er-contributors-avatars">
+      ${visible.map(contributor => {
+        const title = `${contributor.displayName}${contributor.count > 1 ? ` (${contributor.count} contributions)` : ""}`;
+        const avatar = contributor.photoURL
+          ? `<img class="er-contributor-img" src="${escUrl(contributor.photoURL)}" alt="${esc(contributor.displayName)}" referrerpolicy="no-referrer">`
+          : `<span class="er-contributor-fallback">${esc(contributor.displayName.charAt(0))}</span>`;
+        const profileHref = contributor.uid ? `/profile/${encodeURIComponent(contributor.uid)}` : "";
+        const attrs = profileHref ? `href="${profileHref}"` : 'role="img"';
+        const tag = profileHref ? "a" : "span";
+        return `<${tag} ${attrs} class="er-contributor-avatar" title="${esc(title)}" aria-label="${esc(title)}">${avatar}</${tag}>`;
+      }).join("")}
+    </div>
+    ${remaining > 0 ? `<a href="${esc(allHref)}" class="er-contributors-more">+ ${remaining} contributor${remaining === 1 ? "" : "s"}</a>` : ""}
+  `;
+}
+
 function renderDiffTable(changes, originalApp, snapshot) {
   const fields = Object.keys(changes).filter(k => k !== "reason");
   if (!fields.length) return '<p class="diff-empty-msg">No field changes.</p>';
@@ -4924,16 +4992,26 @@ async function loadEditRequestsForDetail(appId) {
     const requests = await getEditRequestsForApp(appId);
     if (requests.length === 0) {
       listEl.innerHTML = `<p class="er-empty">No edit requests yet. Be the first to suggest an improvement!</p>`;
+      renderEditRequestContributors(appId, []);
       if (viewAllBtn) viewAllBtn.style.display = "none";
       return;
     }
 
     const preview = requests.slice(0, 3);
     listEl.innerHTML = preview.map(er => renderERCard(er, appId)).join("");
-
-    for (const er of preview) { loadERComments(er.id); }
+    renderEditRequestContributors(appId, requests, {
+      maxVisible: 14,
+      allHref: `/app/${encodeURIComponent(appId)}/edit-requests`
+    });
     bindERCardHandlers(listEl, appId, () => loadEditRequestsForDetail(appId));
     if (viewAllBtn) viewAllBtn.style.display = requests.length > 3 ? "" : "none";
+
+    const visibleComments = (await Promise.all(preview.map(er => loadERComments(er.id)))).flat();
+    renderEditRequestContributors(appId, requests, {
+      comments: visibleComments,
+      maxVisible: 14,
+      allHref: `/app/${encodeURIComponent(appId)}/edit-requests`
+    });
   } catch (err) {
     listEl.innerHTML = `<p class="er-empty">Could not load edit requests.</p>`;
   }
@@ -4941,10 +5019,10 @@ async function loadEditRequestsForDetail(appId) {
 
 async function loadERComments(editRequestId) {
   const container = document.getElementById(`er-comments-${editRequestId}`);
-  if (!container) return;
+  if (!container) return [];
   try {
     const comments = await getReviewComments(editRequestId);
-    if (!comments.length) { container.innerHTML = ""; return; }
+    if (!comments.length) { container.innerHTML = ""; return []; }
 
     const INITIAL_SHOW = 3;
     const LOAD_MORE = 10;
@@ -4980,8 +5058,10 @@ async function loadERComments(editRequestId) {
       }
     }
     render();
+    return comments;
   } catch (e) {
     container.innerHTML = "";
+    return [];
   }
 }
 
@@ -6559,6 +6639,7 @@ async function showEditRequestsPage(appId) {
         <a href="/app/${esc(appId)}" class="er-back-link">← Back to ${esc(app.name)}</a>
         <h2>Edit Requests for ${esc(app.name)}</h2>
       </div>
+      <div class="er-contributors-wrap er-page-contributors" id="er-contributors-${esc(appId)}" hidden></div>
       <div class="er-status-filters">
         <button class="er-filter-btn active" data-filter="all">All</button>
         <button class="er-filter-btn" data-filter="open">Open</button>
@@ -6580,11 +6661,14 @@ async function showEditRequestsPage(appId) {
       const filtered = filter === "all" ? allRequests : allRequests.filter(r => r.status === filter);
       if (!filtered.length) {
         listEl.innerHTML = `<p class="er-empty">No ${filter === "all" ? "" : filter + " "}edit requests.</p>`;
+        renderEditRequestContributors(appId, []);
         return;
       }
       listEl.innerHTML = filtered.map(er => renderERCard(er, appId)).join("");
-      for (const er of filtered) { loadERComments(er.id); }
+      renderEditRequestContributors(appId, filtered, { maxVisible: 24 });
       bindERCardHandlers(listEl, appId, () => { allRequests = []; loadFiltered(filter); });
+      const comments = (await Promise.all(filtered.map(er => loadERComments(er.id)))).flat();
+      renderEditRequestContributors(appId, filtered, { comments, maxVisible: 24 });
     } catch (err) {
       listEl.innerHTML = `<p class="er-empty">Could not load edit requests.</p>`;
     }
