@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781003408';
+} from './firebase-config.js?v=1781006485';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781003408';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781006485';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781003408';
+} from './firebase-db.js?v=1781006485';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -6902,6 +6902,7 @@ async function init() {
     if (!anchor) return;
     const href = anchor.getAttribute("href");
     if (!href || href.startsWith("http") || href.startsWith("mailto:") || anchor.hasAttribute("target")) return;
+    if (href.endsWith(".txt")) return;
     if (href.startsWith("/") || href === "/") {
       e.preventDefault();
       navigateTo(href);

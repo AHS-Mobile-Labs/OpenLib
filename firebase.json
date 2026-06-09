@@ -177,6 +177,14 @@
         "function": "prerender"
       },
       {
+        "source": "/privacy.txt",
+        "function": "prerender"
+      },
+      {
+        "source": "/terms.txt",
+        "function": "prerender"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -80,6 +80,13 @@ function sendHtml(req, res, html, extraHeaders = {}, statusCode = 200) {
   return res.status(statusCode).send(html);
 }
 
+function sendText(req, res, text, extraHeaders = {}, statusCode = 200) {
+  Object.entries(extraHeaders).forEach(([key, value]) => res.set(key, value));
+  res.set("Content-Type", "text/plain; charset=utf-8");
+  if (req.method === "HEAD") return res.status(statusCode).send("");
+  return res.status(statusCode).send(text);
+}
+
 // ── Bot detection ────────────────────────────────────────────────────────────
 const BOT_RE = /googlebot|google-inspectiontool|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|linkedinbot|embedly|quora link preview|outbrain|pinterest|pinterestbot|slackbot|vkshare|w3c_validator|whatsapp|telegrambot|discordbot|applebot|petalbot|seznambot|ahrefsbot|semrushbot|mj12bot|dotbot/i;
 
@@ -1011,6 +1018,20 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
     return res.status(405).send("Method Not Allowed");
   }
 
+  const urlPath = decodeURIComponent(req.path);
+  if (urlPath === "/privacy.txt" || urlPath === "/terms.txt") {
+    const kind = urlPath === "/privacy.txt" ? "privacy" : "terms";
+    const text = readPolicyText(kind);
+    res.set("Cache-Control", "no-cache, max-age=0");
+    return sendText(
+      req,
+      res,
+      text || `${kind === "privacy" ? "Privacy Policy" : "Terms and Conditions"} text is currently unavailable.`,
+      { "X-Rendered-By": "openlib-prerender" },
+      text ? 200 : 404
+    );
+  }
+
   const ua = req.headers["user-agent"] || "";
 
   // Regular users → serve the SPA directly
@@ -1025,7 +1046,6 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
   }
 
   // Bot traffic → serve pre-rendered HTML
-  const urlPath = decodeURIComponent(req.path);
   let html = null;
   const cacheKey = `html:${urlPath}`;
   const cachedHtml = getCachedHtml(cacheKey);
