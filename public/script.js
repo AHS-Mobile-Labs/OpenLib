@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781302467';
+} from './firebase-config.js?v=1781303058';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781302467';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781303058';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -40,7 +40,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781302467';
+} from './firebase-db.js?v=1781303058';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -162,6 +162,33 @@ function esc(str) {
 function escUrl(str) {
   const s = String(str ?? "");
   return s.replace(/"/g, "%22").replace(/'/g, "%27").replace(/</g, "%3C").replace(/>/g, "%3E");
+}
+
+const SOURCE_HOST_LABELS = [
+  { host: "github.com", label: "GitHub" },
+  { host: "gitlab.com", label: "GitLab" },
+  { host: "bitbucket.org", label: "Bitbucket" },
+  { host: "codeberg.org", label: "Codeberg" },
+  { host: "sourceforge.net", label: "SourceForge" }
+];
+
+function getUrlHostname(rawUrl) {
+  if (!rawUrl) return "";
+  try {
+    return new URL(String(rawUrl), window.location.origin).hostname.toLowerCase().replace(/^www\./, "");
+  } catch (_) {
+    return "";
+  }
+}
+
+function hostMatches(hostname, allowedHost) {
+  return hostname === allowedHost || hostname.endsWith(`.${allowedHost}`);
+}
+
+function sourceProviderLabel(sourceUrl, fallback = "Source Code") {
+  const hostname = getUrlHostname(sourceUrl);
+  const provider = SOURCE_HOST_LABELS.find(item => hostMatches(hostname, item.host));
+  return provider?.label || fallback;
 }
 
 // ── [VULN-14R FIX] Modal-based input prompt (replaces browser prompt()) ──────
@@ -1196,7 +1223,7 @@ async function showAppDetail(appId) {
       <div class="trust-badges">
         ${app.source ? `<span class="trust-badge trust-verified">${iconImg("verified")} Open Source Verified</span>` : ''}
         ${isOfficialEntry ? `<span class="trust-badge trust-team">${iconImg("protect")} OpenLib Reviewed</span>` : ''}
-        <span class="trust-badge trust-source">${iconImg("link")} ${app.source?.includes("github.com") ? "GitHub" : app.source?.includes("gitlab") ? "GitLab" : app.source?.includes("bitbucket") ? "Bitbucket" : app.source?.includes("codeberg") ? "Codeberg" : app.source?.includes("sourceforge") ? "SourceForge" : "Official"} Source</span>
+        <span class="trust-badge trust-source">${iconImg("link")} ${esc(sourceProviderLabel(app.source, "Official"))} Source</span>
       </div>
     </div>`;
 
@@ -1406,7 +1433,7 @@ async function showAppDetail(appId) {
                 ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-lg btn-open-web" target="_blank" rel="noopener">${iconImg("globe")} Open Web App</a>`
                 : ''}
               ${app.website && !isWebOnly(app.platforms) && !hasWebPlatform(app.platforms) ? `<a href="${esc(app.website)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">${iconImg("globe")} Website</a>` : ""}
-              <a href="${esc(app.source)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">&lt;/&gt; ${app.source?.includes("github.com") ? "GitHub" : app.source?.includes("gitlab") ? "GitLab" : app.source?.includes("bitbucket") ? "Bitbucket" : app.source?.includes("codeberg") ? "Codeberg" : app.source?.includes("sourceforge") ? "SourceForge" : "Source Code"}</a>
+              <a href="${escUrl(app.source)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener" data-app-id="${esc(appId)}" data-app-name="${esc(app.name)}">&lt;/&gt; ${esc(sourceProviderLabel(app.source))}</a>
               ${app.docs ? `<a href="${esc(app.docs)}" class="btn btn-secondary btn-lg" target="_blank" rel="noopener">${iconImg("link")} Docs</a>` : ""}
             </div>
           </div>
