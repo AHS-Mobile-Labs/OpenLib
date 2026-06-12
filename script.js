@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781274297';
+} from './firebase-config.js?v=1781299043';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781274297';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781299043';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -27,7 +27,7 @@ import {
   requestChangesOnSubmission,
   getAllSubmissions, getSubmission, getUserSubmissions, updateSubmission, getSubmissionComments, addSubmissionComment,
   followUser, unfollowUser, isFollowing,
-  addAppReview, getAppReviews, getAverageRating, markReviewHelpful, getUserReviewForApp, toggleReviewVote, getUserReviewVote,
+  addAppReview, removeAppReview, getAppReviews, getAverageRating, markReviewHelpful, getUserReviewForApp, toggleReviewVote, getUserReviewVote,
   toggleBookmark, isBookmarked, getUserBookmarks,
   trackDownload, trackOpen,
   submitOwnershipClaim,
@@ -37,13 +37,17 @@ import {
   addTeamMember, removeTeamMember, getTeamStats,
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
-  setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781274297';
+  setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
+  submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
+  approveRoleApplication, rejectRoleApplication
+} from './firebase-db.js?v=1781299043';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
 let userRecord = null;
 let isAdmin = false;
+let isSiteAdmin = false;
+let canModerateContent = false;
 let apps = [];
 const GRID_BATCH_SIZE = 24;
 let currentGridList = [];
@@ -62,6 +66,22 @@ const AUTH_PROVIDER_NAMES = {
 };
 const PERF_SLOW_OP_MS = 200;
 const perfSamples = [];
+
+const SITE_ADMIN_ROLES = ["admin"];
+const TEAM_ADMIN_ROLES = ["admin", "openlib-team"];
+const CONTENT_MODERATOR_ROLES = ["maintainer", "openlib-team", "admin"];
+
+function roleCanManageSite(role) {
+  return TEAM_ADMIN_ROLES.includes(role);
+}
+
+function roleCanManageUsers(role) {
+  return SITE_ADMIN_ROLES.includes(role);
+}
+
+function roleCanModerateContent(role) {
+  return CONTENT_MODERATOR_ROLES.includes(role);
+}
 
 function authProviderName(providerId) {
   return AUTH_PROVIDER_NAMES[providerId] || "SSO";
@@ -100,7 +120,8 @@ window.openLibPerf = {
 
 // [OPT-1 FIX] Centralized view switching — replaces 11 duplicate view-hiding blocks
 const ALL_VIEWS = ["home-view", "detail-view", "rankings-view", "trending-view", "profile-view",
-                   "org-view", "admin-view", "verify-view", "team-view", "team-manage-view", "seo-view"];
+                   "org-view", "admin-view", "verify-view", "team-view", "team-manage-view", "seo-view",
+                   "roles-view"];
 function switchView(activeId) {
   ALL_VIEWS.forEach(id => {
     const el = document.getElementById(id);
@@ -266,6 +287,9 @@ async function loadApps(options = {}) {
 
 async function submitApp(payload) {
   if (!currentUser) throw new Error("Sign in required");
+  if (currentUser.emailVerified !== true && userRecord?.emailVerified !== true) {
+    throw new Error("Verify your email before submitting apps.");
+  }
 
   // Check if submitting on behalf of an organization
   const ownerSelect = document.getElementById("sub-owner");
@@ -1761,6 +1785,7 @@ function renderReviewCard(r, showVoteState = false) {
       <div class="review-actions">
         <button class="review-helpful-btn${helpfulActive}" data-review-id="${esc(r.id)}" data-vote-type="helpful">${iconImg("like")} Helpful (${r.helpful || 0})</button>
         <button class="review-helpful-btn${unhelpfulActive}" data-review-id="${esc(r.id)}" data-vote-type="unhelpful">${iconImg("dislike")} Not Helpful (${r.unhelpful || 0})</button>
+        ${canModerateContent ? `<button class="review-remove-btn" data-review-id="${esc(r.id)}">${iconImg("alert")} Remove</button>` : ""}
       </div>
     </div>`;
 }
@@ -1777,6 +1802,22 @@ function bindReviewVoteButtons(container, reloadFn) {
         showToast("Could not register vote");
       }
       btn.disabled = false;
+    });
+  });
+  container.querySelectorAll(".review-remove-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const reason = await showInputModal("Reason for removing this review:");
+      if (!reason) return;
+      btn.disabled = true;
+      try {
+        await removeAppReview(btn.dataset.reviewId, currentUser.uid, reason);
+        showToast("Review removed");
+        await reloadFn();
+      } catch (e) {
+        showToast(e.message || "Could not remove review");
+      } finally {
+        btn.disabled = false;
+      }
     });
   });
 }
@@ -2195,8 +2236,325 @@ function roleBadge(role) {
     "contributor": "Contributor"
   };
   if (!labels[role]) return '';
-  const cls = ["admin", "openlib-team"].includes(role) ? "badge-admin" : role === "maintainer" ? "badge-maintainer" : "";
+  const cls = ["admin", "openlib-team"].includes(role)
+    ? "badge-admin"
+    : role === "maintainer"
+      ? "badge-maintainer"
+      : role === "contributor"
+        ? "badge-contributor"
+        : "";
   return `<span class="badge badge-role ${cls}">${esc(labels[role] || role)}</span>`;
+}
+
+// ── Roles / Achievements Page ────────────────────────────────────────────────
+const ROLE_PROGRESS_STEPS = ["user", "contributor", "maintainer", "openlib-team", "admin"];
+
+function roleLabel(role) {
+  const labels = {
+    "user": "User",
+    "contributor": "Contributor",
+    "maintainer": "Maintainer",
+    "openlib-team": "OpenLib Team",
+    "admin": "Admin"
+  };
+  return labels[role] || role || "User";
+}
+
+function roleProgressIndex(role) {
+  const index = ROLE_PROGRESS_STEPS.indexOf(role || "user");
+  return index === -1 ? 0 : index;
+}
+
+function roleGlyph(role) {
+  return {
+    user: "U",
+    contributor: "C",
+    maintainer: "M",
+    "openlib-team": "OL",
+    admin: "A"
+  }[role] || "U";
+}
+
+function renderRolesLadder(record, roles) {
+  const currentRole = record?.role || "user";
+  const currentIndex = Math.min(roleProgressIndex(currentRole), roles.length - 1);
+  const progress = roles.length > 1 ? Math.round((currentIndex / (roles.length - 1)) * 100) : 0;
+
+  return `
+    <section class="roles-ladder-panel" style="--roles-progress:${progress}%">
+      <div class="roles-ladder-track" aria-hidden="true"></div>
+      <div class="roles-ladder-steps">
+        ${roles.map((item, index) => {
+          const unlocked = record ? roleProgressIndex(currentRole) >= index : index === 0;
+          const current = record
+            ? (item.role === currentRole || (currentRole === "admin" && item.role === "openlib-team"))
+            : index === 0;
+          return `
+            <div class="roles-ladder-step ${unlocked ? "unlocked" : ""} ${current ? "current" : ""}">
+              <span class="roles-ladder-dot">${esc(roleGlyph(item.role))}</span>
+              <strong>${esc(item.title)}</strong>
+              <small>${record ? (current ? "Current" : unlocked ? "Unlocked" : "Locked") : (index === 0 ? "Start here" : "Locked")}</small>
+            </div>`;
+        }).join("")}
+      </div>
+    </section>`;
+}
+
+function accountAgeDaysFromRecord(record) {
+  if (!record?.createdAt) return 0;
+  const created = new Date(record.createdAt).getTime();
+  if (!Number.isFinite(created)) return 0;
+  return Math.max(0, Math.floor((Date.now() - created) / 86400000));
+}
+
+function roleRequirementItem(done, label, detail = "") {
+  return `
+    <li class="${done ? "complete" : ""}">
+      <span class="roles-check">${done ? "✓" : ""}</span>
+      <span>
+        <strong>${esc(label)}</strong>
+        ${detail ? `<small>${esc(detail)}</small>` : ""}
+      </span>
+    </li>`;
+}
+
+function roleApplicationTitle(targetRole) {
+  return targetRole === "openlib-team" ? "OpenLib Team" : "Maintainer";
+}
+
+function latestApplicationFor(applications, targetRole) {
+  return applications.find(app => app.targetRole === targetRole) || null;
+}
+
+function canApplyForRole(record, targetRole, applications) {
+  if (!record) return { allowed: false, label: "Sign in to apply" };
+  const pending = applications.some(app => app.targetRole === targetRole && app.status === "pending");
+  if (pending) return { allowed: false, label: "Pending review" };
+  if (targetRole === "maintainer" && roleCanModerateContent(record.role)) {
+    return { allowed: false, label: "Already unlocked" };
+  }
+  if (targetRole === "openlib-team" && roleCanManageSite(record.role)) {
+    return { allowed: false, label: "Already on team" };
+  }
+  return { allowed: true, label: `Apply for ${roleApplicationTitle(targetRole)}` };
+}
+
+function renderRoleApplicationHistory(applications) {
+  if (!applications.length) return `<p class="roles-empty">No role applications yet.</p>`;
+  return `
+    <div class="roles-application-list">
+      ${applications.slice(0, 6).map(app => `
+        <div class="roles-application-row">
+          <span>${esc(roleApplicationTitle(app.targetRole))}</span>
+          <span class="badge badge-role badge-status-${esc(app.status || "pending")}">${esc(app.status || "pending")}</span>
+          <small>${app.createdAt ? esc(new Date(app.createdAt).toLocaleDateString()) : ""}</small>
+        </div>
+      `).join("")}
+    </div>`;
+}
+
+function renderRolePathCard({ role, title, subtitle, powers, requirements, applyTarget, record, applications }) {
+  const currentIndex = roleProgressIndex(record?.role || "user");
+  const cardIndex = roleProgressIndex(role);
+  const unlocked = currentIndex >= cardIndex;
+  const current = record ? (record.role === role || (record.role === "admin" && role === "openlib-team")) : role === "user";
+  const latestApplication = applyTarget ? latestApplicationFor(applications, applyTarget) : null;
+  const applyState = applyTarget ? canApplyForRole(record, applyTarget, applications) : null;
+
+  return `
+    <article class="role-path-card role-card-${esc(role)} ${unlocked ? "unlocked" : ""} ${current ? "current" : ""}">
+      <div class="role-path-head">
+        <span class="role-card-mark">${esc(roleGlyph(role))}</span>
+        <div>
+          <div class="role-card-eyebrow">
+            <span>Level ${cardIndex + 1}</span>
+            <span class="role-card-state">${record ? (current ? "Current" : unlocked ? "Unlocked" : "Locked") : (role === "user" ? "Start" : "Locked")}</span>
+          </div>
+          <h3>${esc(title)} ${roleBadge(role)}</h3>
+          <p>${esc(subtitle)}</p>
+        </div>
+      </div>
+      <div class="role-path-body">
+        <div>
+          <h4>Unlocks</h4>
+          <ul>${powers.map(item => `<li>${esc(item)}</li>`).join("")}</ul>
+        </div>
+        <div>
+          <h4>Requirements</h4>
+          <ul>${requirements.map(item => `<li>${esc(item)}</li>`).join("")}</ul>
+        </div>
+      </div>
+      ${applyTarget ? `
+        <div class="role-apply-box">
+          ${latestApplication ? `<p class="role-apply-note">Latest application: <strong>${esc(latestApplication.status || "pending")}</strong>${latestApplication.reviewedAt ? ` on ${esc(new Date(latestApplication.reviewedAt).toLocaleDateString())}` : ""}</p>` : ""}
+          <button class="btn ${applyState.allowed ? "btn-primary" : "btn-secondary"} role-apply-btn" data-target-role="${esc(applyTarget)}" ${applyState.allowed ? "" : "disabled"}>${esc(applyState.label)}</button>
+        </div>
+      ` : ""}
+    </article>`;
+}
+
+async function showRolesPage() {
+  switchView("roles-view");
+  const rolesView = document.getElementById("roles-view");
+  rolesView.style.display = "block";
+  rolesView.innerHTML = `<div class="detail-loading">Loading roles…</div>`;
+
+  const record = currentUser ? (userRecord || await getUserRecord(currentUser.uid)) : null;
+  let applications = [];
+  if (currentUser) {
+    try {
+      applications = await getUserRoleApplications(currentUser.uid);
+    } catch (e) {
+      console.warn("Could not load role applications:", e);
+    }
+  }
+
+  const ageDays = accountAgeDaysFromRecord(record);
+  const reputation = Number(record?.reputation?.score || 0);
+  const approvedApps = Number(record?.approvedAppSubmissions || 0);
+  const moderationActions = Number(record?.moderationActions || 0);
+  const emailVerified = record?.emailVerified === true || currentUser?.emailVerified === true;
+  const contributorHistoryMet = approvedApps >= 3 || ageDays >= 30;
+  const maintainerReady = ageDays >= 90 && reputation >= 250 && approvedApps >= 10 && moderationActions === 0;
+
+  const roleCards = [
+    {
+      role: "user",
+      title: "User",
+      subtitle: "Default account after signup.",
+      powers: ["Submit apps", "Write reviews", "Edit your own submissions", "Bookmark and follow"],
+      requirements: ["Create an account", "Use Google or GitHub SSO"]
+    },
+    {
+      role: "contributor",
+      title: "Contributor",
+      subtitle: "Trusted community member, promoted automatically.",
+      powers: ["Contributor badge", "Higher trust in community activity", "Clear path toward maintainer review"],
+      requirements: ["Email verified", "Account age 14+ days", "Reputation 50+", "3 approved apps or account age 30+ days", "No moderation actions"]
+    },
+    {
+      role: "maintainer",
+      title: "Maintainer",
+      subtitle: "Content moderator focused on app quality.",
+      powers: ["Edit app metadata", "Approve or reject submissions", "Moderate reviews", "Lock or restrict spammed app pages"],
+      requirements: ["Account age 90+ days", "Reputation 250+", "10 approved apps", "Manual admin approval"],
+      applyTarget: "maintainer"
+    },
+    {
+      role: "openlib-team",
+      title: "OpenLib Team",
+      subtitle: "Staff member trusted with broader platform operations.",
+      powers: ["Site settings", "Team profile management", "Staff-level moderation tools", "Official OpenLib attribution"],
+      requirements: ["Manual admin approval", "Strong content moderation history", "Clear platform stewardship need"],
+      applyTarget: "openlib-team"
+    }
+  ];
+
+  rolesView.innerHTML = `
+    <div class="roles-page ${record ? "signed-in" : "signed-out"}">
+      <section class="roles-hero">
+        <div class="roles-hero-copy">
+          <div class="roles-hero-top">
+            <a href="/" class="back-link">← Back to library</a>
+            <span class="roles-kicker">Trust path</span>
+          </div>
+          <div class="roles-hero-main">
+            <h1>Earn trust. Unlock stewardship.</h1>
+            <p>OpenLib roles are a progression from regular community use to content moderation and official team work. Contributor is automatic; Maintainer and OpenLib Team stay human-approved.</p>
+            <div class="roles-hero-actions">
+              ${record
+                ? `<a href="/profile" class="btn btn-secondary roles-profile-link">${iconImg("account")} View profile</a>`
+                : `<button class="btn btn-primary" id="roles-signin-btn">${iconImg("account")} Sign in to start</button>`}
+              <a href="/team" class="btn btn-secondary roles-team-link">${iconImg("protect")} Meet the team</a>
+            </div>
+          </div>
+        </div>
+        <aside class="roles-current-panel">
+          <span class="roles-panel-label">Your status</span>
+          <h2>${record ? `${esc(roleLabel(record.role || "user"))} ${roleBadge(record.role || "user")}` : "Signed out"}</h2>
+          <p>${record ? `Signed in as ${esc(record.displayName || record.email || "OpenLib user")}` : "Sign in to track achievements, see readiness checks, and apply for trusted roles."}</p>
+          <div class="roles-stats-grid">
+            <div><strong>${record ? ageDays : 4}</strong><span>${record ? "Account days" : "Role levels"}</span></div>
+            <div><strong>${record ? reputation : "Auto"}</strong><span>${record ? "Reputation" : "Contributor"}</span></div>
+            <div><strong>${record ? approvedApps : "2"}</strong><span>${record ? "Approved apps" : "Apply paths"}</span></div>
+            <div><strong>${record ? moderationActions : "0"}</strong><span>${record ? "Moderation actions" : "Auto staff roles"}</span></div>
+          </div>
+        </aside>
+      </section>
+
+      ${renderRolesLadder(record, roleCards)}
+
+      ${record ? `
+        <section class="roles-progress-panel">
+          <div>
+            <h2>Contributor Progress</h2>
+            <ul class="roles-checklist">
+              ${roleRequirementItem(emailVerified, "Email verified", emailVerified ? "Verified" : "Required before app submissions and promotion")}
+              ${roleRequirementItem(ageDays >= 14, "Account age >= 14 days", `${ageDays}/14 days`)}
+              ${roleRequirementItem(reputation >= 50, "Reputation >= 50", `${reputation}/50 points`)}
+              ${roleRequirementItem(contributorHistoryMet, "Approved apps or account history", `${approvedApps}/3 approved apps or ${ageDays}/30 days`)}
+              ${roleRequirementItem(moderationActions === 0, "No moderation actions", `${moderationActions} recorded`)}
+            </ul>
+          </div>
+          <div>
+            <h2>Maintainer Readiness</h2>
+            <ul class="roles-checklist">
+              ${roleRequirementItem(ageDays >= 90, "Account age >= 90 days", `${ageDays}/90 days`)}
+              ${roleRequirementItem(reputation >= 250, "Reputation >= 250", `${reputation}/250 points`)}
+              ${roleRequirementItem(approvedApps >= 10, "10 approved apps", `${approvedApps}/10 apps`)}
+              ${roleRequirementItem(moderationActions === 0, "Clean moderation history", `${moderationActions} actions`)}
+              ${roleRequirementItem(maintainerReady, "Ready for manual review", maintainerReady ? "Strong candidate" : "Keep building your record")}
+            </ul>
+          </div>
+        </section>
+      ` : ""}
+
+      <section class="roles-path-grid">
+        ${roleCards.map(card => renderRolePathCard({ ...card, record, applications })).join("")}
+      </section>
+
+      ${record ? `
+        <section class="roles-applications-panel">
+          <h2>Your Applications</h2>
+          ${renderRoleApplicationHistory(applications)}
+        </section>
+      ` : ""}
+    </div>
+  `;
+
+  rolesView.querySelector("#roles-signin-btn")?.addEventListener("click", () => {
+    document.getElementById("auth-trigger")?.click();
+  });
+  rolesView.querySelectorAll(".roles-profile-link, .roles-team-link").forEach(link => {
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      navigateTo(link.getAttribute("href"));
+    });
+  });
+
+  rolesView.querySelectorAll(".role-apply-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (!currentUser) {
+        document.getElementById("auth-trigger")?.click();
+        return;
+      }
+      const targetRole = btn.dataset.targetRole;
+      const message = await showInputModal(`Apply for ${roleApplicationTitle(targetRole)}`, "Tell admins why you are ready for this role…");
+      if (!message) return;
+      btn.disabled = true;
+      const original = btn.textContent;
+      btn.textContent = "Submitting…";
+      try {
+        await submitRoleApplication(currentUser.uid, targetRole, message);
+        showToast("Application submitted");
+        await showRolesPage();
+      } catch (err) {
+        showToast(err.message || "Could not submit application");
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
 }
 
 // ── For You Section ──────────────────────────────────────────────────────────
@@ -2431,13 +2789,15 @@ async function showProfile(uid) {
 
       <div class="profile-stats">
         <div class="profile-stat"><span class="stat-number">${record.activity?.appsSubmitted || 0}</span><span class="stat-label">Apps Submitted</span></div>
+        <div class="profile-stat"><span class="stat-number">${record.approvedAppSubmissions || 0}</span><span class="stat-label">Apps Approved</span></div>
+        <div class="profile-stat"><span class="stat-number">${record.reputation?.score || 0}</span><span class="stat-label">Reputation</span></div>
         <div class="profile-stat"><span class="stat-number">${record.activity?.editsProposed || 0}</span><span class="stat-label">Edits Proposed</span></div>
         <div class="profile-stat"><span class="stat-number">${record.activity?.reviewsDone || 0}</span><span class="stat-label">Reviews</span></div>
       </div>
 
-      ${isOwnProfile && ["admin", "openlib-team"].includes(record.role) ? `
+      ${isOwnProfile && roleCanModerateContent(record.role) ? `
         <div class="profile-team-actions">
-          <a href="/verify" class="btn btn-primary btn-verify-submissions" id="verify-submissions-btn">${iconImg("protect")} Verify App Submissions</a>
+          <a href="/verify" class="btn btn-primary btn-verify-submissions" id="verify-submissions-btn">${iconImg("protect")} Review App Submissions</a>
         </div>
       ` : ""}
 
@@ -2828,16 +3188,15 @@ async function showOrgView(orgId) {
   });
 }
 
-// ── Verify Submissions (Team-only screen) ────────────────────────────────────
+// ── Verify Submissions (content moderator screen) ────────────────────────────
 async function showVerifySubmissions() {
   switchView("verify-view");
   const verifyView = document.getElementById("verify-view");
   verifyView.style.display = "block";
 
-  // Access check — only team / admin
-  const isTeam = userRecord && ["admin", "openlib-team"].includes(userRecord.role);
-  if (!currentUser || !isTeam) {
-    verifyView.innerHTML = `<div class="empty-state"><h3>Access Denied</h3><p>Only OpenLib team members can verify submissions.</p><a href="/">← Back to library</a></div>`;
+  // Access check — maintainer / team / admin
+  if (!currentUser || !canModerateContent) {
+    verifyView.innerHTML = `<div class="empty-state"><h3>Access Denied</h3><p>Maintainer access is required to verify submissions.</p><a href="/">← Back to library</a></div>`;
     return;
   }
 
@@ -2978,7 +3337,7 @@ function renderVerifyCards(submissions, filter) {
         ${(sub.installMethods || []).length ? `<div class="verify-field"><label>Install Methods</label><div class="verify-install-methods">${sub.installMethods.map(m => `<code>${esc(m.label)}: ${esc(m.command)}</code>`).join("<br>")}</div></div>` : ""}
         ${sub.systemRequirements ? `<div class="verify-field"><label>System Requirements</label><pre class="verify-sysreq">${esc(sub.systemRequirements)}</pre></div>` : ""}
         <div class="verify-field-row">
-          <div class="verify-field"><label>Submitted by</label><p>${esc(sub.userId ? sub.userId.slice(0, 16) : "—")}… ${(sub.userEmail || sub.submitterEmail) ? `(${esc(sub.userEmail || sub.submitterEmail)})` : ""}</p></div>
+          <div class="verify-field"><label>Submitted by</label><p>${esc(sub.userId ? sub.userId.slice(0, 16) : "—")}… ${isSiteAdmin && (sub.userEmail || sub.submitterEmail) ? `(${esc(sub.userEmail || sub.submitterEmail)})` : ""}</p></div>
           <div class="verify-field"><label>Date</label><p>${(sub.createdAt || sub.timestamp) ? new Date(sub.createdAt || sub.timestamp).toLocaleString() : "—"}</p></div>
         </div>
         ${sub.ownerType === "organization" ? `
@@ -3642,24 +4001,25 @@ async function showAdminDashboard() {
   const adminView = document.getElementById("admin-view");
   adminView.style.display = "block";
 
-  if (!currentUser || !isAdmin) {
-    adminView.innerHTML = `<div class="empty-state"><h3>Access Denied</h3><p>Admin access required.</p><a href="/">← Back</a></div>`;
-    console.warn("[Admin] Access denied — currentUser:", !!currentUser, "isAdmin:", isAdmin, "role:", userRecord?.role);
+  if (!currentUser || !canModerateContent) {
+    adminView.innerHTML = `<div class="empty-state"><h3>Access Denied</h3><p>Maintainer access required.</p><a href="/">← Back</a></div>`;
+    console.warn("[Admin] Access denied — currentUser:", !!currentUser, "canModerateContent:", canModerateContent, "role:", userRecord?.role);
     return;
   }
 
-  adminView.innerHTML = `<div class="detail-loading">Loading admin dashboard…</div>`;
+  adminView.innerHTML = `<div class="detail-loading">Loading review dashboard…</div>`;
 
-  let submissions = [], editRequests = [], users = [], orgs = [], reports = [];
+  let submissions = [], editRequests = [], users = [], orgs = [], reports = [], roleApplications = [];
   let loadErrors = [];
 
   try {
-    [submissions, editRequests, users, orgs, reports] = await Promise.all([
+    [submissions, editRequests, users, orgs, reports, roleApplications] = await Promise.all([
       getAllSubmissions().catch(e => { loadErrors.push("submissions: " + e.message); console.error("[Admin] Failed to load submissions:", e); return []; }),
       getAllEditRequests("open").catch(e => { loadErrors.push("edit requests: " + e.message); console.error("[Admin] Failed to load edit requests:", e); return []; }),
-      getAllUsers().catch(e => { loadErrors.push("users: " + e.message); console.error("[Admin] Failed to load users:", e); return []; }),
-      getAllOrganizations().catch(e => { loadErrors.push("organizations: " + e.message); console.error("[Admin] Failed to load orgs:", e); return []; }),
-      getAllReports().catch(e => { loadErrors.push("reports: " + e.message); console.error("[Admin] Failed to load reports:", e); return []; })
+      isSiteAdmin ? getAllUsers().catch(e => { loadErrors.push("users: " + e.message); console.error("[Admin] Failed to load users:", e); return []; }) : Promise.resolve([]),
+      isAdmin ? getAllOrganizations().catch(e => { loadErrors.push("organizations: " + e.message); console.error("[Admin] Failed to load orgs:", e); return []; }) : Promise.resolve([]),
+      getAllReports().catch(e => { loadErrors.push("reports: " + e.message); console.error("[Admin] Failed to load reports:", e); return []; }),
+      isSiteAdmin ? getAllRoleApplications("pending").catch(e => { loadErrors.push("role applications: " + e.message); console.error("[Admin] Failed to load role applications:", e); return []; }) : Promise.resolve([])
     ]);
   } catch (e) {
     console.error("[Admin] Critical load error:", e);
@@ -3672,6 +4032,7 @@ async function showAdminDashboard() {
   const pendingCount = submissions.filter(s => s.status === "pending").length;
   const changesCount = submissions.filter(s => s.status === "changes_requested").length;
   const pendingReports = reports.filter(r => r.status === "pending" || r.status === "under_review").length;
+  const pendingRoleApplications = roleApplications.filter(a => a.status === "pending").length;
 
   const errorBanner = loadErrors.length ? `
     <div class="admin-error-banner">
@@ -3685,7 +4046,7 @@ async function showAdminDashboard() {
   adminView.innerHTML = `
     <div class="admin-page">
       <a href="/" class="back-link">← Back to library</a>
-      <h1 class="admin-title">${iconImg("settings", "ui-icon title-icon")} Admin Dashboard</h1>
+      <h1 class="admin-title">${iconImg(isAdmin ? "settings" : "protect", "ui-icon title-icon")} ${isAdmin ? "Admin Dashboard" : "Review Dashboard"}</h1>
       ${errorBanner}
 
       <div class="admin-stats">
@@ -3693,7 +4054,8 @@ async function showAdminDashboard() {
         <div class="admin-stat-card"><span class="stat-number">${changesCount}</span><span class="stat-label">Changes Requested</span></div>
         <div class="admin-stat-card"><span class="stat-number">${editRequests.length}</span><span class="stat-label">Open Edit Requests</span></div>
         <div class="admin-stat-card"><span class="stat-number">${pendingReports}</span><span class="stat-label">Open Reports</span></div>
-        <div class="admin-stat-card"><span class="stat-number">${users.length}</span><span class="stat-label">Users</span></div>
+        ${isSiteAdmin ? `<div class="admin-stat-card"><span class="stat-number">${pendingRoleApplications}</span><span class="stat-label">Role Applications</span></div>` : ""}
+        ${isSiteAdmin ? `<div class="admin-stat-card"><span class="stat-number">${users.length}</span><span class="stat-label">Users</span></div>` : ""}
         <div class="admin-stat-card"><span class="stat-number">${apps.length}</span><span class="stat-label">Apps</span></div>
       </div>
 
@@ -3701,8 +4063,9 @@ async function showAdminDashboard() {
         <button class="admin-tab active" data-tab="submissions">Submissions</button>
         <button class="admin-tab" data-tab="edit-requests">Edit Requests</button>
         <button class="admin-tab" data-tab="reports">Reports${pendingReports ? ` <span class="tab-badge">${pendingReports}</span>` : ""}</button>
-        <button class="admin-tab" data-tab="users">Users</button>
-        <button class="admin-tab" data-tab="add-app">Add App</button>
+        ${isSiteAdmin ? `<button class="admin-tab" data-tab="role-applications">Role Applications${pendingRoleApplications ? ` <span class="tab-badge">${pendingRoleApplications}</span>` : ""}</button>` : ""}
+        ${isSiteAdmin ? `<button class="admin-tab" data-tab="users">Users</button>` : ""}
+        ${isAdmin ? `<button class="admin-tab" data-tab="add-app">Add App</button>` : ""}
       </div>
 
       <div class="admin-tab-content" id="admin-tab-content">
@@ -3722,6 +4085,7 @@ async function showAdminDashboard() {
         case "submissions": panel.innerHTML = renderAdminSubmissions(submissions); break;
         case "edit-requests": panel.innerHTML = renderAdminEditRequests(editRequests); break;
         case "reports": panel.innerHTML = renderAdminReports(reports); break;
+        case "role-applications": panel.innerHTML = renderAdminRoleApplications(roleApplications); break;
         case "users": panel.innerHTML = renderAdminUsers(users); break;
         case "add-app": panel.innerHTML = renderAdminAddApp(); break;
       }
@@ -3812,8 +4176,8 @@ function renderAdminSubmissions(submissions) {
           <span class="sub-review-label">Submitted by</span>
           <span class="sub-review-value">
             <span class="sub-submitter-uid" title="${esc(sub.userId || "")}">${esc(sub.userId ? sub.userId.slice(0, 12) + "…" : "—")}</span>
-            ${(sub.userEmail || sub.submitterEmail) ? ` <span class="sub-submitter-email">(${esc(sub.userEmail || sub.submitterEmail)})</span>` : ""}
-            <button class="btn btn-sm btn-secondary sub-lookup-user-btn" data-uid="${esc(sub.userId || "")}" title="Lookup submitter profile">${iconImg("account")} Lookup</button>
+            ${isSiteAdmin && (sub.userEmail || sub.submitterEmail) ? ` <span class="sub-submitter-email">(${esc(sub.userEmail || sub.submitterEmail)})</span>` : ""}
+            ${isSiteAdmin ? `<button class="btn btn-sm btn-secondary sub-lookup-user-btn" data-uid="${esc(sub.userId || "")}" title="Lookup submitter profile">${iconImg("account")} Lookup</button>` : ""}
           </span>
         </div>
         ${sub.updatedAt ? `<div class="sub-review-row"><span class="sub-review-label">Last updated</span><span class="sub-review-value">${new Date(sub.updatedAt).toLocaleString()}</span></div>` : ""}
@@ -3879,6 +4243,38 @@ function renderAdminEditRequests(editRequests) {
         </div>
       </div>`;
   }).join("");
+}
+
+function renderAdminRoleApplications(applications) {
+  if (!applications.length) return `<p class="admin-empty">No pending role applications.</p>`;
+  return `
+    <div class="role-application-admin-list">
+      ${applications.map(app => {
+        const date = app.createdAt ? new Date(app.createdAt).toLocaleString() : "Unknown date";
+        return `
+          <div class="admin-card role-application-card" data-id="${esc(app.id)}">
+            <div class="admin-card-header">
+              <strong>${esc(app.displayName || app.uid || "Unknown user")}</strong>
+              <span class="badge badge-role">${esc(roleApplicationTitle(app.targetRole))}</span>
+              <span class="badge badge-status-${esc(app.status || "pending")}">${esc(app.status || "pending")}</span>
+              <span class="admin-card-date">${esc(date)}</span>
+            </div>
+            <p class="admin-card-desc">${esc(app.message || "No application message provided.")}</p>
+            <div class="admin-card-meta">
+              <span>Current role: ${esc(roleLabel(app.currentRole || "user"))}</span>
+              <span>Reputation: ${Number(app.reputationScore || 0)}</span>
+              <span>Approved apps: ${Number(app.approvedAppSubmissions || 0)}</span>
+              <span>Moderation actions: ${Number(app.moderationActions || 0)}</span>
+              ${app.email ? `<span>Email: ${esc(app.email)}</span>` : ""}
+            </div>
+            <div class="admin-card-actions">
+              <a href="/profile/${esc(app.uid)}" class="btn btn-secondary btn-sm role-app-profile-link">View Profile</a>
+              <button class="btn btn-primary btn-sm role-app-approve-btn" data-id="${esc(app.id)}" data-target-role="${esc(app.targetRole)}">Approve</button>
+              <button class="btn btn-danger btn-sm role-app-reject-btn" data-id="${esc(app.id)}">Reject</button>
+            </div>
+          </div>`;
+      }).join("")}
+    </div>`;
 }
 
 function renderAdminUsers(users) {
@@ -4134,7 +4530,7 @@ function renderAdminReports(reports) {
         <div class="report-card-body">
           <div class="report-field"><span class="report-field-label">Reason:</span> <span class="report-field-value">${esc(r.reason)}</span></div>
           <div class="report-field"><span class="report-field-label">Details:</span> <span class="report-field-value">${esc(r.details || "No additional details")}</span></div>
-          <div class="report-field"><span class="report-field-label">Reporter:</span> <span class="report-field-value">${esc(r.userId || "Anonymous")}</span> <button class="btn btn-secondary btn-xs report-lookup-user" data-uid="${esc(r.userId || "")}">${iconImg("account")} Lookup</button></div>
+          <div class="report-field"><span class="report-field-label">Reporter:</span> <span class="report-field-value">${esc(r.userId ? r.userId.slice(0, 12) + "…" : "Anonymous")}</span> ${isSiteAdmin ? `<button class="btn btn-secondary btn-xs report-lookup-user" data-uid="${esc(r.userId || "")}">${iconImg("account")} Lookup</button>` : ""}</div>
           <div class="report-field"><span class="report-field-label">App:</span> <a href="/app/${esc(r.appId)}" class="report-app-link">${esc(r.appName || r.appId)} →</a></div>
           ${r.adminNotes ? `<div class="report-field"><span class="report-field-label">Admin Notes:</span> <span class="report-field-value">${esc(r.adminNotes)}</span></div>` : ""}
           ${r.resolvedBy ? `<div class="report-field"><span class="report-field-label">Resolved by:</span> <span class="report-field-value">${esc(r.resolvedBy)}</span></div>` : ""}
@@ -4337,6 +4733,49 @@ function attachAdminHandlers(tab) {
           showToast(current ? "Team status removed" : "Marked as Team account!");
           showAdminDashboard();
         } catch (err) { showToast(err.message); }
+      });
+    });
+  }
+
+  if (tab === "role-applications") {
+    document.querySelectorAll(".role-app-profile-link").forEach(link => {
+      link.addEventListener("click", e => {
+        e.preventDefault();
+        navigateTo(link.getAttribute("href"));
+      });
+    });
+    document.querySelectorAll(".role-app-approve-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const target = roleApplicationTitle(btn.dataset.targetRole);
+        if (!confirm(`Approve this ${target} application?`)) return;
+        btn.disabled = true;
+        btn.textContent = "Approving…";
+        try {
+          await approveRoleApplication(btn.dataset.id, currentUser.uid);
+          showToast(`${target} application approved`);
+          showAdminDashboard();
+        } catch (err) {
+          showToast(err.message || "Could not approve application");
+          btn.disabled = false;
+          btn.textContent = "Approve";
+        }
+      });
+    });
+    document.querySelectorAll(".role-app-reject-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const reason = await showInputModal("Reason for rejecting this application:");
+        if (!reason) return;
+        btn.disabled = true;
+        btn.textContent = "Rejecting…";
+        try {
+          await rejectRoleApplication(btn.dataset.id, currentUser.uid, reason);
+          showToast("Role application rejected");
+          showAdminDashboard();
+        } catch (err) {
+          showToast(err.message || "Could not reject application");
+          btn.disabled = false;
+          btn.textContent = "Reject";
+        }
       });
     });
   }
@@ -5020,7 +5459,7 @@ function renderERCard(er, appId, opts = {}) {
     ? `<img class="changelog-avatar" src="${escUrl(submitter.photoURL)}" alt="" referrerpolicy="no-referrer">`
     : `<div class="changelog-avatar-fallback">${esc((submitter.displayName || "U").charAt(0))}</div>`;
   const approvals = er.approvals || [];
-  const canReview = isAdmin && er.status === "open";
+  const canReview = canModerateContent && er.status === "open";
   const snapshot = er.mergeSnapshot || er.originalSnapshot || null;
   const snapshotAttr = snapshot ? `data-snapshot="${encodeURIComponent(JSON.stringify(snapshot))}"` : "";
 
@@ -5484,6 +5923,11 @@ async function handleSubmitApp(e) {
   const btn = form.querySelector(".btn-submit");
   const platforms = [...form.querySelectorAll("input[name='platforms']:checked")].map(el => el.value);
 
+  if (!currentUser) { showFormError(form, "Sign in required."); return; }
+  if (currentUser.emailVerified !== true && userRecord?.emailVerified !== true) {
+    showFormError(form, "Verify your email before submitting apps.");
+    return;
+  }
   if (!platforms.length) { showFormError(form, "Select at least one platform."); return; }
 
   // Platform-aware URL validation
@@ -5981,11 +6425,17 @@ async function updateAuthUI(user) {
     trigger.dataset.authState = "signed-in";
     // Create/update user record in Firestore
     userRecord = await createOrUpdateUserRecord(user);
-    isAdmin = userRecord && ["admin", "openlib-team"].includes(userRecord.role);
+    isSiteAdmin = userRecord && roleCanManageUsers(userRecord.role);
+    isAdmin = userRecord && roleCanManageSite(userRecord.role);
+    canModerateContent = userRecord && roleCanModerateContent(userRecord.role);
     if (isAdmin) syncCurrentVersion({ force: true });
 
     // Show/hide admin link; hide Profile nav link (use auth dropdown instead)
-    if (adminLink) adminLink.style.display = isAdmin ? "inline-flex" : "none";
+    if (adminLink) {
+      adminLink.style.display = canModerateContent ? "inline-flex" : "none";
+      adminLink.setAttribute("title", isAdmin ? "Admin" : "Review");
+      adminLink.innerHTML = `${iconImg("settings")} ${isAdmin ? "Admin" : "Review"}`;
+    }
     if (profileLink) profileLink.style.display = "none";
 
     const avatarHtml = user.photoURL
@@ -6010,6 +6460,8 @@ async function updateAuthUI(user) {
     trigger.dataset.authState = "signed-out";
     userRecord = null;
     isAdmin = false;
+    isSiteAdmin = false;
+    canModerateContent = false;
     if (adminLink) adminLink.style.display = "none";
     if (profileLink) profileLink.style.display = "none";
     trigger.innerHTML = `<span id="auth-icon">${iconImg("account")}</span><span id="auth-label">Sign in</span>`;
@@ -6828,6 +7280,13 @@ function handleRoute() {
       url: `${BASE_URL}/trending`
     });
     showTrending();
+  } else if (path === "/roles") {
+    updatePageMeta({
+      title: "OpenLib Roles and Achievements | OpenLib",
+      description: "Learn how OpenLib user, contributor, maintainer, and OpenLib Team roles work, track achievement progress, and apply for trusted roles.",
+      url: `${BASE_URL}/roles`
+    });
+    showRolesPage();
   } else if (path === "/privacy") {
     showPolicyPage("privacy");
   } else if (path === "/terms") {
@@ -7121,6 +7580,8 @@ function renderCurrentView() {
     showRankings();
   } else if (path === "/trending") {
     showTrending();
+  } else if (path === "/roles") {
+    showRolesPage();
   } else if (path === "/profile" || path.startsWith("/profile/")) {
     showProfile(path === "/profile" ? null : path.replace("/profile/", ""));
   } else if (path.startsWith("/org/")) {
@@ -7307,6 +7768,11 @@ async function init() {
   document.getElementById("trending-nav-link")?.addEventListener("click", e => {
     e.preventDefault();
     navigateTo("/trending");
+  });
+
+  document.getElementById("roles-nav-link")?.addEventListener("click", e => {
+    e.preventDefault();
+    navigateTo("/roles");
   });
 
   // Modal interactions

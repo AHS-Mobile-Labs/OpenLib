@@ -20,6 +20,7 @@ const REQUIRED_PATHS = [
   "/",
   "/rankings",
   "/trending",
+  "/roles",
   "/team",
   "/privacy",
   "/terms",

@@ -22,24 +22,61 @@ service cloud.firestore {
     }
 
     function isAdmin() {
+      return isSignedIn() && getUserRole() == "admin";
+    }
+
+    function isTeamOrAdmin() {
       return isSignedIn() && getUserRole() in ["admin", "openlib-team"];
     }
 
-    function isMaintainerOrAbove() {
+    function isContentModerator() {
       return isSignedIn() && getUserRole() in ["maintainer", "admin", "openlib-team"];
+    }
+
+    function isMaintainerOrAbove() {
+      return isContentModerator();
+    }
+
+    function isContributorPromotion(uid) {
+      return isSignedIn()
+        && request.auth.uid == uid
+        && resource.data.role == "user"
+        && request.resource.data.role == "contributor"
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(["role", "contributorSince", "lastRoleChangeAt", "updatedAt"])
+        && resource.data.emailVerified == true
+        && resource.data.reputation.score >= 50
+        && resource.data.moderationActions == 0
+        && resource.data.createdAt <= request.time - duration.value(14, "d")
+        && (resource.data.approvedAppSubmissions >= 3
+            || resource.data.createdAt <= request.time - duration.value(30, "d"));
     }
 
     // ── Apps ──────────────────────────────────────────────────────────────────
     // [VULN-02 FIX] Restricted app-owner updates to safe fields only.
     // [VULN-02B FIX] Re-added counter fields with type validation for signed-in users.
-    // [ROLE-01 FIX] Only admins can create apps; addedBy.type "openlib-team" restricted to admin role.
+    // [ROLE-01 FIX] Content moderators can create apps; official attribution is team/admin only.
     match /apps/{appId} {
       allow read: if true;
-      allow create: if isAdmin()
+      allow create: if isContentModerator()
         // Prevent non-admin from setting official status even if they bypass client
-        && (request.resource.data.addedBy.type != "openlib-team"
+        && (!request.resource.data.keys().hasAny(["addedBy"])
+            || request.resource.data.addedBy.type != "openlib-team"
             || getUserRole() in ["admin", "openlib-team"]);
-      allow update: if isAdmin()
+      allow update: if isTeamOrAdmin()
+        || (isContentModerator()
+            && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(["description", "fullDescription", "logo", "website",
+                         "docs", "download", "source", "features", "uses",
+                         "alternative", "tags", "screenshots", "installMethods",
+                         "systemRequirements", "platforms", "fileSize",
+                         "developer", "developerUrl", "license", "version",
+                         "category", "updatedAt", "moderationStatus",
+                         "moderatedBy", "moderatedAt", "moderationReason",
+                         "suspendUntil", "avgRating", "reviewCount"])
+            && request.resource.data.addedBy == resource.data.addedBy
+            && request.resource.data.ownerType == resource.data.ownerType
+            && request.resource.data.ownerId == resource.data.ownerId)
         // Admins can update anything, but non-admins cannot change addedBy or ownerType to official
         || (isSignedIn() && resource.data.addedBy.uid == request.auth.uid
             && request.resource.data.diff(resource.data).affectedKeys()
@@ -70,7 +107,7 @@ service cloud.firestore {
     // [VULN-04N FIX] Restricted create to admins only to prevent audit trail poisoning
     match /app_versions/{versionId} {
       allow read: if true;
-      allow create: if isAdmin();
+      allow create: if isContentModerator();
       allow update, delete: if isAdmin();
     }
 
@@ -101,11 +138,12 @@ service cloud.firestore {
     // Admins/team can read all submissions; normal users can only read their own
     match /submissions/{submissionId} {
       allow get: if isSignedIn()
-        && (resource.data.userId == request.auth.uid || isAdmin());
-      allow list: if isAdmin()
+        && (resource.data.userId == request.auth.uid || isContentModerator());
+      allow list: if isContentModerator()
         || (isSignedIn()
             && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn()
+        && request.auth.token.email_verified == true
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100
@@ -136,7 +174,7 @@ service cloud.firestore {
         && (!request.resource.data.keys().hasAny(["ownerType"])
             || request.resource.data.ownerType != "openlib-team"
             || getUserRole() in ["admin", "openlib-team"]);
-      allow update: if isAdmin()
+      allow update: if isContentModerator()
         || (isSignedIn() && resource.data.userId == request.auth.uid
             && resource.data.status in ["pending", "changes_requested"]
             // Users cannot upgrade ownerType or addedBy.type to official on update
@@ -171,27 +209,27 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 2000
         && request.resource.data.keys().size() <= 15;
-      allow update, delete: if isAdmin();
+      allow update, delete: if isContentModerator();
     }
 
     // ── Reports ──────────────────────────────────────────────────────────────
     // [VULN-08 FIX] Added field validation on create
     match /reports/{reportId} {
-      allow read: if isAdmin();
+      allow read: if isContentModerator();
       allow create: if isSignedIn()
         && request.resource.data.reason is string
         && request.resource.data.reason.size() <= 500
         && request.resource.data.details is string
         && request.resource.data.details.size() <= 2000
         && request.resource.data.keys().size() <= 15;
-      allow update: if isAdmin();
+      allow update: if isContentModerator();
       allow delete: if isAdmin();
     }
 
     // ── Moderation Log (audit trail for enforcement actions) ─────────────────
     match /moderation_log/{logId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin();
+      allow read: if isContentModerator();
+      allow create: if isContentModerator();
       allow update, delete: if false;
     }
 
@@ -202,11 +240,80 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isSignedIn()
         && (request.auth.uid == uid || isAdmin());
-      allow create: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.role == "user"
+        && (!request.resource.data.keys().hasAny(["verified"])
+            || request.resource.data.verified == false)
+        && (!request.resource.data.keys().hasAny(["teamAccount"])
+            || request.resource.data.teamAccount == false)
+        && (!request.resource.data.keys().hasAny(["emailVerified"])
+            || request.resource.data.emailVerified == false
+            || request.auth.token.email_verified == true)
+        && (!request.resource.data.keys().hasAny(["approvedAppSubmissions"])
+            || request.resource.data.approvedAppSubmissions == 0)
+        && (!request.resource.data.keys().hasAny(["moderationActions"])
+            || request.resource.data.moderationActions == 0)
+        && (!request.resource.data.keys().hasAny(["reputation"])
+            || request.resource.data.reputation.score == 0)
+        && !request.resource.data.keys().hasAny(["contributorSince",
+                                                 "maintainerSince",
+                                                 "lastRoleChangeAt",
+                                                 "reputationScore"]);
       allow update: if isAdmin()
+        || isContributorPromotion(uid)
         || (isOwner(uid)
             && !request.resource.data.diff(resource.data).affectedKeys()
-                 .hasAny(["role", "verified", "teamAccount", "uid"]));
+                 .hasAny(["role", "verified", "teamAccount", "uid",
+                          "reputation", "reputationScore",
+                          "approvedAppSubmissions", "moderationActions",
+                          "contributorSince", "maintainerSince", "lastRoleChangeAt"])
+            && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["emailVerified"])
+                || request.resource.data.emailVerified == false
+                || request.auth.token.email_verified == true));
+      allow delete: if isAdmin();
+    }
+
+    // ── Role Change Log ───────────────────────────────────────────────────────
+    match /role_change_log/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        || (isSignedIn()
+            && request.resource.data.automatic == true
+            && request.resource.data.uid == request.auth.uid
+            && request.resource.data.fromRole == "user"
+            && request.resource.data.toRole == "contributor");
+      allow update, delete: if false;
+    }
+
+    // ── Reputation Events ─────────────────────────────────────────────────────
+    match /user_reputation_events/{eventId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if false;
+      allow update, delete: if false;
+    }
+
+    // ── Role Applications ────────────────────────────────────────────────────
+    match /role_applications/{applicationId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.targetRole in ["maintainer", "openlib-team"]
+        && request.resource.data.status == "pending"
+        && request.resource.data.message is string
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.keys().hasOnly([
+             "uid", "targetRole", "status", "message",
+             "displayName", "email", "currentRole",
+             "reputationScore", "approvedAppSubmissions",
+             "moderationActions", "createdAt", "updatedAt"
+           ]);
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(["status", "reviewedBy", "reviewedAt", "adminNotes", "updatedAt"])
+        && request.resource.data.status in ["approved", "rejected", "pending"];
       allow delete: if isAdmin();
     }
 
@@ -276,9 +383,14 @@ service cloud.firestore {
         && request.resource.data.text is string
         && request.resource.data.text.size() <= 2000;
       allow update: if isAdmin()
+        || (isContentModerator()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(["moderationRemoved", "moderationRemovedBy", "moderationRemovedAt", "moderationReason"]))
         || (isSignedIn() && resource.data.authorUid == request.auth.uid
             && !request.resource.data.diff(resource.data).affectedKeys()
-                  .hasAny(["authorUid", "appId", "createdAt"]))
+                  .hasAny(["authorUid", "appId", "createdAt",
+                           "moderationRemoved", "moderationRemovedBy",
+                           "moderationRemovedAt", "moderationReason"]))
         || (isSignedIn()
             && request.resource.data.diff(resource.data)
                  .affectedKeys().hasOnly(["helpful", "unhelpful"])
@@ -291,7 +403,7 @@ service cloud.firestore {
                 || request.resource.data.unhelpful == resource.data.unhelpful - 1
                 || request.resource.data.unhelpful == resource.data.unhelpful));
       allow delete: if (isSignedIn()
-        && resource.data.authorUid == request.auth.uid) || isAdmin();
+        && resource.data.authorUid == request.auth.uid) || isContentModerator();
     }
 
     // ── Review Votes ─────────────────────────────────────────────────────────
@@ -349,10 +461,9 @@ service cloud.firestore {
     match /openlib_config/{docId} {
       // Public can read the profile doc; team members can read permissions
       allow read: if docId == "profile"
-        || (isSignedIn() && (isAdmin()
+        || (isSignedIn() && (isTeamOrAdmin()
             || docId == ("permissions_" + request.auth.uid)));
-      // Only admins can write
-      allow write: if isAdmin();
+      allow write: if (docId == "profile" && isTeamOrAdmin()) || isAdmin();
     }
   }
 }

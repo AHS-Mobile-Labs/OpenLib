@@ -6,12 +6,41 @@
 // Bot detection via User-Agent header.
 
 const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentCreated, onDocumentDeleted, onDocumentUpdated } = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
 
 admin.initializeApp();
 const db = admin.firestore();
+const FieldValue = admin.firestore.FieldValue;
+
+const REPUTATION_POINTS = {
+  appApproved: 10,
+  helpfulReviewUpvote: 2,
+  confirmedBugReport: 5,
+  confirmedSpamReport: 3,
+  rejectedSpamApp: -20,
+  reviewRemoved: -10,
+  accountSuspension: -50
+};
+
+const REPUTATION_FIELDS = {
+  appApproved: "appApproved",
+  helpfulReviewUpvote: "helpfulReviewUpvotes",
+  confirmedBugReport: "confirmedBugReports",
+  confirmedSpamReport: "confirmedSpamReports",
+  rejectedSpamApp: "rejectedSpamApps",
+  reviewRemoved: "removedReviews",
+  accountSuspension: "accountSuspensions"
+};
+
+const CONTRIBUTOR_REQUIREMENTS = {
+  minAccountAgeDays: 14,
+  minReputation: 50,
+  minApprovedApps: 3,
+  alternateAccountAgeDays: 30
+};
 
 const BASE_URL = "https://www.openlib.online";
 const GITHUB_URL = "https://github.com/AHS-Mobile-Labs/OpenLib";
@@ -78,6 +107,138 @@ function sendHtml(req, res, html, extraHeaders = {}, statusCode = 200) {
   res.set("Content-Type", "text/html; charset=utf-8");
   if (req.method === "HEAD") return res.status(statusCode).send("");
   return res.status(statusCode).send(html);
+}
+
+function accountAgeDays(record, nowMs = Date.now()) {
+  const createdAt = record && record.createdAt ? new Date(record.createdAt).getTime() : nowMs;
+  if (!Number.isFinite(createdAt)) return 0;
+  return Math.max(0, Math.floor((nowMs - createdAt) / 86400000));
+}
+
+function reputationScore(record) {
+  return Number((record && record.reputation && record.reputation.score) || 0);
+}
+
+function approvedSubmissionCount(record) {
+  return Number((record && record.approvedAppSubmissions) || 0);
+}
+
+function moderationActionCount(record) {
+  return Number((record && record.moderationActions) || 0);
+}
+
+function meetsContributorRequirements(record) {
+  if (!record || (record.role || "user") !== "user") return false;
+  const ageDays = accountAgeDays(record);
+  const approvedApps = approvedSubmissionCount(record);
+  const hasEnoughHistory = approvedApps >= CONTRIBUTOR_REQUIREMENTS.minApprovedApps
+    || ageDays >= CONTRIBUTOR_REQUIREMENTS.alternateAccountAgeDays;
+
+  return ageDays >= CONTRIBUTOR_REQUIREMENTS.minAccountAgeDays
+    && record.emailVerified === true
+    && reputationScore(record) >= CONTRIBUTOR_REQUIREMENTS.minReputation
+    && moderationActionCount(record) === 0
+    && hasEnoughHistory;
+}
+
+async function maybePromoteContributor(uid, actorUid = "system") {
+  if (!uid) return;
+  const ref = db.collection("user_records").doc(uid);
+  const snap = await ref.get();
+  if (!snap.exists) return;
+
+  const record = { uid, ...snap.data() };
+  if (!meetsContributorRequirements(record)) return;
+
+  const now = new Date().toISOString();
+  await ref.update({
+    role: "contributor",
+    contributorSince: now,
+    lastRoleChangeAt: now,
+    updatedAt: now
+  });
+  await db.collection("role_change_log").add({
+    uid,
+    actorUid,
+    fromRole: record.role || "user",
+    toRole: "contributor",
+    reason: "Automatic contributor promotion: account age, verified email, reputation, approved submissions, and clean moderation history met.",
+    automatic: true,
+    createdAt: now
+  });
+}
+
+function reputationEventId(value) {
+  return String(value || "").replace(/\//g, "_").slice(0, 500);
+}
+
+async function applyReputationEvent(uid, eventType, actorUid = "system", metadata = {}, count = 1, eventKey = "") {
+  if (!uid || !REPUTATION_POINTS[eventType]) return;
+  const amount = Number(count);
+  if (!Number.isFinite(amount) || amount === 0) return;
+
+  const delta = REPUTATION_POINTS[eventType] * amount;
+  const now = new Date().toISOString();
+  const repField = REPUTATION_FIELDS[eventType];
+  const moderationPenalty = ["rejectedSpamApp", "reviewRemoved", "accountSuspension"].includes(eventType);
+  const update = {
+    "reputation.score": FieldValue.increment(delta),
+    [`reputation.${repField}`]: FieldValue.increment(amount),
+    updatedAt: now
+  };
+  if (eventType === "appApproved" && amount > 0) {
+    update.approvedAppSubmissions = FieldValue.increment(amount);
+    update["activity.appsApproved"] = FieldValue.increment(amount);
+  }
+  if (moderationPenalty && amount > 0) {
+    update.moderationActions = FieldValue.increment(amount);
+  }
+
+  const userRef = db.collection("user_records").doc(uid);
+  const eventRef = eventKey
+    ? db.collection("user_reputation_events").doc(reputationEventId(eventKey))
+    : db.collection("user_reputation_events").doc();
+  const eventData = {
+    uid,
+    actorUid,
+    eventType,
+    delta,
+    count: amount,
+    metadata,
+    createdAt: now
+  };
+
+  let applied = false;
+  await db.runTransaction(async transaction => {
+    if (eventKey) {
+      const existingEvent = await transaction.get(eventRef);
+      if (existingEvent.exists) return;
+    }
+    const userSnap = await transaction.get(userRef);
+    if (!userSnap.exists) return;
+    transaction.set(userRef, update, { merge: true });
+    transaction.set(eventRef, eventData);
+    applied = true;
+  });
+
+  if (applied) await maybePromoteContributor(uid, actorUid);
+}
+
+function isSpamReason(reason) {
+  return /spam|scam|fake|abuse|malicious/i.test(String(reason || ""));
+}
+
+function reportReputationEvent(reason) {
+  const value = String(reason || "").toLowerCase();
+  if (/spam|scam|fake|abuse/.test(value)) return "confirmedSpamReport";
+  if (["broken-link", "wrong-info", "malware", "duplicate", "other"].includes(value)) return "confirmedBugReport";
+  return "confirmedBugReport";
+}
+
+async function getReviewForVote(vote) {
+  if (!vote || !vote.reviewId) return null;
+  const snap = await db.collection("app_reviews").doc(vote.reviewId).get();
+  return snap.exists ? { id: snap.id, ...snap.data() } : null;
 }
 
 function sendText(req, res, text, extraHeaders = {}, statusCode = 200) {
@@ -1122,4 +1283,103 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
     return sendHtml(req, res, spa);
   }
   return res.redirect(302, "/");
+});
+
+exports.onSubmissionTrustChange = onDocumentUpdated("submissions/{submissionId}", async event => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+
+  const submissionId = event.params.submissionId;
+  if (before.status !== "approved" && after.status === "approved" && after.userId) {
+    await applyReputationEvent(after.userId, "appApproved", after.reviewedBy || "system", {
+      submissionId,
+      appName: after.name || "",
+      reviewedAt: after.reviewedAt || ""
+    }, 1, `submission_${submissionId}_app_approved`);
+  }
+
+  if (before.status !== "rejected" && after.status === "rejected" && after.userId && isSpamReason(after.rejectReason)) {
+    await applyReputationEvent(after.userId, "rejectedSpamApp", after.reviewedBy || "system", {
+      submissionId,
+      reason: after.rejectReason || ""
+    }, 1, `submission_${submissionId}_rejected_spam`);
+  }
+});
+
+exports.onReportTrustChange = onDocumentUpdated("reports/{reportId}", async event => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after) return;
+  if (before.status === "resolved" || after.status !== "resolved" || !after.userId) return;
+
+  await applyReputationEvent(after.userId, reportReputationEvent(after.reason), after.resolvedBy || "system", {
+    reportId: event.params.reportId,
+    appId: after.appId || "",
+    reason: after.reason || "",
+    notes: after.adminNotes || ""
+  }, 1, `report_${event.params.reportId}_resolved`);
+});
+
+exports.onReviewVoteCreated = onDocumentCreated("review_votes/{voteId}", async event => {
+  const vote = event.data?.data();
+  if (!vote || vote.type !== "helpful") return;
+  const review = await getReviewForVote(vote);
+  if (!review || !review.authorUid || review.authorUid === vote.userId) return;
+
+  await applyReputationEvent(review.authorUid, "helpfulReviewUpvote", vote.userId || "system", {
+    voteId: event.params.voteId,
+    reviewId: vote.reviewId,
+    appId: review.appId || ""
+  }, 1, event.id || "");
+});
+
+exports.onReviewVoteDeleted = onDocumentDeleted("review_votes/{voteId}", async event => {
+  const vote = event.data?.data();
+  if (!vote || vote.type !== "helpful") return;
+  const review = await getReviewForVote(vote);
+  if (!review || !review.authorUid || review.authorUid === vote.userId) return;
+
+  await applyReputationEvent(review.authorUid, "helpfulReviewUpvote", vote.userId || "system", {
+    voteId: event.params.voteId,
+    reviewId: vote.reviewId,
+    appId: review.appId || "",
+    removed: true
+  }, -1, event.id || "");
+});
+
+exports.onReviewVoteUpdated = onDocumentUpdated("review_votes/{voteId}", async event => {
+  const before = event.data?.before?.data();
+  const after = event.data?.after?.data();
+  if (!before || !after || before.type === after.type) return;
+
+  const review = await getReviewForVote(after);
+  if (!review || !review.authorUid || review.authorUid === after.userId) return;
+
+  if (before.type !== "helpful" && after.type === "helpful") {
+    await applyReputationEvent(review.authorUid, "helpfulReviewUpvote", after.userId || "system", {
+      voteId: event.params.voteId,
+      reviewId: after.reviewId,
+      appId: review.appId || ""
+    }, 1, event.id || "");
+  }
+  if (before.type === "helpful" && after.type !== "helpful") {
+    await applyReputationEvent(review.authorUid, "helpfulReviewUpvote", after.userId || "system", {
+      voteId: event.params.voteId,
+      reviewId: after.reviewId,
+      appId: review.appId || "",
+      removed: true
+    }, -1, event.id || "");
+  }
+});
+
+exports.onReviewModerationDelete = onDocumentDeleted("app_reviews/{reviewId}", async event => {
+  const review = event.data?.data();
+  if (!review || review.moderationRemoved !== true || !review.authorUid) return;
+
+  await applyReputationEvent(review.authorUid, "reviewRemoved", review.moderationRemovedBy || "system", {
+    reviewId: event.params.reviewId,
+    appId: review.appId || "",
+    reason: review.moderationReason || ""
+  }, 1, `review_${event.params.reviewId}_moderation_removed`);
 });

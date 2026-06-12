@@ -5,7 +5,125 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781274297';
+import { db } from './firebase-config.js?v=1781299043';
+
+const ROLE_ORDER = ["user", "contributor", "maintainer", "openlib-team", "admin"];
+const ADMIN_ROLES = ["admin"];
+const TEAM_ROLES = ["admin", "openlib-team"];
+const CONTENT_MODERATOR_ROLES = ["maintainer", "openlib-team", "admin"];
+const ROLE_CHANGE_ROLES = ["user", "contributor", "maintainer", "openlib-team", "admin"];
+
+const CONTRIBUTOR_REQUIREMENTS = {
+  minAccountAgeDays: 14,
+  minReputation: 50,
+  minApprovedApps: 3,
+  alternateAccountAgeDays: 30
+};
+
+function roleRank(role) {
+  const idx = ROLE_ORDER.indexOf(role || "user");
+  return idx === -1 ? 0 : idx;
+}
+
+function isAdminRole(role) {
+  return ADMIN_ROLES.includes(role);
+}
+
+function isTeamRole(role) {
+  return TEAM_ROLES.includes(role);
+}
+
+function isContentModeratorRole(role) {
+  return CONTENT_MODERATOR_ROLES.includes(role);
+}
+
+function accountAgeDays(record, nowMs = Date.now()) {
+  const createdAt = record?.createdAt ? new Date(record.createdAt).getTime() : nowMs;
+  if (!Number.isFinite(createdAt)) return 0;
+  return Math.max(0, Math.floor((nowMs - createdAt) / 86400000));
+}
+
+function reputationScore(record) {
+  return Number(record?.reputation?.score || 0);
+}
+
+function approvedSubmissionCount(record) {
+  return Number(record?.approvedAppSubmissions || 0);
+}
+
+function moderationActionCount(record) {
+  return Number(record?.moderationActions || 0);
+}
+
+function meetsContributorRequirements(record) {
+  if (!record || (record.role || "user") !== "user") return false;
+  const ageDays = accountAgeDays(record);
+  const approvedApps = approvedSubmissionCount(record);
+  const hasEnoughHistory = approvedApps >= CONTRIBUTOR_REQUIREMENTS.minApprovedApps
+    || ageDays >= CONTRIBUTOR_REQUIREMENTS.alternateAccountAgeDays;
+
+  return ageDays >= CONTRIBUTOR_REQUIREMENTS.minAccountAgeDays
+    && record.emailVerified === true
+    && reputationScore(record) >= CONTRIBUTOR_REQUIREMENTS.minReputation
+    && moderationActionCount(record) === 0
+    && hasEnoughHistory;
+}
+
+function baseReputation() {
+  return {
+    score: 0,
+    appApproved: 0,
+    helpfulReviewUpvotes: 0,
+    confirmedBugReports: 0,
+    confirmedSpamReports: 0,
+    rejectedSpamApps: 0,
+    removedReviews: 0,
+    accountSuspensions: 0
+  };
+}
+
+function mergeReputation(existing) {
+  return { ...baseReputation(), ...(existing || {}) };
+}
+
+async function logRoleChange({ uid, actorUid, fromRole, toRole, reason, automatic = false }) {
+  await addDoc(collection(db, "role_change_log"), {
+    uid,
+    actorUid: actorUid || "system",
+    fromRole: fromRole || "user",
+    toRole,
+    reason: reason || "",
+    automatic: !!automatic,
+    createdAt: new Date().toISOString()
+  });
+}
+
+async function promoteToContributorIfEligible(record, actorUid = "system") {
+  if (!meetsContributorRequirements(record)) return record;
+
+  const now = new Date().toISOString();
+  await updateDoc(doc(db, "user_records", record.uid || record.id), {
+    role: "contributor",
+    contributorSince: now,
+    lastRoleChangeAt: now,
+    updatedAt: now
+  });
+  await logRoleChange({
+    uid: record.uid || record.id,
+    actorUid,
+    fromRole: record.role || "user",
+    toRole: "contributor",
+    reason: "Automatic contributor promotion: account age, verified email, reputation, approved submissions, and clean moderation history met.",
+    automatic: true
+  });
+  return {
+    ...record,
+    role: "contributor",
+    contributorSince: now,
+    lastRoleChangeAt: now,
+    updatedAt: now
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  USER RECORDS — Collection: user_records/{uid}
@@ -27,38 +145,43 @@ export async function createOrUpdateUserRecord(user) {
       const existingProviders = existingData.linkedProviders || [existingData.provider].filter(Boolean);
       const mergedProviders = [...new Set([...existingProviders, ...providers])]
         .filter(provider => provider && provider !== "unknown");
-
-      await updateDoc(ref, {
+      const update = {
         displayName: user.displayName || existingData.displayName,
         email: user.email || existingData.email,
+        emailVerified: user.emailVerified === true || existingData.emailVerified === true,
         photoURL: user.photoURL || existingData.photoURL,
         provider: primaryProvider !== "unknown" ? primaryProvider : (existingData.provider || "unknown"),
         linkedProviders: mergedProviders,
         lastLoginAt: now,
         updatedAt: now
-      });
-      return {
+      };
+
+      await updateDoc(ref, update);
+      const updatedRecord = {
         id: snap.id,
         ...existingData,
-        displayName: user.displayName || existingData.displayName,
-        email: user.email || existingData.email,
-        photoURL: user.photoURL || existingData.photoURL,
-        provider: primaryProvider !== "unknown" ? primaryProvider : (existingData.provider || "unknown"),
-        lastLoginAt: now,
-        updatedAt: now,
-        linkedProviders: mergedProviders
+        ...update,
+        reputation: mergeReputation(existingData.reputation),
+        approvedAppSubmissions: existingData.approvedAppSubmissions || 0,
+        moderationActions: existingData.moderationActions || 0,
+        uid: existingData.uid || user.uid
       };
+      return await promoteToContributorIfEligible(updatedRecord, user.uid);
     } else {
       const record = {
         uid: user.uid,
         displayName: user.displayName || "Anonymous",
         email: user.email || "",
+        emailVerified: user.emailVerified === true,
         photoURL: user.photoURL || "",
         provider: primaryProvider,
         linkedProviders: providers,
         role: "user",
         verified: false,
         teamAccount: false,
+        reputation: baseReputation(),
+        approvedAppSubmissions: 0,
+        moderationActions: 0,
         bio: "",
         website: "",
         organizations: [],
@@ -117,23 +240,37 @@ export async function updateUserProfile(uid, data) {
 
 export async function updateUserRole(uid, role, adminUid) {
   const admin = await getUserRecord(adminUid);
-  if (!admin || !["admin", "openlib-team"].includes(admin.role)) {
-    throw new Error("Unauthorized: Only admins can change roles");
-  }
-  const validRoles = ["user", "contributor", "maintainer", "admin", "openlib-team"];
-  if (!validRoles.includes(role)) throw new Error("Invalid role");
-  await updateDoc(doc(db, "user_records", uid), { role, updatedAt: new Date().toISOString() });
+  if (!admin || !isAdminRole(admin.role)) throw new Error("Unauthorized: Only admins can change roles");
+  if (!ROLE_CHANGE_ROLES.includes(role)) throw new Error("Invalid role");
+
+  const target = await getUserRecord(uid);
+  if (!target) throw new Error("User not found");
+  if (target.role === role) return;
+
+  const now = new Date().toISOString();
+  const update = { role, updatedAt: now, lastRoleChangeAt: now };
+  if (role === "contributor" && target.role !== "contributor") update.contributorSince = now;
+  if (role === "maintainer" && target.role !== "maintainer") update.maintainerSince = now;
+  await updateDoc(doc(db, "user_records", uid), update);
+  await logRoleChange({
+    uid,
+    actorUid: adminUid,
+    fromRole: target.role || "user",
+    toRole: role,
+    reason: "Manual admin role change",
+    automatic: false
+  });
 }
 
 export async function setAccountVerified(uid, verified, adminUid) {
   const admin = await getUserRecord(adminUid);
-  if (!admin || !["admin", "openlib-team"].includes(admin.role)) throw new Error("Unauthorized");
+  if (!admin || !isAdminRole(admin.role)) throw new Error("Unauthorized");
   await updateDoc(doc(db, "user_records", uid), { verified: !!verified, updatedAt: new Date().toISOString() });
 }
 
 export async function setTeamAccount(uid, isTeam, adminUid) {
   const admin = await getUserRecord(adminUid);
-  if (!admin || !["admin", "openlib-team"].includes(admin.role)) throw new Error("Unauthorized");
+  if (!admin || !isAdminRole(admin.role)) throw new Error("Unauthorized");
   await updateDoc(doc(db, "user_records", uid), { teamAccount: !!isTeam, updatedAt: new Date().toISOString() });
 }
 
@@ -608,8 +745,8 @@ export async function approveEditRequest(editRequestId, reviewerUid) {
 
 export async function mergeEditRequest(editRequestId, mergerUid) {
   const merger = await getUserRecord(mergerUid);
-  if (!merger || !["admin", "openlib-team"].includes(merger.role)) {
-    throw new Error("Only admins can merge edit requests");
+  if (!merger || !isContentModeratorRole(merger.role)) {
+    throw new Error("Only maintainers and admins can merge edit requests");
   }
 
   const erRef = doc(db, "edit_requests", editRequestId);
@@ -776,7 +913,17 @@ export function computeRecommendations(allApps, _unused, userRecord, bookmarkedA
 
 export async function isAdminOrTeam(uid) {
   const user = await getUserRecord(uid);
-  return user && ["admin", "openlib-team"].includes(user.role);
+  return user && isTeamRole(user.role);
+}
+
+export async function isAdmin(uid) {
+  const user = await getUserRecord(uid);
+  return user && isAdminRole(user.role);
+}
+
+export async function isContentModerator(uid) {
+  const user = await getUserRecord(uid);
+  return user && isContentModeratorRole(user.role);
 }
 
 export async function adminAddApp(appData, adminUid) {
@@ -887,7 +1034,7 @@ export async function adminUpdateApp(appId, data, adminUid) {
 }
 
 export async function adminRemoveApp(appId, adminUid) {
-  if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
+  if (!(await isAdmin(adminUid))) throw new Error("Only admins can permanently delete apps");
   await deleteDoc(doc(db, "apps", appId));
 }
 
@@ -919,7 +1066,7 @@ export async function getAllEditRequests(statusFilter, maxResults = 100) {
 }
 
 export async function approveSubmission(submissionId, adminUid) {
-  if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
+  if (!(await isContentModerator(adminUid))) throw new Error("Unauthorized");
 
   const subRef = doc(db, "submissions", submissionId);
   const subSnap = await getDoc(subRef);
@@ -1015,7 +1162,7 @@ export async function approveSubmission(submissionId, adminUid) {
 }
 
 export async function rejectSubmission(submissionId, adminUid, reason) {
-  if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
+  if (!(await isContentModerator(adminUid))) throw new Error("Unauthorized");
   await updateDoc(doc(db, "submissions", submissionId), {
     status: "rejected",
     reviewedBy: adminUid,
@@ -1026,7 +1173,7 @@ export async function rejectSubmission(submissionId, adminUid, reason) {
 
 // Request changes on a submission (team review)
 export async function requestChangesOnSubmission(submissionId, adminUid, comment) {
-  if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
+  if (!(await isContentModerator(adminUid))) throw new Error("Unauthorized");
   const reviewer = await getUserRecord(adminUid);
   const now = new Date().toISOString();
   await updateDoc(doc(db, "submissions", submissionId), {
@@ -1251,6 +1398,45 @@ export async function addAppReview(appId, reviewData, user) {
   }
 
   return { id: reviewId, ...review };
+}
+
+export async function removeAppReview(reviewId, moderatorUid, reason = "") {
+  const moderator = await getUserRecord(moderatorUid);
+  if (!moderator || !isContentModeratorRole(moderator.role)) throw new Error("Unauthorized");
+
+  const ref = doc(db, "app_reviews", reviewId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Review not found");
+
+  const review = snap.data();
+  await updateDoc(ref, {
+    moderationRemoved: true,
+    moderationRemovedBy: moderatorUid,
+    moderationRemovedAt: new Date().toISOString(),
+    moderationReason: reason || ""
+  });
+  await deleteDoc(ref);
+
+  if (review.appId) {
+    try {
+      const { avg, count } = await getAverageRating(review.appId);
+      await updateDoc(doc(db, "apps", review.appId), {
+        avgRating: Math.round(avg * 10) / 10,
+        reviewCount: count
+      });
+    } catch (e) {
+      console.error("Error updating app avg rating after review removal:", e);
+    }
+  }
+
+  await logModerationAction({
+    type: "remove_review",
+    appId: review.appId || "",
+    appName: "",
+    adminUid: moderatorUid,
+    targetUid: review.authorUid || "",
+    reason: reason || ""
+  });
 }
 
 export async function getAppReviews(appId, sortBy = "latest") {
@@ -1709,12 +1895,12 @@ export async function getOpenLibConfig() {
 }
 
 /**
- * Update OpenLib account config (admin-only).
+ * Update OpenLib account config (OpenLib team/admin only).
  */
 export async function updateOpenLibConfig(data, adminUid) {
   if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
   const admin = await getUserRecord(adminUid);
-  if (admin.role !== "admin") throw new Error("Only admins can update the OpenLib profile");
+  if (!isTeamRole(admin?.role)) throw new Error("Only OpenLib team members can update the OpenLib profile");
   const allowed = ["displayName", "bio", "website", "github", "avatarText", "established"];
   const update = {};
   allowed.forEach(k => { if (data[k] !== undefined) update[k] = data[k]; });
@@ -1779,15 +1965,26 @@ export async function addTeamMember(targetUid, adminUid) {
   if (!target) throw new Error("User not found");
   if (["admin", "openlib-team"].includes(target.role)) throw new Error("User is already a team member");
 
+  const now = new Date().toISOString();
   await updateDoc(doc(db, "user_records", targetUid), {
     role: "openlib-team",
-    updatedAt: new Date().toISOString()
+    lastRoleChangeAt: now,
+    updatedAt: now
+  });
+
+  await logRoleChange({
+    uid: targetUid,
+    actorUid: adminUid,
+    fromRole: target.role || "user",
+    toRole: "openlib-team",
+    reason: "Manual OpenLib Team assignment",
+    automatic: false
   });
 
   await setDoc(doc(db, "openlib_config", `permissions_${targetUid}`), {
     ...DEFAULT_TEAM_PERMISSIONS,
     addedBy: adminUid,
-    addedAt: new Date().toISOString()
+    addedAt: now
   });
 }
 
@@ -1802,9 +1999,20 @@ export async function removeTeamMember(targetUid, adminUid) {
   if (!target) throw new Error("User not found");
   if (target.role === "admin") throw new Error("Cannot remove an admin from the team");
 
+  const now = new Date().toISOString();
   await updateDoc(doc(db, "user_records", targetUid), {
     role: "user",
-    updatedAt: new Date().toISOString()
+    lastRoleChangeAt: now,
+    updatedAt: now
+  });
+
+  await logRoleChange({
+    uid: targetUid,
+    actorUid: adminUid,
+    fromRole: target.role || "user",
+    toRole: "user",
+    reason: "Manual OpenLib Team removal",
+    automatic: false
   });
 
   // Clean up permissions doc
@@ -1861,7 +2069,7 @@ export async function getReport(reportId) {
  * Update report status & add admin notes (admin-only).
  */
 export async function updateReportStatus(reportId, status, adminUid, notes) {
-  if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
+  if (!(await isContentModerator(adminUid))) throw new Error("Unauthorized");
   const validStatuses = ["pending", "under_review", "resolved", "rejected"];
   if (!validStatuses.includes(status)) throw new Error("Invalid status");
 
@@ -1902,7 +2110,7 @@ export async function getModerationLog(appId, maxResults = 100) {
  * Logs the action for transparency.
  */
 export async function setAppModerationStatus(appId, moderationStatus, adminUid, reason, opts = {}) {
-  if (!(await isAdminOrTeam(adminUid))) throw new Error("Unauthorized");
+  if (!(await isContentModerator(adminUid))) throw new Error("Unauthorized");
   const validStatuses = ["active", "restricted", "removed"];
   if (!validStatuses.includes(moderationStatus)) throw new Error("Invalid moderation status");
 
@@ -1942,7 +2150,7 @@ export async function setAppModerationStatus(appId, moderationStatus, adminUid, 
  * Called on admin dashboard load.
  */
 export async function restoreExpiredSuspensions(adminUid) {
-  if (!(await isAdminOrTeam(adminUid))) return [];
+  if (!(await isContentModerator(adminUid))) return [];
   const now = new Date().toISOString();
   const q = query(
     collection(db, "apps"),
@@ -1990,4 +2198,121 @@ export async function getReportStats() {
     resolved: resolvedSnap.data().count,
     rejected: rejectedSnap.data().count
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ROLE APPLICATIONS — Maintainer / OpenLib Team requests
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const ROLE_APPLICATION_TARGETS = ["maintainer", "openlib-team"];
+
+export async function submitRoleApplication(uid, targetRole, message = "") {
+  if (!ROLE_APPLICATION_TARGETS.includes(targetRole)) throw new Error("Invalid role application target");
+
+  const user = await getUserRecord(uid);
+  if (!user) throw new Error("User profile not found");
+  if (targetRole === "maintainer" && isContentModeratorRole(user.role)) {
+    throw new Error("You already have maintainer-level access");
+  }
+  if (targetRole === "openlib-team" && isTeamRole(user.role)) {
+    throw new Error("You are already on the OpenLib team");
+  }
+
+  const pendingSnap = await getDocs(query(
+    collection(db, "role_applications"),
+    where("uid", "==", uid),
+    limit(25)
+  ));
+  const hasPendingApplication = pendingSnap.docs.some(d => {
+    const app = d.data();
+    return app.targetRole === targetRole && app.status === "pending";
+  });
+  if (hasPendingApplication) throw new Error("You already have a pending application for this role");
+
+  const now = new Date().toISOString();
+  const application = {
+    uid,
+    targetRole,
+    status: "pending",
+    message: String(message || "").trim().slice(0, 2000),
+    displayName: user.displayName || "",
+    email: user.email || "",
+    currentRole: user.role || "user",
+    reputationScore: reputationScore(user),
+    approvedAppSubmissions: approvedSubmissionCount(user),
+    moderationActions: moderationActionCount(user),
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const ref = await addDoc(collection(db, "role_applications"), application);
+  return { id: ref.id, ...application };
+}
+
+export async function getUserRoleApplications(uid, maxResults = 20) {
+  const snap = await getDocs(query(
+    collection(db, "role_applications"),
+    where("uid", "==", uid),
+    limit(maxResults)
+  ));
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+export async function getAllRoleApplications(statusFilter = "pending", maxResults = 100) {
+  let q;
+  if (statusFilter) {
+    q = query(
+      collection(db, "role_applications"),
+      where("status", "==", statusFilter),
+      limit(maxResults)
+    );
+  } else {
+    q = query(collection(db, "role_applications"), orderBy("createdAt", "desc"), limit(maxResults));
+  }
+  const snap = await getDocs(q);
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+}
+
+export async function approveRoleApplication(applicationId, adminUid, notes = "") {
+  const admin = await getUserRecord(adminUid);
+  if (!admin || !isAdminRole(admin.role)) throw new Error("Only admins can approve role applications");
+
+  const ref = doc(db, "role_applications", applicationId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) throw new Error("Application not found");
+
+  const application = snap.data();
+  if (application.status !== "pending") throw new Error("Application is already reviewed");
+  if (!ROLE_APPLICATION_TARGETS.includes(application.targetRole)) throw new Error("Invalid application target");
+
+  if (application.targetRole === "maintainer") {
+    await updateUserRole(application.uid, "maintainer", adminUid);
+  } else {
+    await addTeamMember(application.uid, adminUid);
+  }
+
+  await updateDoc(ref, {
+    status: "approved",
+    reviewedBy: adminUid,
+    reviewedAt: new Date().toISOString(),
+    adminNotes: String(notes || "").slice(0, 1000),
+    updatedAt: new Date().toISOString()
+  });
+}
+
+export async function rejectRoleApplication(applicationId, adminUid, notes = "") {
+  const admin = await getUserRecord(adminUid);
+  if (!admin || !isAdminRole(admin.role)) throw new Error("Only admins can reject role applications");
+
+  await updateDoc(doc(db, "role_applications", applicationId), {
+    status: "rejected",
+    reviewedBy: adminUid,
+    reviewedAt: new Date().toISOString(),
+    adminNotes: String(notes || "").slice(0, 1000),
+    updatedAt: new Date().toISOString()
+  });
 }

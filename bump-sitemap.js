@@ -27,6 +27,7 @@ const STATIC_PAGES = [
   { loc: "/", changefreq: "daily", priority: "1.0" },
   { loc: "/rankings", changefreq: "daily", priority: "0.8" },
   { loc: "/trending", changefreq: "daily", priority: "0.8" },
+  { loc: "/roles", changefreq: "weekly", priority: "0.7" },
   { loc: "/team", changefreq: "monthly", priority: "0.5" },
   { loc: "/privacy", changefreq: "yearly", priority: "0.3" },
   { loc: "/terms", changefreq: "yearly", priority: "0.3" },
