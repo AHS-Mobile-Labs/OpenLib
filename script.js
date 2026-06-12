@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781299043';
+} from './firebase-config.js?v=1781300102';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781299043';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781300102';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -40,7 +40,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781299043';
+} from './firebase-db.js?v=1781300102';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -117,6 +117,23 @@ window.openLibPerf = {
   getSamples: () => [...perfSamples],
   getSlowSamples: (minMs = PERF_SLOW_OP_MS) => perfSamples.filter(s => s.duration >= minMs)
 };
+
+function registerPwaServiceWorker() {
+  if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+
+  navigator.serviceWorker.register("/service-worker.js", { scope: "/" })
+    .then(registration => {
+      const refresh = () => registration.update().catch(() => {});
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(refresh, { timeout: 10000 });
+      } else {
+        setTimeout(refresh, 5000);
+      }
+    })
+    .catch(() => {
+      // PWA support should never block the app.
+    });
+}
 
 // [OPT-1 FIX] Centralized view switching — replaces 11 duplicate view-hiding blocks
 const ALL_VIEWS = ["home-view", "detail-view", "rankings-view", "trending-view", "profile-view",
@@ -7606,6 +7623,7 @@ async function init() {
 
   initTheme();
   initAuth();
+  registerPwaServiceWorker();
 
   // Defer version update checks so homepage rendering never waits on config reads.
   startUpdateChecks();
