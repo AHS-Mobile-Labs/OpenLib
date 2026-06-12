@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781303058';
+} from './firebase-config.js?v=1781305354';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781303058';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781305354';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -40,7 +40,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781303058';
+} from './firebase-db.js?v=1781305354';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -240,17 +240,36 @@ function showInputModal(title, placeholder = "Enter your response…") {
 }
 
 // ── Session ID ───────────────────────────────────────────────────────────────
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) {
+    return `sess_${globalThis.crypto.randomUUID()}`;
+  }
+
+  const bytes = new Uint8Array(16);
+  globalThis.crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, "0"));
+  return `sess_${[
+    hex.slice(0, 4).join(""),
+    hex.slice(4, 6).join(""),
+    hex.slice(6, 8).join(""),
+    hex.slice(8, 10).join(""),
+    hex.slice(10).join("")
+  ].join("-")}`;
+}
+
 function getSessionId() {
   try {
     let id = localStorage.getItem("openlib_session");
     if (!id) {
-      id = "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      id = createSessionId();
       localStorage.setItem("openlib_session", id);
     }
     return id;
   } catch (_) {
     if (!memorySessionId) {
-      memorySessionId = "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      memorySessionId = createSessionId();
     }
     return memorySessionId;
   }
