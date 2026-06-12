@@ -102,8 +102,18 @@ function setCachedHtml(key, html) {
   }
 }
 
+function addVary(res, value) {
+  const current = String(res.get("Vary") || "")
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+  if (!current.some(item => item.toLowerCase() === value.toLowerCase())) current.push(value);
+  res.set("Vary", current.join(", "));
+}
+
 function sendHtml(req, res, html, extraHeaders = {}, statusCode = 200) {
   Object.entries(extraHeaders).forEach(([key, value]) => res.set(key, value));
+  addVary(res, "User-Agent");
   res.set("Content-Type", "text/html; charset=utf-8");
   if (req.method === "HEAD") return res.status(statusCode).send("");
   return res.status(statusCode).send(html);
@@ -1149,6 +1159,56 @@ function renderTeam() {
   });
 }
 
+function renderRoles() {
+  const title = "OpenLib Roles and Achievements | OpenLib";
+  const desc = "Learn how OpenLib user, contributor, maintainer, and OpenLib Team roles work, track achievement progress, and apply for trusted roles.";
+  const url = `${BASE_URL}/roles`;
+  const body = `
+    <article>
+      <h1>OpenLib Roles and Achievements</h1>
+      <p>${esc(desc)}</p>
+      <section>
+        <h2>Community Trust Path</h2>
+        <p>OpenLib roles progress from regular community participation to contributor status, maintainer work, and official OpenLib Team responsibilities.</p>
+      </section>
+      <section>
+        <h2>How Roles Work</h2>
+        <ul>
+          <li>User: browse, review, rate, and submit open-source software.</li>
+          <li>Contributor: earned through verified account history, reputation, approved submissions, and a clean moderation record.</li>
+          <li>Maintainer and OpenLib Team: reviewed by humans for trusted moderation and library stewardship.</li>
+        </ul>
+      </section>
+      <section>
+        <h2>Explore OpenLib</h2>
+        <p><a href="/team">Meet the team</a> · <a href="/rankings">Browse rankings</a> · <a href="/open-source-alternatives">Find open-source alternatives</a></p>
+      </section>
+    </article>`;
+
+  return buildPage({
+    title,
+    description: desc,
+    url,
+    jsonLd: {
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: "Roles", url },
+        ]),
+        {
+          "@type": "WebPage",
+          "@id": `${url}#webpage`,
+          name: "OpenLib Roles and Achievements",
+          url,
+          description: desc,
+          isPartOf: { "@id": `${BASE_URL}/#website` },
+        },
+      ],
+    },
+    body,
+  });
+}
+
 function renderNotFound(urlPath) {
   const url = `${BASE_URL}${urlPath}`;
   return buildPage({
@@ -1199,7 +1259,8 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
   if (!isBot(ua)) {
     const spa = getSpaHtml();
     if (spa) {
-      res.set("Cache-Control", "public, max-age=300, s-maxage=600");
+      res.set("Cache-Control", "private, no-store, max-age=0");
+      res.set("X-Rendered-By", "openlib-spa");
       return sendHtml(req, res, spa);
     }
     // If spa.html missing, redirect to root (hosting serves index.html)
@@ -1252,6 +1313,8 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
       html = await renderRankings();
     } else if (urlPath === "/trending") {
       html = await renderTrending();
+    } else if (urlPath === "/roles") {
+      html = renderRoles();
     } else if (urlPath === "/team") {
       html = renderTeam();
     } else if (urlPath === "/privacy") {
@@ -1279,7 +1342,8 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
   // Fallback: serve SPA
   const spa = getSpaHtml();
   if (spa) {
-    res.set("Cache-Control", "public, max-age=300");
+    res.set("Cache-Control", "private, no-store, max-age=0");
+    res.set("X-Rendered-By", "openlib-spa");
     return sendHtml(req, res, spa);
   }
   return res.redirect(302, "/");

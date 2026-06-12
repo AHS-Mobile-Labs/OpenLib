@@ -226,6 +226,11 @@ function checkRewrites(firebaseConfig, sitemapUrls) {
       fail(`firebase.json missing prerender rewrite for ${route}`);
     }
   }
+  for (const route of REQUIRED_PATHS.filter(pathname => pathname !== "/")) {
+    if (!rewrites.some(rewrite => rewrite.source === route && rewrite.function === "prerender")) {
+      fail(`firebase.json missing prerender rewrite for sitemap route ${route}`);
+    }
+  }
 }
 
 function requestHead(url, { redirects = 0, userAgent = NORMAL_UA } = {}) {
@@ -246,6 +251,54 @@ function requestHead(url, { redirects = 0, userAgent = NORMAL_UA } = {}) {
     });
     req.end();
   });
+}
+
+function requestGet(url, { redirects = 0, userAgent = NORMAL_UA } = {}) {
+  return new Promise(resolve => {
+    const req = https.request(url, { method: "GET", headers: { "User-Agent": userAgent } }, res => {
+      const location = res.headers.location;
+      if ([301, 302, 307, 308].includes(res.statusCode) && location && redirects < 6) {
+        const nextUrl = new URL(location, url).toString();
+        res.resume();
+        requestGet(nextUrl, { redirects: redirects + 1, userAgent }).then(resolve);
+        return;
+      }
+
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", chunk => {
+        if (body.length < 250000) body += chunk;
+      });
+      res.on("end", () => {
+        resolve({
+          url,
+          status: res.statusCode,
+          redirects,
+          contentType: res.headers["content-type"] || "",
+          headers: res.headers,
+          body,
+        });
+      });
+    });
+    req.on("error", error => resolve({ url, status: 0, redirects, error: error.message, headers: {}, body: "" }));
+    req.setTimeout(10000, () => {
+      req.destroy();
+      resolve({ url, status: 0, redirects, error: "timeout", headers: {}, body: "" });
+    });
+    req.end();
+  });
+}
+
+function extractCanonical(html) {
+  return html.match(/<link\s+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)?.[1]
+    || html.match(/<link[^>]+href=["']([^"']+)["'][^>]+rel=["']canonical["']/i)?.[1]
+    || "";
+}
+
+function shouldBePrerendered(pathname) {
+  if (pathname === "/") return false;
+  if (/\.[a-z0-9]+$/i.test(pathname)) return false;
+  return true;
 }
 
 async function checkLive(urls) {
@@ -270,6 +323,21 @@ async function checkLive(urls) {
     const botResult = await requestHead(url, { userAgent: GOOGLEBOT_UA });
     if (!botResult.status || botResult.status >= 400) fail(`Googlebot URL failed (${botResult.status || botResult.error}): ${url}`);
     if (botResult.redirects > 1) warn(`Googlebot redirect chain has ${botResult.redirects} hops: ${url}`);
+
+    const pathname = pathnameFromUrl(url);
+    if (shouldBePrerendered(pathname)) {
+      const botPage = await requestGet(url, { userAgent: GOOGLEBOT_UA });
+      if (!botPage.status || botPage.status >= 400) {
+        fail(`Googlebot GET failed (${botPage.status || botPage.error}): ${url}`);
+      } else if (/^text\/html\b/i.test(botPage.contentType)) {
+        const canonical = extractCanonical(botPage.body);
+        if (canonical !== url) fail(`Googlebot canonical mismatch for ${url}: ${canonical || "(missing)"}`);
+        if (botPage.body.includes('id="canonical-url"')) fail(`Googlebot received SPA shell instead of prerendered HTML: ${url}`);
+        if (botPage.headers["x-rendered-by"] !== "openlib-prerender") {
+          fail(`Googlebot response missing prerender marker for ${url}`);
+        }
+      }
+    }
   }
   pass(`Checked ${sample.length} live URLs and ${sample.length} Googlebot URLs`);
 }
