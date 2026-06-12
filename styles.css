@@ -9227,3 +9227,458 @@ body:has(.modal-overlay.open) .auth-dropdown.open {
     font-size: 17px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MOBILE UI POLISH — final cascade pass
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+body {
+  -webkit-text-size-adjust: 100%;
+}
+
+.auth-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147482998;
+  background: rgba(0, 0, 0, 0.48);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.auth-backdrop.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.auth-dropdown.auth-dropdown-portal {
+  position: fixed;
+  top: var(--auth-dropdown-top, 72px);
+  right: var(--auth-dropdown-right, 16px);
+  bottom: auto;
+  left: auto;
+  width: min(300px, calc(100vw - 24px));
+  max-width: none;
+  z-index: 2147482999;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+.app-card,
+.ranking-item,
+.rec-card,
+.similar-card,
+.creator-card,
+.profile-list-item,
+.team-member-card,
+.admin-card,
+.verify-card {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .auth-dropdown.auth-dropdown-portal {
+    top: var(--auth-dropdown-top, 64px);
+    right: 10px;
+    bottom: auto;
+    left: 10px;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: calc(100dvh - var(--auth-dropdown-top, 64px) - 12px);
+    margin: 0;
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.52);
+    transform: translateY(-8px) scale(0.98);
+    transform-origin: top right;
+    padding-bottom: 0;
+  }
+
+  .auth-dropdown.auth-dropdown-portal #auth-content {
+    padding: 8px;
+  }
+
+  .auth-dropdown.auth-dropdown-portal.open {
+    transform: translateY(0) scale(1);
+  }
+
+  .auth-dropdown.auth-dropdown-portal .auth-option {
+    height: 44px;
+    min-height: 44px;
+    margin-bottom: 8px;
+  }
+
+  header {
+    min-height: 58px;
+  }
+
+  .header-inner {
+    display: grid;
+    grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+    align-items: center;
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .logo-group {
+    min-width: 0;
+  }
+
+  .logo-title {
+    max-width: 108px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .header-actions {
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    justify-self: end;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .header-actions::-webkit-scrollbar,
+  .filters::-webkit-scrollbar,
+  .trending-filters::-webkit-scrollbar,
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  #ranking-nav-link,
+  #trending-nav-link {
+    display: none;
+  }
+
+  .auth-btn,
+  .theme-toggle,
+  .btn-submit-app {
+    min-width: 40px;
+    height: 40px;
+    min-height: 40px;
+    flex: 0 0 auto;
+  }
+
+  .auth-btn {
+    width: 40px;
+    justify-content: center;
+    padding: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .auth-menu {
+    touch-action: manipulation;
+  }
+
+  #auth-label {
+    display: none;
+  }
+
+  .auth-btn:not([data-auth-state]),
+  .auth-btn[data-auth-state="signed-out"] {
+    width: auto;
+    min-width: 76px;
+    padding: 0 10px;
+  }
+
+  .auth-btn:not([data-auth-state]) #auth-label,
+  .auth-btn[data-auth-state="signed-out"] #auth-label {
+    display: inline;
+  }
+
+  .btn-submit-app {
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .theme-toggle {
+    width: 40px;
+  }
+
+  .controls-section {
+    padding: 22px 10px 14px;
+  }
+
+  .hero-text {
+    margin-bottom: 18px;
+  }
+
+  .hero-text h1 {
+    font-size: clamp(24px, 9vw, 32px);
+    line-height: 1.12;
+  }
+
+  .controls-row,
+  .search-wrap,
+  #search-input {
+    width: 100%;
+  }
+
+  .filters,
+  .trending-filters,
+  .admin-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-btn,
+  .trending-filter-btn,
+  .admin-tab {
+    flex: 0 0 auto;
+  }
+
+  .grid-section,
+  .recommendations-section,
+  .trending-home-section {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #app-grid {
+    min-width: 0;
+  }
+
+  .app-card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .card-top {
+    gap: 10px;
+  }
+
+  .app-name {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+  }
+
+  .maintainer-badge,
+  .added-by-badge,
+  .web-only-label,
+  .meta-pill,
+  .trust-badge {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-stats-row,
+  .platforms-row,
+  .detail-meta-bar,
+  .trust-badges {
+    min-width: 0;
+  }
+
+  .card-actions .btn {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 44px !important;
+    max-height: none !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    gap: 6px !important;
+  }
+
+  .view-section,
+  .profile-page,
+  .org-page,
+  .admin-page,
+  .verify-page,
+  .team-page,
+  .team-manage-page {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .rankings-page {
+    padding: 18px 0 44px;
+  }
+
+  .ranking-item {
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .ranking-info {
+    min-width: 0;
+  }
+
+  .ranking-name,
+  .ranking-cat {
+    overflow-wrap: anywhere;
+  }
+
+  .detail-page {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .detail-header {
+    align-items: flex-start;
+  }
+
+  .detail-name {
+    overflow-wrap: anywhere;
+  }
+
+  .detail-header-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .bookmark-btn,
+  .share-btn {
+    min-height: 40px;
+  }
+
+  .share-dropdown-wrap {
+    flex: 1;
+  }
+
+  .share-btn {
+    width: 100%;
+  }
+
+  .meta-pill,
+  .trust-badge,
+  .detail-tag,
+  .alternative-target {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .creator-card,
+  .team-member-card,
+  .tm-member-row,
+  .tm-user-row,
+  .profile-list-item {
+    align-items: flex-start;
+  }
+
+  .modal-overlay {
+    min-height: 100dvh;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .modal {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    padding: 18px;
+  }
+
+  .modal-actions-row,
+  .admin-form-actions,
+  .review-form-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-actions-row .btn,
+  .admin-form-actions .btn,
+  .review-form-actions .btn {
+    flex: 1 1 140px;
+  }
+
+  .footer-inner {
+    align-items: stretch;
+  }
+
+  .footer-right {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .footer-link {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 430px) {
+  .logo-title {
+    max-width: 92px;
+  }
+
+  .hero-text h1 {
+    font-size: 28px;
+    line-height: 1.18;
+  }
+
+  .btn-submit-app {
+    width: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .btn-submit-app::before {
+    content: "+";
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .card-actions .btn {
+    flex: none !important;
+    width: 100% !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+  }
+
+  .card-actions .btn:nth-child(3):last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 380px) {
+  .logo-title {
+    max-width: 72px;
+  }
+
+  #submit-app-btn {
+    display: inline-flex;
+  }
+
+  .auth-btn,
+  .theme-toggle,
+  .btn-submit-app {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .hero-text h1 {
+    font-size: 24px;
+  }
+}

@@ -1,6 +1,6 @@
 // ── Firebase Imports ─────────────────────────────────────────────────────────
 import {
-  signInWithGoogle, signInWithGitHub, signOutUser, getCurrentUser, onUserAuthStateChanged,
+  signInWithGoogle, signInWithGitHub, signOutUser, getCurrentUser, onUserAuthStateChanged, completeRedirectSignIn,
   getPendingLinkData, clearPendingLinkData, linkProviderToCurrentUser, getLinkedProviders,
   submitReportToFirestore,
   getAllAppsFromFirestore,
@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781015449';
+} from './firebase-config.js?v=1781269445';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781015449';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781269445';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781015449';
+} from './firebase-db.js?v=1781269445';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -52,6 +52,9 @@ let currentGridRendered = 0;
 let appsRevalidationScheduled = false;
 let memorySessionId = null;
 const CANONICAL_ORIGIN = "https://www.openlib.online";
+const CANONICAL_AUTH_HOST = "www.openlib.online";
+const APEX_AUTH_HOST = "openlib.online";
+const AUTH_PROVIDER_PARAM = "ol_auth_provider";
 const PERF_SLOW_OP_MS = 200;
 const perfSamples = [];
 
@@ -5871,6 +5874,33 @@ function updateThemeIcon(theme) {
 }
 
 // ── Auth UI ──────────────────────────────────────────────────────────────────
+function redirectApexAuthToCanonical(providerName) {
+  if (
+    window.location.protocol !== "https:" ||
+    window.location.hostname !== APEX_AUTH_HOST ||
+    !["google", "github"].includes(providerName)
+  ) {
+    return false;
+  }
+
+  const url = new URL(window.location.href);
+  url.hostname = CANONICAL_AUTH_HOST;
+  url.searchParams.set(AUTH_PROVIDER_PARAM, providerName);
+  window.location.assign(url.toString());
+  return true;
+}
+
+function consumeAuthProviderParam() {
+  const url = new URL(window.location.href);
+  const providerName = url.searchParams.get(AUTH_PROVIDER_PARAM);
+  if (!["google", "github"].includes(providerName)) return null;
+
+  url.searchParams.delete(AUTH_PROVIDER_PARAM);
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(null, "", nextUrl || "/");
+  return providerName;
+}
+
 async function updateAuthUI(user) {
   currentUser = user;
   const trigger = document.getElementById("auth-trigger");
@@ -5879,6 +5909,7 @@ async function updateAuthUI(user) {
   const profileLink = document.getElementById("profile-nav-link");
 
   if (user) {
+    trigger.dataset.authState = "signed-in";
     // Create/update user record in Firestore
     userRecord = await createOrUpdateUserRecord(user);
     isAdmin = userRecord && ["admin", "openlib-team"].includes(userRecord.role);
@@ -5909,6 +5940,7 @@ async function updateAuthUI(user) {
       <button class="auth-option signout" id="signout-btn">${iconImg("logout")} Sign Out</button>
     `;
   } else {
+    trigger.dataset.authState = "signed-out";
     userRecord = null;
     isAdmin = false;
     if (adminLink) adminLink.style.display = "none";
@@ -5927,58 +5959,121 @@ async function updateAuthUI(user) {
   }
 }
 
+function handleSignInFailure(err, closeMenu) {
+  if (!err) return;
+
+  if (err.code === "auth/account-exists-with-different-credential") {
+    closeMenu?.();
+    showAccountLinkingModal(err.email, err.existingProvider);
+    return;
+  }
+
+  if (
+    err.code === "auth/popup-closed-by-user" ||
+    err.code === "auth/cancelled-popup-request" ||
+    err.code === "auth/redirect-cancelled-by-user"
+  ) {
+    return;
+  }
+
+  const message = err.code === "auth/unauthorized-domain"
+    ? "Sign-in failed: add this domain in Firebase Auth settings."
+    : `Sign-in failed: ${err.message || err.code || "Unknown error"}`;
+  showToast(message);
+}
+
+async function startProviderAuth(providerName) {
+  if (redirectApexAuthToCanonical(providerName)) return null;
+
+  const providerLabel = providerName === "google" ? "Google" : "GitHub";
+  showToast(`Opening ${providerLabel} sign-in…`);
+  const user = providerName === "google" ? await signInWithGoogle() : await signInWithGitHub();
+  if (user) showToast(`Signed in with ${providerLabel} ✓`);
+  return user;
+}
+
 function setupAuthHandlers() {
   const trigger = document.getElementById("auth-trigger");
   const dropdown = document.getElementById("auth-dropdown");
+  const backdrop = document.createElement("div");
+  backdrop.className = "auth-backdrop";
+  backdrop.hidden = true;
+  document.body.appendChild(backdrop);
+  dropdown.classList.add("auth-dropdown-portal");
+  document.body.appendChild(dropdown);
 
-  trigger.addEventListener("click", e => {
+  const isMobileAuthSheet = () => window.matchMedia("(max-width: 640px)").matches;
+
+  function positionAuthDropdown() {
+    const rect = trigger.getBoundingClientRect();
+    const top = Math.round(rect.bottom + 8);
+
+    if (isMobileAuthSheet()) {
+      dropdown.style.setProperty("--auth-dropdown-top", `${top}px`);
+      dropdown.style.removeProperty("--auth-dropdown-right");
+      return;
+    }
+
+    const right = Math.max(12, Math.round(window.innerWidth - rect.right));
+    dropdown.style.setProperty("--auth-dropdown-top", `${top}px`);
+    dropdown.style.setProperty("--auth-dropdown-right", `${right}px`);
+  }
+
+  function setAuthDropdownOpen(open) {
+    if (open) positionAuthDropdown();
+    dropdown.classList.toggle("open", open);
+    backdrop.classList.toggle("open", open && isMobileAuthSheet());
+    backdrop.hidden = !(open && isMobileAuthSheet());
+    trigger.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function toggleAuthDropdown(e) {
+    e.preventDefault();
     e.stopPropagation();
-    dropdown.classList.toggle("open");
-  });
+    setAuthDropdownOpen(!dropdown.classList.contains("open"));
+  }
+
+  trigger.addEventListener("click", toggleAuthDropdown);
 
   document.addEventListener("click", e => {
-    if (!e.target.closest(".auth-menu")) {
-      dropdown.classList.remove("open");
+    if (!e.target.closest(".auth-menu") && !e.target.closest("#auth-dropdown")) {
+      setAuthDropdownOpen(false);
     }
   });
+
+  backdrop.addEventListener("click", () => setAuthDropdownOpen(false));
+  window.addEventListener("resize", () => {
+    if (dropdown.classList.contains("open")) setAuthDropdownOpen(true);
+  });
+
+  async function startProviderSignIn(providerName) {
+    try {
+      setAuthDropdownOpen(false);
+      await startProviderAuth(providerName);
+    } catch (err) {
+      handleSignInFailure(err, () => setAuthDropdownOpen(false));
+    }
+  }
 
   document.addEventListener("click", async e => {
     if (e.target.closest("#google-signin-btn")) {
-      try {
-        await signInWithGoogle();
-        dropdown.classList.remove("open");
-        showToast("Signed in with Google ✓");
-      } catch (err) {
-        if (err.code === "auth/account-exists-with-different-credential") {
-          dropdown.classList.remove("open");
-          showAccountLinkingModal(err.email, err.existingProvider);
-        } else if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
-          // User closed the popup — do nothing
-        } else {
-          showToast("Sign-in failed: " + err.message);
-        }
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      await startProviderSignIn("google");
+      return;
     }
     if (e.target.closest("#github-signin-btn")) {
-      try {
-        await signInWithGitHub();
-        dropdown.classList.remove("open");
-        showToast("Signed in with GitHub ✓");
-      } catch (err) {
-        if (err.code === "auth/account-exists-with-different-credential") {
-          dropdown.classList.remove("open");
-          showAccountLinkingModal(err.email, err.existingProvider);
-        } else if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
-          // User closed the popup — do nothing
-        } else {
-          showToast("Sign-in failed: " + err.message);
-        }
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      await startProviderSignIn("github");
+      return;
     }
     if (e.target.closest("#signout-btn")) {
+      e.preventDefault();
+      e.stopPropagation();
       try {
         await signOutUser();
-        dropdown.classList.remove("open");
+        setAuthDropdownOpen(false);
         showToast("Signed out");
       } catch (err) {
         showToast("Sign-out failed: " + err.message);
@@ -5987,7 +6082,7 @@ function setupAuthHandlers() {
     const profileLink = e.target.closest(".profile-link");
     if (profileLink) {
       e.preventDefault();
-      dropdown.classList.remove("open");
+      setAuthDropdownOpen(false);
       navigateTo("/profile");
     }
   });
@@ -6060,11 +6155,25 @@ function setupAccountLinkingModal() {
 }
 
 function initAuth() {
+  const queuedAuthProvider = consumeAuthProviderParam();
+  updateAuthUI(getCurrentUser());
   onUserAuthStateChanged(async user => {
     await updateAuthUI(user);
   });
   setupAuthHandlers();
   setupAccountLinkingModal();
+  if (queuedAuthProvider) {
+    setTimeout(() => {
+      startProviderAuth(queuedAuthProvider).catch(err => handleSignInFailure(err));
+    }, 100);
+  }
+  completeRedirectSignIn()
+    .then(async user => {
+      if (!user) return;
+      await updateAuthUI(user);
+      showToast("Signed in successfully ✓");
+    })
+    .catch(err => handleSignInFailure(err));
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -7082,32 +7191,26 @@ async function init() {
   const loginModal = document.getElementById("login-prompt-modal");
   loginModal?.querySelector("#prompt-google-btn")?.addEventListener("click", async () => {
     try {
-      await signInWithGoogle();
+      const user = await startProviderAuth("google");
       loginModal.classList.remove("open");
-      showToast("Signed in! You can now proceed.");
-      if (loginModal.dataset.targetUrl) window.open(loginModal.dataset.targetUrl, "_blank", "noopener");
-    } catch (err) {
-      if (err.code === "auth/account-exists-with-different-credential") {
-        loginModal.classList.remove("open");
-        showAccountLinkingModal(err.email, err.existingProvider);
-      } else if (err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") {
-        showToast("Sign-in failed: " + err.message);
+      if (user) {
+        showToast("Signed in! You can now proceed.");
+        if (loginModal.dataset.targetUrl) window.open(loginModal.dataset.targetUrl, "_blank", "noopener");
       }
+    } catch (err) {
+      handleSignInFailure(err, () => loginModal.classList.remove("open"));
     }
   });
   loginModal?.querySelector("#prompt-github-btn")?.addEventListener("click", async () => {
     try {
-      await signInWithGitHub();
+      const user = await startProviderAuth("github");
       loginModal.classList.remove("open");
-      showToast("Signed in! You can now proceed.");
-      if (loginModal.dataset.targetUrl) window.open(loginModal.dataset.targetUrl, "_blank", "noopener");
-    } catch (err) {
-      if (err.code === "auth/account-exists-with-different-credential") {
-        loginModal.classList.remove("open");
-        showAccountLinkingModal(err.email, err.existingProvider);
-      } else if (err.code !== "auth/popup-closed-by-user" && err.code !== "auth/cancelled-popup-request") {
-        showToast("Sign-in failed: " + err.message);
+      if (user) {
+        showToast("Signed in! You can now proceed.");
+        if (loginModal.dataset.targetUrl) window.open(loginModal.dataset.targetUrl, "_blank", "noopener");
       }
+    } catch (err) {
+      handleSignInFailure(err, () => loginModal.classList.remove("open"));
     }
   });
 
