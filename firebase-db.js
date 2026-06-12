@@ -5,7 +5,7 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781269445';
+import { db } from './firebase-config.js?v=1781274297';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  USER RECORDS — Collection: user_records/{uid}
@@ -16,25 +16,38 @@ export async function createOrUpdateUserRecord(user) {
     const ref = doc(db, "user_records", user.uid);
     const snap = await getDoc(ref);
     const now = new Date().toISOString();
-    const providers = user.providerData?.map(p => p.providerId) || [];
+    const providers = [...new Set((user.providerData || [])
+      .map(p => p.providerId)
+      .filter(Boolean))];
     const primaryProvider = providers[0] || "unknown";
 
     if (snap.exists()) {
       const existingData = snap.data();
       // Merge linked providers: union of existing + current
-      const existingProviders = existingData.linkedProviders || [existingData.provider || "unknown"];
-      const mergedProviders = [...new Set([...existingProviders, ...providers])];
+      const existingProviders = existingData.linkedProviders || [existingData.provider].filter(Boolean);
+      const mergedProviders = [...new Set([...existingProviders, ...providers])]
+        .filter(provider => provider && provider !== "unknown");
 
       await updateDoc(ref, {
         displayName: user.displayName || existingData.displayName,
         email: user.email || existingData.email,
         photoURL: user.photoURL || existingData.photoURL,
-        provider: primaryProvider,
+        provider: primaryProvider !== "unknown" ? primaryProvider : (existingData.provider || "unknown"),
         linkedProviders: mergedProviders,
         lastLoginAt: now,
         updatedAt: now
       });
-      return { id: snap.id, ...existingData, lastLoginAt: now, linkedProviders: mergedProviders };
+      return {
+        id: snap.id,
+        ...existingData,
+        displayName: user.displayName || existingData.displayName,
+        email: user.email || existingData.email,
+        photoURL: user.photoURL || existingData.photoURL,
+        provider: primaryProvider !== "unknown" ? primaryProvider : (existingData.provider || "unknown"),
+        lastLoginAt: now,
+        updatedAt: now,
+        linkedProviders: mergedProviders
+      };
     } else {
       const record = {
         uid: user.uid,

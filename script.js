@@ -1,16 +1,16 @@
 // ── Firebase Imports ─────────────────────────────────────────────────────────
 import {
   signInWithGoogle, signInWithGitHub, signOutUser, getCurrentUser, onUserAuthStateChanged, completeRedirectSignIn,
-  getPendingLinkData, clearPendingLinkData, linkProviderToCurrentUser, getLinkedProviders,
+  clearPendingLinkData, linkProviderToCurrentUser, getLinkedProviders,
   submitReportToFirestore,
   getAllAppsFromFirestore,
   getCachedAppsFromBrowser, revalidateAppsCache,
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781269445';
+} from './firebase-config.js?v=1781274297';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781269445';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781274297';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   getAllReports, getReport, updateReportStatus,
   logModerationAction, getModerationLog,
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats
-} from './firebase-db.js?v=1781269445';
+} from './firebase-db.js?v=1781274297';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -55,8 +55,24 @@ const CANONICAL_ORIGIN = "https://www.openlib.online";
 const CANONICAL_AUTH_HOST = "www.openlib.online";
 const APEX_AUTH_HOST = "openlib.online";
 const AUTH_PROVIDER_PARAM = "ol_auth_provider";
+const AUTH_PROVIDER_IDS = ["google.com", "github.com"];
+const AUTH_PROVIDER_NAMES = {
+  "google.com": "Google",
+  "github.com": "GitHub"
+};
 const PERF_SLOW_OP_MS = 200;
 const perfSamples = [];
+
+function authProviderName(providerId) {
+  return AUTH_PROVIDER_NAMES[providerId] || "SSO";
+}
+
+function formatAuthProviderList(providerIds = []) {
+  const uniqueProviders = [...new Set(providerIds)]
+    .filter(providerId => AUTH_PROVIDER_IDS.includes(providerId));
+  uniqueProviders.sort((a, b) => AUTH_PROVIDER_IDS.indexOf(a) - AUTH_PROVIDER_IDS.indexOf(b));
+  return uniqueProviders.map(authProviderName).join(" + ");
+}
 
 function recordPerfSample(name, startTime, details = {}) {
   if (!("performance" in window)) return;
@@ -2372,6 +2388,10 @@ async function showProfile(uid) {
   const userSubs = isOwnProfile ? await getUserSubmissions(targetUid) : [];
   const bookmarkedIds = isOwnProfile && currentUser ? await getUserBookmarks(currentUser.uid) : [];
   const bookmarkedApps = bookmarkedIds.length ? apps.filter(a => bookmarkedIds.includes(a.id)) : [];
+  const linkedAuthProviders = isOwnProfile
+    ? [...new Set([...(record.linkedProviders || []), ...getLinkedProviders()])]
+    : (record.linkedProviders || (record.provider ? [record.provider] : []));
+  const linkedAuthProviderSet = new Set(linkedAuthProviders);
 
   // Follow state
   const followersCount = record.followersCount || 0;
@@ -2419,6 +2439,30 @@ async function showProfile(uid) {
         <div class="profile-team-actions">
           <a href="/verify" class="btn btn-primary btn-verify-submissions" id="verify-submissions-btn">${iconImg("protect")} Verify App Submissions</a>
         </div>
+      ` : ""}
+
+      ${isOwnProfile ? `
+        <div class="profile-section profile-auth-section">
+          <h3>Sign-in Methods</h3>
+          <p class="profile-auth-help">Use either connected provider to sign in to this same OpenLib account.</p>
+          <div class="profile-list">
+            ${AUTH_PROVIDER_IDS.map(providerId => {
+              const linked = linkedAuthProviderSet.has(providerId);
+              return `
+                <div class="profile-list-item profile-auth-method">
+                  <span class="org-icon">${iconImg(providerId === "github.com" ? "link" : "account", "ui-icon title-icon")}</span>
+                  <div class="profile-list-info">
+                    <span class="profile-list-name">${esc(authProviderName(providerId))}</span>
+                    <span class="profile-list-meta">${linked ? "Connected" : "Not connected yet"}</span>
+                  </div>
+                  ${linked
+                    ? `<span class="profile-list-role">Connected</span>`
+                    : `<button type="button" class="btn btn-secondary btn-sm profile-link-provider-btn" data-provider="${esc(providerId)}">Connect</button>`}
+                </div>`;
+            }).join("")}
+          </div>
+        </div>
+
       ` : ""}
 
       ${isOwnProfile ? `
@@ -2566,6 +2610,31 @@ async function showProfile(uid) {
 
     document.getElementById("create-org-btn")?.addEventListener("click", () => {
       document.getElementById("create-org-modal")?.classList.add("open");
+    });
+
+    profileView.querySelectorAll(".profile-link-provider-btn").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const providerId = btn.dataset.provider;
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = "Connecting...";
+        try {
+          const linkedUser = await linkProviderToCurrentUser(providerId);
+          if (linkedUser) {
+            await updateAuthUI(linkedUser);
+            await showProfile(null);
+            showToast(`${authProviderName(providerId)} connected to your account`);
+          } else {
+            showToast(`Finish connecting ${authProviderName(providerId)} in the provider window`);
+          }
+        } catch (err) {
+          if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") return;
+          showToast(err.message || `Could not connect ${authProviderName(providerId)}`);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      });
     });
 
     // Edit & Resubmit handlers
@@ -5923,11 +5992,9 @@ async function updateAuthUI(user) {
       ? `<img class="auth-avatar" src="${escUrl(user.photoURL)}" alt="" referrerpolicy="no-referrer">`
       : `<span id="auth-icon">✓</span>`;
     trigger.innerHTML = `${avatarHtml}<span id="auth-label">${esc(user.displayName || "Account")}</span>`;
-    const providerName = user.providerData?.[0]?.providerId === "github.com" ? "GitHub" : "Google";
     const linkedProviders = getLinkedProviders();
-    const linkedDisplay = linkedProviders.map(p =>
-      p === "github.com" ? "GitHub" : p === "google.com" ? "Google" : p
-    ).join(" + ");
+    const providerName = authProviderName(user.providerData?.[0]?.providerId);
+    const linkedDisplay = formatAuthProviderList(linkedProviders);
     content.innerHTML = `
       <div class="user-info">
         ${user.photoURL ? `<img class="auth-dropdown-avatar" src="${escUrl(user.photoURL)}" alt="" referrerpolicy="no-referrer">` : ""}
@@ -5964,7 +6031,7 @@ function handleSignInFailure(err, closeMenu) {
 
   if (err.code === "auth/account-exists-with-different-credential") {
     closeMenu?.();
-    showAccountLinkingModal(err.email, err.existingProvider);
+    showAccountLinkingModal(err.email, err.existingProvider, err.attemptedProvider);
     return;
   }
 
@@ -5976,9 +6043,12 @@ function handleSignInFailure(err, closeMenu) {
     return;
   }
 
-  const message = err.code === "auth/unauthorized-domain"
+  let message = err.code === "auth/unauthorized-domain"
     ? "Sign-in failed: add this domain in Firebase Auth settings."
     : `Sign-in failed: ${err.message || err.code || "Unknown error"}`;
+  if (err.code === "auth/credential-already-in-use") {
+    message = "That SSO account is already linked to another OpenLib user.";
+  }
   showToast(message);
 }
 
@@ -6049,7 +6119,8 @@ function setupAuthHandlers() {
   async function startProviderSignIn(providerName) {
     try {
       setAuthDropdownOpen(false);
-      await startProviderAuth(providerName);
+      const signedInUser = await startProviderAuth(providerName);
+      if (signedInUser) await updateAuthUI(signedInUser);
     } catch (err) {
       handleSignInFailure(err, () => setAuthDropdownOpen(false));
     }
@@ -6089,12 +6160,12 @@ function setupAuthHandlers() {
 }
 
 // ── Account Linking Modal ────────────────────────────────────────────────────
-function showAccountLinkingModal(email, existingProvider) {
+function showAccountLinkingModal(email, existingProvider, attemptedProvider) {
   const modal = document.getElementById("account-link-modal");
   if (!modal) return;
 
-  const providerName = existingProvider === "github.com" ? "GitHub" : "Google";
-  const attemptedName = existingProvider === "github.com" ? "Google" : "GitHub";
+  const providerName = authProviderName(existingProvider);
+  const attemptedName = authProviderName(attemptedProvider);
 
   modal.querySelector("#link-modal-email").textContent = email || "your email";
   modal.querySelector("#link-modal-existing-provider").textContent = providerName;
@@ -6103,6 +6174,8 @@ function showAccountLinkingModal(email, existingProvider) {
   const linkBtn = modal.querySelector("#link-modal-signin-btn");
   linkBtn.textContent = "Sign in with " + providerName;
   linkBtn.dataset.provider = existingProvider;
+  linkBtn.classList.toggle("google", existingProvider === "google.com");
+  linkBtn.classList.toggle("github", existingProvider === "github.com");
 
   modal.classList.add("open");
 }
@@ -6118,20 +6191,30 @@ function setupAccountLinkingModal() {
 
   // "Sign in with [existing provider]" button — signs in and auto-links
   modal.querySelector("#link-modal-signin-btn")?.addEventListener("click", async () => {
-    const provider = modal.querySelector("#link-modal-signin-btn").dataset.provider;
+    const linkBtn = modal.querySelector("#link-modal-signin-btn");
+    const provider = linkBtn.dataset.provider;
+    linkBtn.disabled = true;
     try {
+      let linkedUser = null;
       if (provider === "google.com") {
-        await signInWithGoogle();
+        linkedUser = await signInWithGoogle();
       } else if (provider === "github.com") {
-        await signInWithGitHub();
+        linkedUser = await signInWithGitHub();
       }
       hideAccountLinkingModal();
+      if (!linkedUser) {
+        showToast(`Continue with ${authProviderName(provider)} to finish linking`);
+        return;
+      }
+      await updateAuthUI(linkedUser);
       showToast("Accounts linked successfully ✓");
     } catch (err) {
       if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
         return;
       }
       showToast("Linking failed: " + err.message);
+    } finally {
+      linkBtn.disabled = false;
     }
   });
 

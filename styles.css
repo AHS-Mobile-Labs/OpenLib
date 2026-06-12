@@ -3753,6 +3753,12 @@ a.added-by-link:hover {
   margin-top: 10px;
 }
 
+.profile-auth-help {
+  margin: -6px 0 12px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
 .profile-list-item {
   display: flex;
   align-items: center;
@@ -3800,6 +3806,11 @@ a.added-by-link:hover {
   padding: 2px 8px;
   border-radius: 10px;
   border: 1px solid var(--border);
+}
+
+.profile-auth-method .profile-link-provider-btn {
+  width: auto;
+  white-space: nowrap;
 }
 
 .profile-empty {
