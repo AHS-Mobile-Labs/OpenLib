@@ -1,48 +1,30 @@
 {
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
   },
   "storage": {
-    "rules": "storage.rules"
+    "rules": "firebase/storage.rules"
   },
   "functions": {
     "source": "functions",
     "predeploy": [
-      "cp index.html functions/spa.html",
-      "cp privacy.txt functions/privacy.txt",
-      "cp terms.txt functions/terms.txt"
+      "cp public/index.html functions/spa.html",
+      "cp public/privacy.txt functions/privacy.txt",
+      "cp public/terms.txt functions/terms.txt"
     ]
   },
   "hosting": {
-    "public": ".",
+    "public": "public",
     "cleanUrls": true,
     "trailingSlash": false,
-    "predeploy": ["node bump-version.js", "node bump-sitemap.js", "node seo-audit.js"],
+    "predeploy": ["node scripts/bump-version.js", "node scripts/bump-sitemap.js", "node scripts/seo-audit.js"],
     "ignore": [
       "firebase.json",
-      "firebase-config.template.js",
-      "bump-version.js",
-      "bump-sitemap.js",
-      "firestore.rules",
-      "firestore.indexes.json",
-      "storage.rules",
-      ".firebaserc",
-      ".firebase",
-      ".firebase/**",
-      ".git",
-      ".git/**",
-      ".gitignore",
       "**/.*",
       "**/node_modules/**",
-      "functions",
-      "functions/**",
-      "old asset",
-      "old asset/**",
-      "CONTRIBUTING.md",
-      "README.md",
-      "SECURITY.md",
-      "LICENSE"
+      "assets/old asset",
+      "assets/old asset/**"
     ],
     "headers": [
       {

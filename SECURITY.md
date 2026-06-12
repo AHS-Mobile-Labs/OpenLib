@@ -1,76 +1,79 @@
 # Security Policy
 
-## Reporting a Vulnerability
+OpenLib handles community content, authentication state, Firestore data, Storage uploads, moderation actions, and role-based permissions. Please report security issues privately so they can be fixed before public disclosure.
 
-We take security seriously. If you discover a vulnerability in OpenLib, please
-**do not open a public GitHub issue**. Public disclosure of security issues
-puts all users at risk.
+## Supported Versions
 
-### How to Report
+Security fixes target the current `main` branch and the production deployment at [https://www.openlib.online/](https://www.openlib.online/).
 
-Please report vulnerabilities by opening a **private security advisory** on GitHub:
+## Report a Vulnerability
 
-👉 [Report a vulnerability](https://github.com/ameerhamzasaifi/openlib/security/advisories/new)
+Do not open a public GitHub issue for a vulnerability.
 
-Alternatively, you can reach us by opening a **private** issue or contacting
-the maintainer directly via GitHub.
+Preferred reporting path:
 
-### What to Include
+- Open a private GitHub security advisory: [AHS-Mobile-Labs/OpenLib security advisories](https://github.com/AHS-Mobile-Labs/OpenLib/security/advisories/new)
 
-To help us triage and fix the issue quickly, please provide:
+If you cannot use GitHub advisories, contact the project maintainers privately through GitHub and include enough detail for triage.
 
-- A clear description of the vulnerability
-- The affected component (e.g., Firestore rules, authentication, client-side JS)
-- Steps to reproduce or a proof-of-concept
-- The potential impact if exploited
-- Any suggested fix (optional but appreciated)
+## What to Include
 
-### What to Expect
+Please include:
 
-| Milestone              | Timeframe         |
-| ---------------------- | ----------------- |
-| Initial acknowledgment | Within 48 hours   |
-| Triage & assessment    | Within 5 days     |
-| Fix or workaround      | Within 14 days    |
-| Public disclosure      | After fix is live |
+- A clear description of the issue.
+- The affected area, such as `public/`, `functions/`, `firebase/`, authentication, Firestore rules, Storage rules, or moderation workflows.
+- Reproduction steps or a proof of concept.
+- Expected impact and affected user roles.
+- Any logs, screenshots, request payloads, or test data that help confirm the issue.
+- Suggested fixes, if you have them.
 
-We will keep you informed throughout the process. If a reported vulnerability
-is accepted, we will credit you in the release notes (unless you prefer to
-remain anonymous). If it is declined, we will explain why.
+## Response Timeline
 
-## Scope
+| Step | Target |
+| --- | --- |
+| Acknowledgement | Within 48 hours |
+| Initial triage | Within 5 days |
+| Fix, mitigation, or status update | Within 14 days |
+| Public disclosure | After a fix or mitigation is available |
 
-The following are **in scope** for security reports:
+If a report is accepted, credit will be given unless you ask to remain anonymous.
 
-- Firestore security rules (unauthorized data access or modification)
-- Authentication and authorization bypass
-- Cross-site scripting (XSS) via user-supplied data
-- Firebase Storage rule bypass
-- Privilege escalation (e.g., gaining admin or maintainer role)
-- Data exposure (e.g., private user data readable by unauthenticated users)
+## In Scope
 
-The following are **out of scope**:
+- Firestore or Storage rule bypasses.
+- Authentication or authorization bypasses.
+- Privilege escalation between `user`, `contributor`, `maintainer`, `openlib-team`, or `admin`.
+- Cross-site scripting through app submissions, reviews, profiles, organizations, reports, or other user content.
+- Unauthorized access to private user, moderation, team, or submission data.
+- Unsafe Cloud Function behavior, including prerender data exposure.
+- File upload behavior that could expose data or allow malicious content to execute.
 
-- Vulnerabilities in third-party services (Firebase, Google, GitHub OAuth)
-- Bugs that require physical access to a logged-in device
-- Self-XSS that cannot affect other users
-- Rate limiting on public read-only endpoints
-- Social engineering attacks targeting team members
+## Out of Scope
 
-## Security Best Practices for Contributors
+- Issues in Firebase, Google, GitHub OAuth, browsers, or other third-party services unless OpenLib configuration makes them exploitable.
+- Social engineering, phishing, or physical attacks.
+- Self-XSS that cannot affect another user.
+- Denial of service against public read-only pages without a practical data or permission impact.
+- Reports based only on public Firebase web config values.
+- Automated scanning that creates spam, changes production data, or disrupts users.
 
-If you are contributing code to OpenLib, please follow these guidelines:
+## Testing Rules
 
-- Never commit `firebase-config.js` or any file containing real API keys
-- Always run the Firestore emulator locally for testing (`firebase emulators:start`)
-- Validate and sanitize all user input before writing to Firestore
-- Use `esc()` for all user-controlled values rendered into HTML
-- Follow the principle of least privilege when writing Firestore security rules
+- Test against your own Firebase project whenever possible.
+- Do not access, modify, delete, or exfiltrate data that does not belong to you.
+- Do not create persistent backdoors, public proof-of-concept exploits, spam submissions, or abusive accounts.
+- Do not run destructive tests against production without prior written permission.
+- Stop testing and report promptly if you encounter private data.
+
+## Security Guidance for Contributors
+
+- Keep secrets, private keys, service account files, and tokens out of the repository.
+- Use `config/firebase-config.template.js` to create `public/firebase-config.js` for local development.
+- Sanitize and escape user-controlled content before rendering it.
+- Enforce authorization in Firestore rules, Storage rules, or trusted Functions.
+- Review changes to `public/script.js`, `public/firebase-db.js`, `functions/index.js`, and `firebase/` with extra care.
+- Run relevant emulator tests before changing rules, roles, submissions, reports, or moderation flows.
 
 ## License
 
-This project is licensed under the [Mozilla Public License 2.0](LICENSE).
-Security researchers are permitted to test against their own Firebase project
-instance using the open-source code, but must not test against the live
-production environment at `https://www.openlib.online` without prior
-written permission.
+OpenLib is distributed under the [Mozilla Public License 2.0](LICENSE).

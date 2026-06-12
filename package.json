@@ -2,9 +2,9 @@
   "name": "openlib-seo-tools",
   "private": true,
   "scripts": {
-    "seo:sitemap": "node bump-sitemap.js",
-    "seo:audit": "node seo-audit.js",
-    "seo:audit:live": "node seo-audit.js --live",
-    "seo:gsc": "node search-console-monitor.js"
+    "seo:sitemap": "node scripts/bump-sitemap.js",
+    "seo:audit": "node scripts/seo-audit.js",
+    "seo:audit:live": "node scripts/seo-audit.js --live",
+    "seo:gsc": "node scripts/search-console-monitor.js"
   }
 }

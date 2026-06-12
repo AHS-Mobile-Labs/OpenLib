@@ -1,5 +1,5 @@
 // Auto-stamped by predeploy hook. Keep in sync with version-check.js.
-const CACHE_VERSION = "1781300102";
+const CACHE_VERSION = "1781300959";
 const STATIC_CACHE = `openlib-static-${CACHE_VERSION}`;
 const CACHE_PREFIX = "openlib-static-";
 
@@ -94,7 +94,6 @@ function shouldBypassCache(request, url) {
 function isStaticAsset(url) {
   return (
     url.pathname.startsWith("/assets/") ||
-    url.pathname.startsWith("/font/") ||
     /\.(?:css|js|html|svg|png|jpe?g|gif|webp|ico|woff2|txt|webmanifest)$/i.test(url.pathname)
   );
 }

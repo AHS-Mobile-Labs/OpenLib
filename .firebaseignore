@@ -7,15 +7,17 @@
 .gitignore
 .firebaserc
 firebase.json
-firebase-config.template.js
-firestore.rules
-firestore.indexes.json
-storage.rules
+config/firebase-config.template.js
+firebase/firestore.rules
+firebase/firestore.indexes.json
+firebase/storage.rules
+scripts
+scripts/**
 node_modules
 functions
 functions/**
-old asset
-old asset/**
+public/assets/old asset
+public/assets/old asset/**
 CONTRIBUTING.md
 README.md
 SECURITY.md

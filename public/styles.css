@@ -3,7 +3,7 @@
   font-style: normal;
   font-weight: 400 800;
   font-display: swap;
-  src: url('font/8vIH7w4qzmVxm2BL9A.woff2') format('woff2');
+  src: url('assets/fonts/8vIH7w4qzmVxm2BL9A.woff2') format('woff2');
 }
 
 @font-face {
@@ -11,7 +11,7 @@
   font-style: normal;
   font-weight: 300 500;
   font-display: swap;
-  src: url('font/rP2Hp2ywxg089UriCZOIHQ.woff2') format('woff2');
+  src: url('assets/fonts/rP2Hp2ywxg089UriCZOIHQ.woff2') format('woff2');
 }
 
 @font-face {
@@ -19,7 +19,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url('font/rP2Wp2ywxg089UriCZaSExdy3sGt9zz86D3wyKy58Q.woff2') format('woff2');
+  src: url('assets/fonts/rP2Wp2ywxg089UriCZaSExdy3sGt9zz86D3wyKy58Q.woff2') format('woff2');
 }
 
 @font-face {
@@ -27,7 +27,7 @@
   font-style: normal;
   font-weight: 300;
   font-display: swap;
-  src: url('font/aFTR7PB1QTsUX8KYvrGyEYOtbQ.woff2') format('woff2');
+  src: url('assets/fonts/aFTR7PB1QTsUX8KYvrGyEYOtbQ.woff2') format('woff2');
 }
 
 @font-face {
@@ -35,7 +35,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('font/aFTU7PB1QTsUX8KYthqQBA.woff2') format('woff2');
+  src: url('assets/fonts/aFTU7PB1QTsUX8KYthqQBA.woff2') format('woff2');
 }
 
 @font-face {
@@ -43,7 +43,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url('font/aFTR7PB1QTsUX8KYvumzEYOtbQ.woff2') format('woff2');
+  src: url('assets/fonts/aFTR7PB1QTsUX8KYvumzEYOtbQ.woff2') format('woff2');
 }
 
 @font-face {
@@ -51,7 +51,7 @@
   font-style: italic;
   font-weight: 300;
   font-display: swap;
-  src: url('font/aFTT7PB1QTsUX8KYth-orYadb435.woff2') format('woff2');
+  src: url('assets/fonts/aFTT7PB1QTsUX8KYth-orYadb435.woff2') format('woff2');
 }
 
 *, *::before, *::after {

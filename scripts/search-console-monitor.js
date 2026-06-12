@@ -13,7 +13,8 @@ const fs = require("fs");
 const https = require("https");
 const path = require("path");
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, "..");
+const PUBLIC_DIR = path.join(ROOT, "public");
 const SITE_URL = process.env.GSC_SITE_URL || "https://www.openlib.online/";
 const URL_LIMIT = Number(process.env.GSC_URL_LIMIT || "50");
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -100,7 +101,7 @@ async function getAccessToken() {
 }
 
 function readSitemapUrls() {
-  const xml = fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf-8");
+  const xml = fs.readFileSync(path.join(PUBLIC_DIR, "sitemap.xml"), "utf-8");
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(match => match[1]);
 }
 

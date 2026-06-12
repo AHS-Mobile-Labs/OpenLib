@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // Local SEO audit for OpenLib. No external packages required.
 // Usage:
-//   node seo-audit.js
-//   node seo-audit.js --live --limit=80
+//   node scripts/seo-audit.js
+//   node scripts/seo-audit.js --live --limit=80
 
 const fs = require("fs");
 const https = require("https");
 const path = require("path");
 
-const ROOT = __dirname;
+const ROOT = path.resolve(__dirname, "..");
+const PUBLIC_DIR = path.join(ROOT, "public");
 const BASE_URL = "https://www.openlib.online";
 const CANONICAL_HOST = new URL(BASE_URL).hostname;
 const APEX_URL = "https://openlib.online/";
@@ -52,7 +53,11 @@ function pass(message) {
   findings.push({ level: "pass", message });
 }
 
-function read(file) {
+function readPublic(file) {
+  return fs.readFileSync(path.join(PUBLIC_DIR, file), "utf-8");
+}
+
+function readRoot(file) {
   return fs.readFileSync(path.join(ROOT, file), "utf-8");
 }
 
@@ -111,7 +116,7 @@ function extractInternalLinks(html) {
 function fileExistsForPath(pathname) {
   const clean = pathname.replace(/^\//, "");
   if (!clean) return true;
-  return fs.existsSync(path.join(ROOT, clean)) || fs.existsSync(path.join(ROOT, `${clean}.html`));
+  return fs.existsSync(path.join(PUBLIC_DIR, clean)) || fs.existsSync(path.join(PUBLIC_DIR, `${clean}.html`));
 }
 
 function checkProductionUrls(label, text) {
@@ -147,7 +152,10 @@ function checkStaticAssets() {
 }
 
 function checkStaticFiles() {
-  for (const file of ["index.html", "robots.txt", "sitemap.xml", "firebase.json", "functions/index.js", "favicon.ico"]) {
+  for (const file of ["index.html", "robots.txt", "sitemap.xml", "favicon.ico"]) {
+    if (!fs.existsSync(path.join(PUBLIC_DIR, file))) fail(`Missing required public file: ${file}`);
+  }
+  for (const file of ["firebase.json", "functions/index.js"]) {
     if (!fs.existsSync(path.join(ROOT, file))) fail(`Missing required file: ${file}`);
   }
 }
@@ -268,13 +276,13 @@ async function checkLive(urls) {
 
 async function main() {
   checkStaticFiles();
-  const indexHtml = read("index.html");
-  const spaHtml = fs.existsSync(path.join(ROOT, "functions/spa.html")) ? read("functions/spa.html") : null;
-  const appJs = read("script.js");
-  const prerenderJs = read("functions/index.js");
-  const robots = read("robots.txt");
-  const sitemapUrls = parseSitemap(read("sitemap.xml"));
-  const firebaseConfig = JSON.parse(read("firebase.json"));
+  const indexHtml = readPublic("index.html");
+  const spaHtml = fs.existsSync(path.join(ROOT, "functions/spa.html")) ? readRoot("functions/spa.html") : null;
+  const appJs = readPublic("script.js");
+  const prerenderJs = readRoot("functions/index.js");
+  const robots = readPublic("robots.txt");
+  const sitemapUrls = parseSitemap(readPublic("sitemap.xml"));
+  const firebaseConfig = JSON.parse(readRoot("firebase.json"));
 
   checkMetadata(indexHtml);
   checkCanonicalMetadata("index.html", indexHtml);

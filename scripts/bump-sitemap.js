@@ -6,6 +6,8 @@ const https = require("https");
 const fs = require("fs");
 const path = require("path");
 
+const ROOT = path.resolve(__dirname, "..");
+const PUBLIC_DIR = path.join(ROOT, "public");
 const PROJECT_ID = "openlib-f7bf1";
 const BASE_URL = "https://www.openlib.online";
 const COLLECTION = "apps";
@@ -137,7 +139,7 @@ function addUnique(pages, page) {
 }
 
 function scanBlogPages() {
-  const blogDir = path.join(__dirname, "blog");
+  const blogDir = path.join(PUBLIC_DIR, "blog");
   if (!fs.existsSync(blogDir)) return [];
 
   const pages = [];
@@ -230,7 +232,7 @@ ${pages.map(p => `  <url>
   </url>`).join("\n")}
 </urlset>
 `;
-  fs.writeFileSync(path.join(__dirname, "sitemap.xml"), xml, "utf-8");
+  fs.writeFileSync(path.join(PUBLIC_DIR, "sitemap.xml"), xml, "utf-8");
 }
 
 function writeRobots() {
@@ -242,7 +244,7 @@ Disallow: /team/manage
 
 Sitemap: ${BASE_URL}/sitemap.xml
 `;
-  fs.writeFileSync(path.join(__dirname, "robots.txt"), robots, "utf-8");
+  fs.writeFileSync(path.join(PUBLIC_DIR, "robots.txt"), robots, "utf-8");
 }
 
 async function main() {

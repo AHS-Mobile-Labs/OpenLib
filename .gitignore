@@ -13,8 +13,8 @@ data/
 firebase-debug.log
 firebase-debug.*.log
 .firebaserc
-firebase-config.js
-bump-version.js
+public/firebase-config.js
+.seo-gsc-history.json
 
 # OS files
 .DS_Store
