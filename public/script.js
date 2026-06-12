@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781301609';
+} from './firebase-config.js?v=1781302467';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781301609';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781302467';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -40,7 +40,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781301609';
+} from './firebase-db.js?v=1781302467';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -377,6 +377,7 @@ const ICONS = {
   like: tablerIcon("thumb-up"),
   logout: tablerIcon("logout"),
   protect: tablerIcon("shield-check"),
+  roles: "assets/Icons8/util/white-theme/icons8-roles-100.png",
   ranking: tablerIcon("trophy"),
   search: tablerIcon("search"),
   settings: tablerIcon("settings"),
