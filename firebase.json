@@ -121,6 +121,14 @@
     ],
     "rewrites": [
       {
+        "source": "/sitemap.xml",
+        "function": "prerender"
+      },
+      {
+        "source": "/robots.txt",
+        "function": "prerender"
+      },
+      {
         "source": "/app/**",
         "function": "prerender"
       },
@@ -150,6 +158,18 @@
       },
       {
         "source": "/team",
+        "function": "prerender"
+      },
+      {
+        "source": "/admin",
+        "function": "prerender"
+      },
+      {
+        "source": "/verify",
+        "function": "prerender"
+      },
+      {
+        "source": "/team/manage",
         "function": "prerender"
       },
       {

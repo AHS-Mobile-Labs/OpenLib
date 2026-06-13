@@ -46,6 +46,7 @@ const BASE_URL = "https://www.openlib.online";
 const GITHUB_URL = "https://github.com/AHS-Mobile-Labs/OpenLib";
 const OG_IMAGE = `${BASE_URL}/og-image.png`;
 const PRERENDER_CACHE_TTL_MS = 15 * 60 * 1000;
+const SITEMAP_CACHE_TTL_MS = 60 * 60 * 1000;
 const PRERENDER_LIST_LIMIT = 120;
 const APP_PRERENDER_FIELDS = [
   "name",
@@ -83,6 +84,7 @@ const APP_PRERENDER_FIELDS = [
 ];
 
 const prerenderCache = new Map();
+const PRIVATE_ROUTES = new Set(["/admin", "/verify", "/team/manage"]);
 
 function getCachedHtml(key) {
   const cached = prerenderCache.get(key);
@@ -256,6 +258,13 @@ function sendText(req, res, text, extraHeaders = {}, statusCode = 200) {
   res.set("Content-Type", "text/plain; charset=utf-8");
   if (req.method === "HEAD") return res.status(statusCode).send("");
   return res.status(statusCode).send(text);
+}
+
+function sendXml(req, res, xml, extraHeaders = {}, statusCode = 200) {
+  Object.entries(extraHeaders).forEach(([key, value]) => res.set(key, value));
+  res.set("Content-Type", "application/xml; charset=utf-8");
+  if (req.method === "HEAD") return res.status(statusCode).send("");
+  return res.status(statusCode).send(xml);
 }
 
 // ── Bot detection ────────────────────────────────────────────────────────────
@@ -754,6 +763,133 @@ function collectionJsonLd({ url, name, description, apps, about }) {
   };
 }
 
+function toW3CDate(value) {
+  if (!value) return new Date().toISOString().split("T")[0];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().split("T")[0];
+  return date.toISOString().split("T")[0];
+}
+
+function maxDate(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  return a > b ? a : b;
+}
+
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function sitemapUrl(page) {
+  return `  <url>
+    <loc>${escapeXml(`${BASE_URL}${page.loc}`)}</loc>
+    <lastmod>${escapeXml(page.lastmod)}</lastmod>
+    <changefreq>${escapeXml(page.changefreq)}</changefreq>
+    <priority>${escapeXml(page.priority)}</priority>
+  </url>`;
+}
+
+function addSitemapPage(pages, page) {
+  if (!page.loc || pages.some(existing => existing.loc === page.loc)) return;
+  pages.push(page);
+}
+
+async function buildSitemapXml() {
+  const cacheKey = "xml:sitemap";
+  const cached = prerenderCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts <= SITEMAP_CACHE_TTL_MS) return cached.html;
+
+  const today = new Date().toISOString().split("T")[0];
+  const pages = [];
+  [
+    { loc: "/", changefreq: "daily", priority: "1.0" },
+    { loc: "/rankings", changefreq: "daily", priority: "0.8" },
+    { loc: "/trending", changefreq: "daily", priority: "0.8" },
+    { loc: "/roles", changefreq: "weekly", priority: "0.7" },
+    { loc: "/team", changefreq: "monthly", priority: "0.5" },
+    { loc: "/privacy", changefreq: "yearly", priority: "0.3" },
+    { loc: "/terms", changefreq: "yearly", priority: "0.3" },
+    ...SEO_TOPIC_PAGES.map(page => ({ loc: `/${page.slug}`, changefreq: "weekly", priority: "0.85" })),
+  ].forEach(page => addSitemapPage(pages, { ...page, lastmod: today }));
+
+  const apps = await getPrerenderApps(1000);
+  const categories = new Map();
+  const alternatives = new Map();
+  const tags = new Map();
+  for (const app of apps) {
+    const lastmod = toW3CDate(app.updatedAt || app.createdAt);
+    addSitemapPage(pages, {
+      loc: `/app/${encodeURIComponent(app.id)}`,
+      lastmod,
+      changefreq: "weekly",
+      priority: "0.9",
+    });
+    if (app.category) {
+      const slug = slugify(app.category);
+      categories.set(slug, maxDate(categories.get(slug), lastmod));
+    }
+    for (const target of getAlternativeTargets(app)) {
+      const slug = slugify(target);
+      if (slug) alternatives.set(slug, maxDate(alternatives.get(slug), lastmod));
+    }
+    for (const tag of app.tags || []) {
+      const slug = slugify(tag);
+      if (!slug) continue;
+      const existing = tags.get(slug) || { count: 0, lastmod };
+      tags.set(slug, { count: existing.count + 1, lastmod: maxDate(existing.lastmod, lastmod) });
+    }
+  }
+
+  for (const [slug, lastmod] of categories) {
+    addSitemapPage(pages, { loc: `/category/${slug}`, lastmod, changefreq: "weekly", priority: "0.8" });
+  }
+  for (const [slug, lastmod] of alternatives) {
+    addSitemapPage(pages, { loc: `/alternatives/${slug}`, lastmod, changefreq: "weekly", priority: "0.75" });
+  }
+  for (const [slug, data] of tags) {
+    if (data.count >= 2) addSitemapPage(pages, { loc: `/tag/${slug}`, lastmod: data.lastmod, changefreq: "weekly", priority: "0.65" });
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${pages.map(sitemapUrl).join("\n")}
+</urlset>
+`;
+  setCachedHtml(cacheKey, xml);
+  return xml;
+}
+
+function robotsTxt() {
+  return `User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /verify
+Disallow: /team/manage
+
+Sitemap: ${BASE_URL}/sitemap.xml
+`;
+}
+
+function canonicalRedirectPath(urlPath) {
+  if (urlPath.length > 1 && urlPath.endsWith("/")) return urlPath.replace(/\/+$/, "");
+  if (/^\/app\/[^/]+\/(reviews|edit-requests|versions)$/.test(urlPath)) {
+    const appId = urlPath.replace("/app/", "").split("/")[0];
+    return `/app/${encodeURIComponent(appId)}`;
+  }
+  for (const prefix of ["/category/", "/tag/", "/alternatives/"]) {
+    if (!urlPath.startsWith(prefix)) continue;
+    const slug = slugify(urlPath.slice(prefix.length));
+    const canonical = `${prefix}${slug}`;
+    if (slug && canonical !== urlPath) return canonical;
+  }
+  return "";
+}
+
 async function renderCollection(kind, slug) {
   const allApps = await getPrerenderApps();
   let page;
@@ -1027,7 +1163,7 @@ async function renderTrending() {
       .limit(75)
       .select(...APP_PRERENDER_FIELDS)
       .get();
-    const apps = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const apps = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter(isPublicApp);
     apps.sort((a, b) => (b.views || 0) - (a.views || 0));
 
     const title = "Trending Open Source Apps This Week | OpenLib";
@@ -1240,6 +1376,26 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
   }
 
   const urlPath = decodeURIComponent(req.path);
+  const redirectPath = canonicalRedirectPath(urlPath);
+  if (redirectPath) {
+    return res.redirect(301, redirectPath);
+  }
+
+  if (urlPath === "/robots.txt") {
+    res.set("Cache-Control", "public, s-maxage=3600, max-age=600");
+    return sendText(req, res, robotsTxt(), { "X-Rendered-By": "openlib-prerender" });
+  }
+  if (urlPath === "/sitemap.xml") {
+    try {
+      const xml = await buildSitemapXml();
+      res.set("Cache-Control", "public, s-maxage=3600, max-age=600, stale-while-revalidate=86400");
+      return sendXml(req, res, xml, { "X-Rendered-By": "openlib-prerender" });
+    } catch (e) {
+      console.error("Sitemap render error:", e);
+      return res.status(503).send("Sitemap temporarily unavailable");
+    }
+  }
+
   if (urlPath === "/privacy.txt" || urlPath === "/terms.txt") {
     const kind = urlPath === "/privacy.txt" ? "privacy" : "terms";
     const text = readPolicyText(kind);
@@ -1254,9 +1410,10 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
   }
 
   const ua = req.headers["user-agent"] || "";
+  const bot = isBot(ua);
 
   // Regular users → serve the SPA directly
-  if (!isBot(ua)) {
+  if (!bot) {
     const spa = getSpaHtml();
     if (spa) {
       res.set("Cache-Control", "private, no-store, max-age=0");
@@ -1279,9 +1436,10 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
   }
 
   try {
-    if (urlPath.match(/^\/app\/[^/]+\/(reviews|edit-requests|versions)$/)) {
-      const appId = urlPath.replace("/app/", "").split("/")[0];
-      return res.redirect(301, `/app/${encodeURIComponent(appId)}`);
+    if (PRIVATE_ROUTES.has(urlPath)) {
+      res.set("X-Robots-Tag", "noindex, nofollow");
+      res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+      return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
     } else if (urlPath.match(/^\/app\/[^/]+$/)) {
       const appId = urlPath.replace("/app/", "");
       html = await renderApp(appId);
