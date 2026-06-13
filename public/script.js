@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781307610';
+} from './firebase-config.js?v=1781309017';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781307610';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781309017';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -40,7 +40,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781307610';
+} from './firebase-db.js?v=1781309017';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -6569,8 +6569,6 @@ function handleSignInFailure(err, closeMenu) {
 }
 
 async function startProviderAuth(providerName) {
-  if (redirectApexAuthToCanonical(providerName)) return null;
-
   const providerLabel = providerName === "google" ? "Google" : "GitHub";
   showToast(`Opening ${providerLabel} sign-in…`);
   const user = providerName === "google" ? await signInWithGoogle() : await signInWithGitHub();
@@ -6753,26 +6751,23 @@ function setupAccountLinkingModal() {
   });
 }
 
-function initAuth() {
-  const queuedAuthProvider = consumeAuthProviderParam();
-  updateAuthUI(getCurrentUser());
+async function initAuth() {
+  let redirectUser = null;
+  try {
+    redirectUser = await completeRedirectSignIn();
+  } catch (err) {
+    handleSignInFailure(err);
+  }
+
+  await updateAuthUI(redirectUser || getCurrentUser());
   onUserAuthStateChanged(async user => {
     await updateAuthUI(user);
   });
   setupAuthHandlers();
   setupAccountLinkingModal();
-  if (queuedAuthProvider) {
-    setTimeout(() => {
-      startProviderAuth(queuedAuthProvider).catch(err => handleSignInFailure(err));
-    }, 100);
+  if (redirectUser) {
+    showToast("Signed in successfully ✓");
   }
-  completeRedirectSignIn()
-    .then(async user => {
-      if (!user) return;
-      await updateAuthUI(user);
-      showToast("Signed in successfully ✓");
-    })
-    .catch(err => handleSignInFailure(err));
 }
 
 // ── Toast ────────────────────────────────────────────────────────────────────
@@ -7669,7 +7664,7 @@ async function init() {
   }
 
   initTheme();
-  initAuth();
+  await initAuth();
   registerPwaServiceWorker();
 
   // Defer version update checks so homepage rendering never waits on config reads.
