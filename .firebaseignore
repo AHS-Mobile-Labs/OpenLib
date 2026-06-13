@@ -8,6 +8,8 @@
 .firebaserc
 firebase.json
 config/firebase-config.template.js
+docs
+docs/**
 firebase/firestore.rules
 firebase/firestore.indexes.json
 firebase/storage.rules
