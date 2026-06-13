@@ -18,6 +18,19 @@ order: 40
 
 Categories and tags help people find software by job, platform, and workflow.
 
+![Category and tag pills on a Joplin app page](/docs/assets/categories-tags-app-example.png)
+
+## How discovery works
+
+OpenLib discovery combines broad categories with flexible tags. Categories answer "what kind of app is this?" Tags answer "what details help someone find it?"
+
+For example, a note-taking app might use:
+
+- Category: Productivity
+- Tags: markdown, notes, sync, offline, self-hosted
+
+This lets visitors browse the Productivity category while still finding specific features through search and tag pages.
+
 ## Categories
 
 Use one primary category for each app. The category should describe the main job the app performs.
@@ -30,6 +43,17 @@ Examples:
 - Media
 - Communication
 - Utilities
+
+## How to choose a category
+
+Ask what the user would primarily use the app for. If the app does many things, choose the main workflow rather than every possible use.
+
+| App behavior | Category approach |
+| --- | --- |
+| One clear purpose | Use that purpose |
+| Many features, one main audience | Use the audience's main workflow |
+| Developer tool with productivity features | Usually Development |
+| Privacy feature inside another workflow | Use the workflow, add privacy tags |
 
 ## Tags
 
@@ -58,6 +82,26 @@ tags:
 - Prefer singular concepts when possible.
 - Avoid duplicate tags with different casing.
 - Avoid marketing phrases as tags.
+
+## Tag examples
+
+| Tag type | Examples |
+| --- | --- |
+| Feature | sync, encryption, markdown, collaboration |
+| Platform | linux, android, web, self-hosted |
+| Protocol | activitypub, matrix, webdav |
+| Workflow | notes, backup, password-management |
+| License or ecosystem | gpl, kde, gnome |
+
+## How to clean up tags
+
+When maintaining tags:
+
+1. Merge spelling duplicates.
+2. Prefer lowercase simple words.
+3. Remove vague tags such as `best`, `awesome`, or `new`.
+4. Keep tags useful for search.
+5. Avoid adding too many tags to a single app.
 
 ## Internal links
 

@@ -25,6 +25,8 @@ order: 100
 - Generated clean URLs, metadata, sitemap entries, and search index.
 - Documentation search, table of contents, breadcrumbs, reading time, last updated dates, status badges, previous/next navigation, and copy buttons for code blocks.
 - Local Markdown documentation workflow with generated static pages.
+- Screenshot assets copied from `docs/assets/` into generated docs output.
+- Expanded docs with detailed usage, contribution, review, taxonomy, and publishing workflows.
 
 ### Documentation pages
 
@@ -35,6 +37,12 @@ order: 100
 - [Contributor Guide](/docs/contributor-guide)
 - [Maintainer Guide](/docs/maintainer-guide)
 - [FAQ](/docs/faq)
+
+### Removed
+
+- API Documentation page.
+- OpenLib Crawler page.
+- Browser-based Docs Admin page.
 
 ## Versioning
 

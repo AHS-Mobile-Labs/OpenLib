@@ -5,6 +5,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const CONTENT_DIR = path.join(ROOT, "docs", "content");
+const DOCS_ASSETS_DIR = path.join(ROOT, "docs", "assets");
 const PUBLIC_DOCS_DIR = path.join(ROOT, "public", "docs");
 const BASE_URL = "https://www.openlib.online";
 const OG_IMAGE = `${BASE_URL}/og-image.png`;
@@ -444,6 +445,27 @@ function readPages() {
     .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
 }
 
+function copyDocsAssets() {
+  if (!fs.existsSync(DOCS_ASSETS_DIR)) return;
+  const targetRoot = path.join(PUBLIC_DOCS_DIR, "assets");
+  const stack = [DOCS_ASSETS_DIR];
+
+  while (stack.length) {
+    const dir = stack.pop();
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const source = path.join(dir, entry.name);
+      const rel = path.relative(DOCS_ASSETS_DIR, source);
+      const target = path.join(targetRoot, rel);
+      if (entry.isDirectory()) {
+        stack.push(source);
+      } else {
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.copyFileSync(source, target);
+      }
+    }
+  }
+}
+
 function writeRuntime() {
   const runtime = `(() => {
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -525,6 +547,7 @@ function writeRuntime() {
 function main() {
   fs.rmSync(PUBLIC_DOCS_DIR, { recursive: true, force: true });
   fs.mkdirSync(PUBLIC_DOCS_DIR, { recursive: true });
+  copyDocsAssets();
   const pages = readPages();
   pages.forEach((page, index) => {
     const prev = pages[index - 1];

@@ -21,6 +21,16 @@
     "toc": [
       {
         "level": 2,
+        "text": "How OpenLib works",
+        "id": "how-openlib-works"
+      },
+      {
+        "level": 2,
+        "text": "How the docs work",
+        "id": "how-the-docs-work"
+      },
+      {
+        "level": 2,
         "text": "What you can do",
         "id": "what-you-can-do"
       },
@@ -28,6 +38,16 @@
         "level": 2,
         "text": "Good first workflows",
         "id": "good-first-workflows"
+      },
+      {
+        "level": 2,
+        "text": "How to use the library",
+        "id": "how-to-use-the-library"
+      },
+      {
+        "level": 2,
+        "text": "What makes a useful listing",
+        "id": "what-makes-a-useful-listing"
       },
       {
         "level": 2,
@@ -45,7 +65,7 @@
         "id": "next-step"
       }
     ],
-    "readingTime": 2
+    "readingTime": 3
   },
   {
     "title": "Submit an App",
@@ -69,8 +89,18 @@
     "toc": [
       {
         "level": 2,
+        "text": "How app submission works",
+        "id": "how-app-submission-works"
+      },
+      {
+        "level": 2,
         "text": "Before you submit",
         "id": "before-you-submit"
+      },
+      {
+        "level": 2,
+        "text": "How to use the submit form",
+        "id": "how-to-use-the-submit-form"
       },
       {
         "level": 2,
@@ -91,9 +121,14 @@
         "level": 2,
         "text": "Common rejection reasons",
         "id": "common-rejection-reasons"
+      },
+      {
+        "level": 2,
+        "text": "Submission quality checklist",
+        "id": "submission-quality-checklist"
       }
     ],
-    "readingTime": 2
+    "readingTime": 3
   },
   {
     "title": "App Guidelines",
@@ -117,8 +152,18 @@
     "toc": [
       {
         "level": 2,
+        "text": "How guidelines are used",
+        "id": "how-guidelines-are-used"
+      },
+      {
+        "level": 2,
         "text": "Acceptance checklist",
         "id": "acceptance-checklist"
+      },
+      {
+        "level": 2,
+        "text": "How to evaluate an app",
+        "id": "how-to-evaluate-an-app"
       },
       {
         "level": 2,
@@ -132,6 +177,11 @@
       },
       {
         "level": 2,
+        "text": "Description patterns",
+        "id": "description-patterns"
+      },
+      {
+        "level": 2,
         "text": "Safety signals",
         "id": "safety-signals"
       },
@@ -139,9 +189,14 @@
         "level": 2,
         "text": "Deprecation",
         "id": "deprecation"
+      },
+      {
+        "level": 2,
+        "text": "How to mark status",
+        "id": "how-to-mark-status"
       }
     ],
-    "readingTime": 1
+    "readingTime": 3
   },
   {
     "title": "Categories & Tags",
@@ -165,8 +220,18 @@
     "toc": [
       {
         "level": 2,
+        "text": "How discovery works",
+        "id": "how-discovery-works"
+      },
+      {
+        "level": 2,
         "text": "Categories",
         "id": "categories"
+      },
+      {
+        "level": 2,
+        "text": "How to choose a category",
+        "id": "how-to-choose-a-category"
       },
       {
         "level": 2,
@@ -185,11 +250,21 @@
       },
       {
         "level": 2,
+        "text": "Tag examples",
+        "id": "tag-examples"
+      },
+      {
+        "level": 2,
+        "text": "How to clean up tags",
+        "id": "how-to-clean-up-tags"
+      },
+      {
+        "level": 2,
         "text": "Internal links",
         "id": "internal-links"
       }
     ],
-    "readingTime": 1
+    "readingTime": 2
   },
   {
     "title": "Contributor Guide",
@@ -213,8 +288,18 @@
     "toc": [
       {
         "level": 2,
+        "text": "How contribution works",
+        "id": "how-contribution-works"
+      },
+      {
+        "level": 2,
         "text": "Ways to contribute",
         "id": "ways-to-contribute"
+      },
+      {
+        "level": 2,
+        "text": "How to make a useful contribution",
+        "id": "how-to-make-a-useful-contribution"
       },
       {
         "level": 2,
@@ -228,6 +313,11 @@
       },
       {
         "level": 2,
+        "text": "Examples of strong edit requests",
+        "id": "examples-of-strong-edit-requests"
+      },
+      {
+        "level": 2,
         "text": "Review etiquette",
         "id": "review-etiquette"
       },
@@ -235,9 +325,14 @@
         "level": 2,
         "text": "Documentation contributions",
         "id": "documentation-contributions"
+      },
+      {
+        "level": 2,
+        "text": "Local docs workflow",
+        "id": "local-docs-workflow"
       }
     ],
-    "readingTime": 1
+    "readingTime": 2
   },
   {
     "title": "Maintainer Guide",
@@ -261,13 +356,28 @@
     "toc": [
       {
         "level": 2,
+        "text": "How maintenance works",
+        "id": "how-maintenance-works"
+      },
+      {
+        "level": 2,
         "text": "Responsibilities",
         "id": "responsibilities"
       },
       {
         "level": 2,
+        "text": "Daily review workflow",
+        "id": "daily-review-workflow"
+      },
+      {
+        "level": 2,
         "text": "Review decisions",
         "id": "review-decisions"
+      },
+      {
+        "level": 2,
+        "text": "How to review submissions",
+        "id": "how-to-review-submissions"
       },
       {
         "level": 2,
@@ -281,11 +391,21 @@
       },
       {
         "level": 2,
+        "text": "How generated docs are published",
+        "id": "how-generated-docs-are-published"
+      },
+      {
+        "level": 2,
         "text": "Incident response",
         "id": "incident-response"
+      },
+      {
+        "level": 2,
+        "text": "Incident notes",
+        "id": "incident-notes"
       }
     ],
-    "readingTime": 2
+    "readingTime": 3
   },
   {
     "title": "FAQ",
@@ -311,6 +431,11 @@
         "level": 2,
         "text": "Is OpenLib only for desktop apps?",
         "id": "is-openlib-only-for-desktop-apps"
+      },
+      {
+        "level": 2,
+        "text": "How does OpenLib decide what appears publicly?",
+        "id": "how-does-openlib-decide-what-appears-publicly"
       },
       {
         "level": 2,
@@ -341,9 +466,24 @@
         "level": 2,
         "text": "How do maintainers edit docs?",
         "id": "how-do-maintainers-edit-docs"
+      },
+      {
+        "level": 2,
+        "text": "Why are docs generated instead of loaded directly from Markdown?",
+        "id": "why-are-docs-generated-instead-of-loaded-directly-from-markdown"
+      },
+      {
+        "level": 2,
+        "text": "Where do docs screenshots live?",
+        "id": "where-do-docs-screenshots-live"
+      },
+      {
+        "level": 2,
+        "text": "What should I do if a docs page looks stale?",
+        "id": "what-should-i-do-if-a-docs-page-looks-stale"
       }
     ],
-    "readingTime": 1
+    "readingTime": 2
   },
   {
     "title": "Changelog",
@@ -379,6 +519,11 @@
         "level": 3,
         "text": "Documentation pages",
         "id": "documentation-pages"
+      },
+      {
+        "level": 3,
+        "text": "Removed",
+        "id": "removed"
       },
       {
         "level": 2,
