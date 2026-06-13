@@ -75,6 +75,7 @@ function pathnameFromUrl(url) {
 }
 
 function isRouteSupported(pathname, firebaseConfig) {
+  if (fileExistsForPath(pathname)) return true;
   if (REQUIRED_PATHS.includes(pathname)) return true;
   if (/^\/app\/[^/]+$/.test(pathname)) return true;
   if (/^\/category\/[^/]+$/.test(pathname)) return true;

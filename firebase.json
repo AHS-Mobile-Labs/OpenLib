@@ -18,7 +18,7 @@
     "public": "public",
     "cleanUrls": true,
     "trailingSlash": false,
-    "predeploy": ["node scripts/bump-version.js", "node scripts/bump-sitemap.js", "node scripts/seo-audit.js"],
+    "predeploy": ["node scripts/bump-version.js", "node scripts/build-docs.js", "node scripts/bump-sitemap.js", "node scripts/seo-audit.js"],
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -127,6 +127,46 @@
       {
         "source": "/robots.txt",
         "function": "prerender"
+      },
+      {
+        "source": "/docs",
+        "destination": "/docs/index.html"
+      },
+      {
+        "source": "/docs/",
+        "destination": "/docs/index.html"
+      },
+      {
+        "source": "/docs/getting-started",
+        "destination": "/docs/getting-started.html"
+      },
+      {
+        "source": "/docs/submit-app",
+        "destination": "/docs/submit-app.html"
+      },
+      {
+        "source": "/docs/app-guidelines",
+        "destination": "/docs/app-guidelines.html"
+      },
+      {
+        "source": "/docs/categories-and-tags",
+        "destination": "/docs/categories-and-tags.html"
+      },
+      {
+        "source": "/docs/contributor-guide",
+        "destination": "/docs/contributor-guide.html"
+      },
+      {
+        "source": "/docs/maintainer-guide",
+        "destination": "/docs/maintainer-guide.html"
+      },
+      {
+        "source": "/docs/faq",
+        "destination": "/docs/faq.html"
+      },
+      {
+        "source": "/docs/changelog",
+        "destination": "/docs/changelog.html"
       },
       {
         "source": "/app/**",

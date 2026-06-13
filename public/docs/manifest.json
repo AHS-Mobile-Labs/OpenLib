@@ -1,0 +1,391 @@
+[
+  {
+    "title": "Getting Started",
+    "description": "Learn what OpenLib is, how to browse the library, and how to start contributing.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "onboarding",
+      "open-source"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 10,
+    "file": "getting-started.md",
+    "slug": "getting-started",
+    "path": "/docs/getting-started",
+    "toc": [
+      {
+        "level": 2,
+        "text": "What you can do",
+        "id": "what-you-can-do"
+      },
+      {
+        "level": 2,
+        "text": "Good first workflows",
+        "id": "good-first-workflows"
+      },
+      {
+        "level": 2,
+        "text": "Documentation map",
+        "id": "documentation-map"
+      },
+      {
+        "level": 2,
+        "text": "Example app metadata",
+        "id": "example-app-metadata"
+      },
+      {
+        "level": 2,
+        "text": "Next step",
+        "id": "next-step"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Submit an App",
+    "slug": "submit-app",
+    "description": "Learn how to submit applications to OpenLib.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "submissions",
+      "apps"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 20,
+    "file": "submit-app.md",
+    "path": "/docs/submit-app",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Before you submit",
+        "id": "before-you-submit"
+      },
+      {
+        "level": 2,
+        "text": "Submission fields",
+        "id": "submission-fields"
+      },
+      {
+        "level": 2,
+        "text": "Review flow",
+        "id": "review-flow"
+      },
+      {
+        "level": 2,
+        "text": "Markdown example for maintainers",
+        "id": "markdown-example-for-maintainers"
+      },
+      {
+        "level": 2,
+        "text": "Common rejection reasons",
+        "id": "common-rejection-reasons"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "App Guidelines",
+    "description": "Understand the quality, licensing, safety, and metadata expectations for OpenLib app listings.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "guidelines",
+      "review"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 30,
+    "file": "app-guidelines.md",
+    "slug": "app-guidelines",
+    "path": "/docs/app-guidelines",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Acceptance checklist",
+        "id": "acceptance-checklist"
+      },
+      {
+        "level": 2,
+        "text": "License expectations",
+        "id": "license-expectations"
+      },
+      {
+        "level": 2,
+        "text": "Metadata quality",
+        "id": "metadata-quality"
+      },
+      {
+        "level": 2,
+        "text": "Safety signals",
+        "id": "safety-signals"
+      },
+      {
+        "level": 2,
+        "text": "Deprecation",
+        "id": "deprecation"
+      }
+    ],
+    "readingTime": 1
+  },
+  {
+    "title": "Categories & Tags",
+    "description": "Learn how OpenLib categories and tags organize app discovery.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "taxonomy",
+      "categories"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 40,
+    "file": "categories-and-tags.md",
+    "slug": "categories-and-tags",
+    "path": "/docs/categories-and-tags",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Categories",
+        "id": "categories"
+      },
+      {
+        "level": 2,
+        "text": "Tags",
+        "id": "tags"
+      },
+      {
+        "level": 2,
+        "text": "Choosing between categories and tags",
+        "id": "choosing-between-categories-and-tags"
+      },
+      {
+        "level": 2,
+        "text": "Naming conventions",
+        "id": "naming-conventions"
+      },
+      {
+        "level": 2,
+        "text": "Internal links",
+        "id": "internal-links"
+      }
+    ],
+    "readingTime": 1
+  },
+  {
+    "title": "Contributor Guide",
+    "description": "Learn how contributors can improve OpenLib content, reviews, docs, and app metadata.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "contributors",
+      "community"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 50,
+    "file": "contributor-guide.md",
+    "slug": "contributor-guide",
+    "path": "/docs/contributor-guide",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Ways to contribute",
+        "id": "ways-to-contribute"
+      },
+      {
+        "level": 2,
+        "text": "Content standards",
+        "id": "content-standards"
+      },
+      {
+        "level": 2,
+        "text": "Edit requests",
+        "id": "edit-requests"
+      },
+      {
+        "level": 2,
+        "text": "Review etiquette",
+        "id": "review-etiquette"
+      },
+      {
+        "level": 2,
+        "text": "Documentation contributions",
+        "id": "documentation-contributions"
+      }
+    ],
+    "readingTime": 1
+  },
+  {
+    "title": "Maintainer Guide",
+    "description": "Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "maintainers",
+      "operations"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 60,
+    "file": "maintainer-guide.md",
+    "slug": "maintainer-guide",
+    "path": "/docs/maintainer-guide",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Responsibilities",
+        "id": "responsibilities"
+      },
+      {
+        "level": 2,
+        "text": "Review decisions",
+        "id": "review-decisions"
+      },
+      {
+        "level": 2,
+        "text": "Documentation maintenance",
+        "id": "documentation-maintenance"
+      },
+      {
+        "level": 2,
+        "text": "Publishing checklist",
+        "id": "publishing-checklist"
+      },
+      {
+        "level": 2,
+        "text": "Incident response",
+        "id": "incident-response"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "FAQ",
+    "description": "Answers to common questions about OpenLib, submissions, reviews, and documentation.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "faq",
+      "help"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 90,
+    "file": "faq.md",
+    "slug": "faq",
+    "path": "/docs/faq",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Is OpenLib only for desktop apps?",
+        "id": "is-openlib-only-for-desktop-apps"
+      },
+      {
+        "level": 2,
+        "text": "Does every app need a download link?",
+        "id": "does-every-app-need-a-download-link"
+      },
+      {
+        "level": 2,
+        "text": "Can commercial open-source apps be listed?",
+        "id": "can-commercial-open-source-apps-be-listed"
+      },
+      {
+        "level": 2,
+        "text": "What if an app is no longer maintained?",
+        "id": "what-if-an-app-is-no-longer-maintained"
+      },
+      {
+        "level": 2,
+        "text": "How do docs pages get URLs?",
+        "id": "how-do-docs-pages-get-urls"
+      },
+      {
+        "level": 2,
+        "text": "Where are docs stored?",
+        "id": "where-are-docs-stored"
+      },
+      {
+        "level": 2,
+        "text": "How do maintainers edit docs?",
+        "id": "how-do-maintainers-edit-docs"
+      }
+    ],
+    "readingTime": 1
+  },
+  {
+    "title": "Changelog",
+    "description": "Track notable documentation and platform changes for OpenLib.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-13",
+    "version": "1.0",
+    "tags": [
+      "changelog",
+      "releases"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 100,
+    "file": "changelog.md",
+    "slug": "changelog",
+    "path": "/docs/changelog",
+    "toc": [
+      {
+        "level": 2,
+        "text": "2026-06-13",
+        "id": "2026-06-13"
+      },
+      {
+        "level": 3,
+        "text": "Added",
+        "id": "added"
+      },
+      {
+        "level": 3,
+        "text": "Documentation pages",
+        "id": "documentation-pages"
+      },
+      {
+        "level": 2,
+        "text": "Versioning",
+        "id": "versioning"
+      }
+    ],
+    "readingTime": 1
+  }
+]

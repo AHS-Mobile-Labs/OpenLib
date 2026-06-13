@@ -5,7 +5,7 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781349608';
+import { db } from './firebase-config.js?v=1781356584';
 
 const ROLE_ORDER = ["user", "contributor", "maintainer", "openlib-team", "admin"];
 const ADMIN_ROLES = ["admin"];

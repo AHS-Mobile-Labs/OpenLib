@@ -1,0 +1,82 @@
+[
+  {
+    "title": "Getting Started",
+    "description": "Learn what OpenLib is, how to browse the library, and how to start contributing.",
+    "path": "/docs/getting-started",
+    "tags": [
+      "onboarding",
+      "open-source"
+    ],
+    "text": "Getting Started OpenLib is a curated open source app library for finding free, transparent, and community friendly alternatives to popular software. [!NOTE] OpenLib focuses on discoverability. Each app entry should help visitors understand what the project does, where the source code lives, and which proprietary or closed services it can replace. What you can do Browse open source apps by category, tag, platform, and alternatives. Read metadata such as license, source link, platforms, and project status. Submit new apps for review. Suggest corrections through edit requests. Rate and review apps you use. Good first workflows 1. Search for an app or category from the OpenLib home page. 2. Open an app detail page and review the source, license, and install links. 3. Use Submit App when a useful open source project is missing. 4. Use edit requests when an existing app needs better metadata. Documentation map Page Use it for Submit an App Preparing and sending app submissions App Guidelines Understanding what OpenLib accepts Contributor Guide Helping with content and review quality Maintainer Guide Maintaining the library and documentation Example app metadata Next step Start with Submit an App if you want to add a project, or read App Guidelines if you want to understand OpenLib's quality bar."
+  },
+  {
+    "title": "Submit an App",
+    "description": "Learn how to submit applications to OpenLib.",
+    "path": "/docs/submit-app",
+    "tags": [
+      "submissions",
+      "apps"
+    ],
+    "text": "Submit an App Anyone can suggest an open source app for OpenLib. Submissions are reviewed before they appear in the public library. Before you submit Make sure the app has A public source repository. A clear open source license. A stable project name and homepage or release page. Enough description for a new user to understand what it does. Accurate platform and category information. [!TIP] If you are unsure which category fits, choose the closest one and add helpful tags. Maintainers can adjust the final category during review. Submission fields Field What to enter Name The official app or project name Description A short, plain language summary Source Repository URL, preferably GitHub, GitLab, Codeberg, or a project forge Website Official project website when available License SPDX style license name when possible Alternative to Proprietary or closed apps this project can replace Review flow 1. Submit the app from the OpenLib website. 2. A maintainer checks source, license, category, and safety signals. 3. The submission is approved, rejected, or sent back for changes. 4. Approved apps become public and can receive reviews and edit requests. Markdown example for maintainers Common rejection reasons No source code is available. License is missing or not open source. Download link points to unsafe or unrelated files. The app is abandoned and has known severe security issues. The submission duplicates an existing OpenLib entry."
+  },
+  {
+    "title": "App Guidelines",
+    "description": "Understand the quality, licensing, safety, and metadata expectations for OpenLib app listings.",
+    "path": "/docs/app-guidelines",
+    "tags": [
+      "guidelines",
+      "review"
+    ],
+    "text": "App Guidelines OpenLib lists apps that are useful, understandable, and meaningfully open source. Acceptance checklist The source code is publicly accessible. The project uses an open source license. The app has a real use case. Metadata is accurate and not promotional. Links point to official project resources. The app is not malware, deceptive software, or a clone intended to impersonate another project. License expectations OpenLib prefers licenses recognized by open source communities, such as MIT, Apache 2.0, GPL, LGPL, AGPL, MPL 2.0, BSD, and similar licenses. [!WARNING] \"Source available\" is not the same as open source. If redistribution, modification, or commercial use is heavily restricted, maintainers should review carefully before approval. Metadata quality Good listings are specific. Avoid vague descriptions like \"best app ever\" or \"all in one tool.\" Explain what the app does, who it helps, and what it replaces. Safety signals Maintainers may reject or unpublish apps when Download links are suspicious or unrelated. The project distributes binaries without source parity. The app imitates another project in a confusing way. The repository contains malware reports that are not resolved. Deprecation Apps can remain listed but marked deprecated when they are historically useful, replaced by a maintained fork, or no longer recommended for new users."
+  },
+  {
+    "title": "Categories & Tags",
+    "description": "Learn how OpenLib categories and tags organize app discovery.",
+    "path": "/docs/categories-and-tags",
+    "tags": [
+      "taxonomy",
+      "categories"
+    ],
+    "text": "Categories & Tags Categories and tags help people find software by job, platform, and workflow. Categories Use one primary category for each app. The category should describe the main job the app performs. Examples Productivity Development Security Media Communication Utilities Tags Tags add flexible context. They can describe features, platforms, protocols, or use cases. Choosing between categories and tags Use Category Tag Main purpose Yes Sometimes Secondary features No Yes Platform details No Yes Alternative product names No Yes Naming conventions Use short, human readable names. Prefer singular concepts when possible. Avoid duplicate tags with different casing. Avoid marketing phrases as tags. Internal links Documentation should link to collection pages when helpful, such as Linux software or privacy focused software."
+  },
+  {
+    "title": "Contributor Guide",
+    "description": "Learn how contributors can improve OpenLib content, reviews, docs, and app metadata.",
+    "path": "/docs/contributor-guide",
+    "tags": [
+      "contributors",
+      "community"
+    ],
+    "text": "Contributor Guide Contributors help OpenLib stay accurate, useful, and welcoming. Ways to contribute Submit missing open source apps. Improve descriptions, tags, categories, and source links. Review app metadata for accuracy. Report broken links or unsafe entries. Improve documentation. Help answer community questions. Content standards Write descriptions that are factual, concise, and verifiable. Prefer \"what it does\" over hype. [!IMPORTANT] OpenLib entries should help users make informed choices. Avoid unsupported claims about security, privacy, or performance. Edit requests Use edit requests for changes to public app listings. Include a short reason and, when possible, a source link that confirms the correction. Review etiquette Be specific about what needs to change. Do not attack maintainers, submitters, or project authors. Separate personal preference from factual accuracy. Flag conflicts of interest when reviewing your own project. Documentation contributions Docs are stored in Markdown under docs/content/ . Each page has front matter metadata and is generated into /docs/ pages."
+  },
+  {
+    "title": "Maintainer Guide",
+    "description": "Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.",
+    "path": "/docs/maintainer-guide",
+    "tags": [
+      "maintainers",
+      "operations"
+    ],
+    "text": "Maintainer Guide Maintainers keep OpenLib useful, accurate, and safe. Responsibilities Review new app submissions. Merge high quality edit requests. Moderate spam, unsafe content, and abuse reports. Keep docs accurate. Preserve a consistent taxonomy. Watch for stale or deprecated projects. Review decisions Decision Use when Approve The app meets OpenLib guidelines Request changes The submission is promising but incomplete Reject The app is out of scope, unsafe, duplicate, or not open source Deprecate The app is listed but no longer recommended Documentation maintenance Documentation is maintained locally as Markdown under docs/content/ . Create, edit, rename, move, and delete docs pages by changing those Markdown files, then run the docs generator before deployment. [!NOTE] The canonical documentation source remains Markdown in version control. This keeps docs portable, reviewable, and easy to restore. Publishing checklist 1. Update or add Markdown files in docs/content/ . 2. Run npm run docs build . 3. Confirm /docs/ pages render locally. 4. Run npm run seo sitemap and confirm docs URLs are included. 5. Submit the change for review. Incident response For unsafe listings, prioritize user safety unpublish or mark deprecated first, then document the reason and follow up with project maintainers if needed."
+  },
+  {
+    "title": "FAQ",
+    "description": "Answers to common questions about OpenLib, submissions, reviews, and documentation.",
+    "path": "/docs/faq",
+    "tags": [
+      "faq",
+      "help"
+    ],
+    "text": "FAQ Is OpenLib only for desktop apps? No. OpenLib can list desktop, mobile, web, command line, and self hosted apps when they meet the app guidelines. Does every app need a download link? No. Web only or self hosted projects may use website, source, documentation, or release links instead. Can commercial open source apps be listed? Yes, if the app is meaningfully open source and the listing is transparent about licensing and paid services. What if an app is no longer maintained? Maintainers may mark it deprecated, update the description, or remove unsafe links. How do docs pages get URLs? Docs URLs are generated from page titles or explicit slugs in Markdown front matter. For example, Submit an App becomes /docs/submit app . Where are docs stored? Docs are stored as Markdown files in docs/content/ and generated into static pages under /docs/ . How do maintainers edit docs? Maintainers edit Markdown files locally under docs/content/ , then run npm run docs build to regenerate the static documentation pages."
+  },
+  {
+    "title": "Changelog",
+    "description": "Track notable documentation and platform changes for OpenLib.",
+    "path": "/docs/changelog",
+    "tags": [
+      "changelog",
+      "releases"
+    ],
+    "text": "Changelog 2026 06 13 Added Built in OpenLib documentation portal under /docs/ . Markdown based documentation source in docs/content/ . Generated clean URLs, metadata, sitemap entries, and search index. Documentation search, table of contents, breadcrumbs, reading time, last updated dates, status badges, previous/next navigation, and copy buttons for code blocks. Local Markdown documentation workflow with generated static pages. Documentation pages Getting Started Submit an App App Guidelines Categories & Tags Contributor Guide Maintainer Guide FAQ Versioning Documentation versions follow the page level version metadata field. Platform releases may use a separate release process."
+  }
+]

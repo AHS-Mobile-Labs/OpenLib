@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <meta name="theme-color" content="#0c0c0f">
+  <title>Maintainer Guide | OpenLib Docs</title>
+  <link rel="canonical" href="https://www.openlib.online/docs/maintainer-guide">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="OpenLib">
+  <meta property="og:url" content="https://www.openlib.online/docs/maintainer-guide">
+  <meta property="og:title" content="Maintainer Guide | OpenLib Docs">
+  <meta property="og:description" content="Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.">
+  <meta property="og:image" content="https://www.openlib.online/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Maintainer Guide | OpenLib Docs">
+  <meta name="twitter:description" content="Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.">
+  <meta name="twitter:url" content="https://www.openlib.online/docs/maintainer-guide">
+  <meta name="twitter:image" content="https://www.openlib.online/og-image.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://www.openlib.online/docs/maintainer-guide#article","headline":"Maintainer Guide","description":"Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.","url":"https://www.openlib.online/docs/maintainer-guide","dateModified":"2026-06-13","version":"1.0","author":{"@type":"Organization","name":"OpenLib Team"},"publisher":{"@type":"Organization","name":"OpenLib","url":"https://www.openlib.online"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"OpenLib","item":"https://www.openlib.online/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://www.openlib.online/docs/"},{"@type":"ListItem","position":3,"name":"Maintainer Guide","item":"https://www.openlib.online/docs/maintainer-guide"}]}]}</script>
+  <link rel="stylesheet" href="/styles.css?v=1781356584">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body class="docs-body">
+  <header>
+    <div class="header-inner">
+      <a class="logo-group" href="/"><div class="logo-icon">OL</div><span class="logo-title">Open<span>Lib</span></span></a>
+      <div class="header-actions docs-header-actions">
+        <a href="/" class="nav-link">Library</a>
+        <a href="/rankings" class="nav-link">Rankings</a>
+        <button class="theme-toggle" id="docs-theme-toggle" aria-label="Switch theme" title="Switch theme"><span id="docs-theme-icon">☀</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-shell">
+    <aside class="docs-sidebar">
+      <div class="docs-sidebar-head">
+        <strong>Docs</strong>
+      </div>
+      <label class="docs-search-label" for="docs-search">Search documentation</label>
+      <input type="search" id="docs-search" class="docs-search" placeholder="Search docs..." autocomplete="off">
+      <div class="docs-search-results" id="docs-search-results" hidden></div>
+      <nav aria-label="Documentation navigation"><a href="/docs/getting-started" class="">Getting Started</a><a href="/docs/submit-app" class="">Submit an App</a><a href="/docs/app-guidelines" class="">App Guidelines</a><a href="/docs/categories-and-tags" class="">Categories &amp; Tags</a><a href="/docs/contributor-guide" class="">Contributor Guide</a><a href="/docs/maintainer-guide" class="active">Maintainer Guide</a><a href="/docs/faq" class="">FAQ</a><a href="/docs/changelog" class="">Changelog</a></nav>
+    </aside>
+
+    <article class="docs-article">
+      <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">OpenLib</a><span>/</span><a href="/docs/">Docs</a><span>/</span><span>Maintainer Guide</span>
+      </nav>
+      <header class="docs-page-header">
+        <div>
+          <span class="docs-status published">Published</span>
+          <h1>Maintainer Guide</h1>
+          <p>Operational guidance for OpenLib maintainers reviewing apps, moderating content, and maintaining documentation.</p>
+          <div class="docs-tags"><span>maintainers</span><span>operations</span></div>
+        </div>
+        <dl class="docs-meta">
+          <div><dt>Maintained By</dt><dd>OpenLib Team</dd></div>
+          <div><dt>Last Updated</dt><dd>June 13, 2026</dd></div>
+          <div><dt>Version</dt><dd>1.0</dd></div>
+          <div><dt>Reading Time</dt><dd>2 min</dd></div>
+        </dl>
+      </header>
+      <div class="docs-content"><p>Maintainers keep OpenLib useful, accurate, and safe.</p><h2 id="responsibilities">Responsibilities <a class="docs-anchor" href="#responsibilities" aria-label="Link to Responsibilities">#</a></h2><ul><li>Review new app submissions.</li><li>Merge high-quality edit requests.</li><li>Moderate spam, unsafe content, and abuse reports.</li><li>Keep docs accurate.</li><li>Preserve a consistent taxonomy.</li><li>Watch for stale or deprecated projects.</li></ul><h2 id="review-decisions">Review decisions <a class="docs-anchor" href="#review-decisions" aria-label="Link to Review decisions">#</a></h2><div class="docs-table-wrap"><table><thead><tr><th>Decision</th><th>Use when</th></tr></thead><tbody><tr><td>Approve</td><td>The app meets OpenLib guidelines</td></tr><tr><td>Request changes</td><td>The submission is promising but incomplete</td></tr><tr><td>Reject</td><td>The app is out of scope, unsafe, duplicate, or not open source</td></tr><tr><td>Deprecate</td><td>The app is listed but no longer recommended</td></tr></tbody></table></div><h2 id="documentation-maintenance">Documentation maintenance <a class="docs-anchor" href="#documentation-maintenance" aria-label="Link to Documentation maintenance">#</a></h2><p>Documentation is maintained locally as Markdown under <code>docs/content/</code>. Create, edit, rename, move, and delete docs pages by changing those Markdown files, then run the docs generator before deployment.</p><aside class="docs-callout note"><strong>NOTE</strong><p>The canonical documentation source remains Markdown in version control. This keeps docs portable, reviewable, and easy to restore.</p></aside><h2 id="publishing-checklist">Publishing checklist <a class="docs-anchor" href="#publishing-checklist" aria-label="Link to Publishing checklist">#</a></h2><ol><li>Update or add Markdown files in <code>docs/content/</code>.</li><li>Run <code>npm run docs:build</code>.</li><li>Confirm <code>/docs/</code> pages render locally.</li><li>Run <code>npm run seo:sitemap</code> and confirm docs URLs are included.</li><li>Submit the change for review.</li></ol><h2 id="incident-response">Incident response <a class="docs-anchor" href="#incident-response" aria-label="Link to Incident response">#</a></h2><p>For unsafe listings, prioritize user safety: unpublish or mark deprecated first, then document the reason and follow up with project maintainers if needed.</p></div>
+      <section class="docs-contributors">
+        <h2>Contributors</h2>
+        <ul><li>OpenLib Team</li></ul>
+      </section>
+      <nav class="docs-prev-next" aria-label="Previous and next pages">
+        <a href="/docs/contributor-guide"><span>Previous</span>Contributor Guide</a>
+        <a href="/docs/faq"><span>Next</span>FAQ</a>
+      </nav>
+    </article>
+
+    <aside class="docs-toc">
+      <strong>On This Page</strong>
+      <nav><a class="level-2" href="#responsibilities">Responsibilities</a><a class="level-2" href="#review-decisions">Review decisions</a><a class="level-2" href="#documentation-maintenance">Documentation maintenance</a><a class="level-2" href="#publishing-checklist">Publishing checklist</a><a class="level-2" href="#incident-response">Incident response</a></nav>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-left"><strong>OpenLib</strong> docs are maintained as Markdown and generated into static pages.</div>
+      <nav class="footer-right" aria-label="Footer links">
+        <a href="/" class="footer-link">Library</a>
+        <a href="/docs/" class="footer-link">Docs</a>
+        <a href="/docs/changelog" class="footer-link">Changelog</a>
+        <a href="https://github.com/AHS-Mobile-Labs/OpenLib" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+  <script src="/docs/docs-runtime.js?v=1781356584" defer></script>
+</body>
+</html>

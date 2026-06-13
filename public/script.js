@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781349608';
+} from './firebase-config.js?v=1781356584';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781349608';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781356584';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -40,7 +40,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781349608';
+} from './firebase-db.js?v=1781356584';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -7687,6 +7687,7 @@ async function init() {
     const href = anchor.getAttribute("href");
     if (!href || href.startsWith("http") || href.startsWith("mailto:") || anchor.hasAttribute("target")) return;
     if (href.endsWith(".txt")) return;
+    if (href === "/docs" || href.startsWith("/docs/")) return;
     if (href.startsWith("/") || href === "/") {
       e.preventDefault();
       navigateTo(href);

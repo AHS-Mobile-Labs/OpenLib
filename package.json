@@ -2,6 +2,7 @@
   "name": "openlib-seo-tools",
   "private": true,
   "scripts": {
+    "docs:build": "node scripts/build-docs.js",
     "seo:sitemap": "node scripts/bump-sitemap.js",
     "seo:audit": "node scripts/seo-audit.js",
     "seo:audit:live": "node scripts/seo-audit.js --live",

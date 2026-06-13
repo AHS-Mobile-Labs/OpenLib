@@ -166,6 +166,40 @@ function scanBlogPages() {
   return pages;
 }
 
+function scanDocsPages() {
+  const docsManifest = path.join(PUBLIC_DIR, "docs", "manifest.json");
+  if (fs.existsSync(docsManifest)) {
+    try {
+      const pages = JSON.parse(fs.readFileSync(docsManifest, "utf-8"));
+      return pages
+        .filter(page => page.status !== "Draft")
+        .map(page => ({
+          loc: page.path,
+          lastmod: toW3CDate(page.lastUpdated),
+          changefreq: "weekly",
+          priority: page.path === "/docs/" ? "0.8" : "0.65",
+        }));
+    } catch (e) {
+      console.warn(`Could not read docs manifest: ${e.message}`);
+    }
+  }
+
+  const docsDir = path.join(PUBLIC_DIR, "docs");
+  if (!fs.existsSync(docsDir)) return [];
+  return fs.readdirSync(docsDir)
+    .filter(file => file.endsWith(".html"))
+    .map(file => {
+      const fullPath = path.join(docsDir, file);
+      const slug = file === "index.html" ? "/docs/" : `/docs/${file.replace(/\.html$/, "")}`;
+      return {
+        loc: slug,
+        lastmod: fs.statSync(fullPath).mtime.toISOString().split("T")[0],
+        changefreq: "weekly",
+        priority: slug === "/docs/" ? "0.8" : "0.65",
+      };
+    });
+}
+
 function buildPages(apps) {
   const pages = [];
   STATIC_PAGES.forEach(page => addUnique(pages, { ...page, lastmod: TODAY }));
@@ -211,6 +245,7 @@ function buildPages(apps) {
     addUnique(pages, { loc: `/tag/${slug}`, lastmod: data.lastmod, changefreq: "weekly", priority: "0.65" });
   }
   scanBlogPages().forEach(page => addUnique(pages, page));
+  scanDocsPages().forEach(page => addUnique(pages, page));
 
   return pages;
 }
