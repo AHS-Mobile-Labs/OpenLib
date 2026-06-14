@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781443896';
+} from './firebase-config.js?v=1781444362';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781443896';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781444362';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781443896';
+} from './firebase-db.js?v=1781444362';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -3260,7 +3260,7 @@ function renderVerifyCards(submissions, filter) {
     const canAct = sub.status === "pending" || sub.status === "changes_requested";
 
     // Helper: safe field display with "—" fallback
-    const sf = (val) => val != null && val !== "" && val !== undefined ? esc(val) : "—";
+    const sf = (val) => val != null && val !== "" ? esc(val) : "—";
 
     return `
     <div class="verify-card" data-id="${esc(sub.id)}" data-status="${esc(sub.status)}">
@@ -4092,7 +4092,7 @@ function renderAdminSubmissions(submissions) {
 
     // Helper: render a field row, showing "—" for missing/undefined values
     const field = (label, value, isLink) => {
-      const display = value != null && value !== "" && value !== undefined ? value : "—";
+      const display = value != null && value !== "" ? value : "—";
       const content = isLink && display !== "—"
         ? `<a href="${esc(display)}" target="_blank" rel="noopener">${esc(display)}</a>`
         : esc(display);
