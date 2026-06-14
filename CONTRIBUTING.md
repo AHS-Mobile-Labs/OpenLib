@@ -21,11 +21,40 @@ public/firebase-db.js      Firestore data access and app/user/team helpers
 public/styles.css          Global styles and responsive layout
 public/service-worker.js   PWA cache and update behavior
 public/assets/             Icons, PWA images, fonts, and other hosted assets
+docs/content/              Markdown source for user documentation
+docs/assets/               Source images and attachments for documentation
+docs/README.md             Docs authoring and maintenance guide
 functions/index.js         Cloud Functions, prerendering, reputation, and automation
 firebase/                  Firestore indexes, Firestore rules, and Storage rules
 scripts/                   Sitemap, SEO audit, version stamping, and Search Console tools
 config/                    Local Firebase config template
 ```
+
+## Documentation Contributions
+
+User documentation is available at [https://www.openlib.online/docs/](https://www.openlib.online/docs/).
+
+Docs source lives in `docs/content/`, not `public/docs/`. Before adding, editing, renaming, fixing, or removing documentation pages, read [docs/README.md](docs/README.md).
+
+For docs changes:
+
+1. Edit Markdown in `docs/content/`.
+2. Put screenshots or docs media in `docs/assets/`.
+3. Add a clean docs route in `firebase.json` when creating a new page.
+4. Rebuild generated docs:
+
+```bash
+npm run docs:build
+```
+
+5. Refresh sitemap and run the audit:
+
+```bash
+npm run seo:sitemap
+npm run seo:audit
+```
+
+Do not hand-edit generated files in `public/docs/` unless you are debugging the generator.
 
 ## Development Conventions
 
@@ -47,6 +76,7 @@ Before opening a pull request, include the checks that match your change:
 - Data or auth change: run Firebase emulators and test signed-out, signed-in, and role-specific flows.
 - Rules change: test the relevant Firestore or Storage allow/deny cases.
 - Route or SEO change: run `npm run seo:audit`.
+- Documentation change: run `npm run docs:build`, `npm run seo:sitemap`, and `npm run seo:audit`.
 - Function change: test with the Functions emulator where practical.
 - Service worker change: verify reload/update behavior in a clean browser profile.
 

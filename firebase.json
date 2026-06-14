@@ -72,20 +72,20 @@
         ]
       },
       {
-        "source": "docs/**/*.html",
+        "source": "/docs",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "no-cache"
+            "value": "no-cache, max-age=0"
           }
         ]
       },
       {
-        "source": "docs/**/*.json",
+        "source": "/docs/**",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "no-cache"
+            "value": "no-cache, max-age=0"
           }
         ]
       },

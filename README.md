@@ -11,6 +11,8 @@ OpenLib is a community-driven library for discovering free and open-source softw
 
 Live site: [https://www.openlib.online/](https://www.openlib.online/)
 
+User docs: [https://www.openlib.online/docs/](https://www.openlib.online/docs/)
+
 ## Features
 
 - Browse curated open-source apps by category, tag, ranking, and trend.
@@ -37,6 +39,7 @@ Live site: [https://www.openlib.online/](https://www.openlib.online/)
 
 ```text
 public/       Firebase Hosting public root: SPA files, assets, manifest, sitemap, robots, legal text
+docs/         Markdown source for OpenLib documentation and docs media
 functions/    Cloud Functions, prerender logic, and copied HTML/legal snapshots for bot routes
 firebase/     Firestore rules, Firestore indexes, and Storage rules
 scripts/      SEO, sitemap, deploy-version, and Search Console maintenance scripts
@@ -51,6 +54,9 @@ Important public entry files:
 - `public/styles.css` - global styling
 - `public/service-worker.js` - PWA cache/update behavior
 - `public/firebase-config.js` - local Firebase app config generated from the template
+
+Documentation source lives in `docs/content/` and is generated into `public/docs/`.
+Read [docs/README.md](docs/README.md) before adding, editing, or fixing docs pages.
 
 ## Getting Started
 
@@ -76,6 +82,7 @@ For a quick static preview, serve the `public/` directory with any local web ser
 ```bash
 npm run seo:audit        # Validate local SEO-critical files and Firebase rewrites
 npm run seo:sitemap      # Generate public/sitemap.xml and public/robots.txt
+npm run docs:build       # Generate public/docs from docs/content Markdown
 npm run seo:audit:live   # Check live production URLs
 npm run seo:gsc          # Read Search Console data when Google credentials are configured
 ```

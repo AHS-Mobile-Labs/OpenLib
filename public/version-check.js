@@ -4,25 +4,29 @@
 // while admins also sync Firestore for older deployed clients.
 
 import { doc, getDoc, getDocFromServer, setDoc } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781440782';
+import { db } from './firebase-config.js?v=1781441475';
 
 // ── Auto-stamped by predeploy hook — DO NOT EDIT MANUALLY ────────────────────
-const DEPLOY_TIMESTAMP = 1781440782;
+const DEPLOY_TIMESTAMP = 1781441475;
 
 const LS_KEY = "openlib_deploy_ts";
 const LS_LAST_CHECK_KEY = "openlib_deploy_last_check";
 const LS_SYNCED_KEY = "openlib_deploy_synced_ts";
 const LS_SYNC_ATTEMPT_KEY = "openlib_deploy_sync_attempt";
+const LS_UPDATE_APPLIED_KEY = "openlib_update_applied_ts";
 const SS_DISMISS_KEY = "openlib_update_dismissed";
 const REFRESH_PARAM = "_ol_refresh";
 const VERSION_MANIFEST = "/version.json";
 const VERSION_SCRIPT = "/version-check.js";
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const SYNC_RETRY_MS = 2 * 60 * 1000;
+const UPDATE_CHANNEL_NAME = "openlib_update_channel";
 
 let updateChecksStarted = false;
 let checkInFlight = false;
 let syncInFlight = false;
+let applyingUpdate = false;
+let updateChannel = null;
 
 /**
  * Start initial, periodic, and resume-triggered update checks.
@@ -31,6 +35,7 @@ export function startUpdateChecks() {
   if (updateChecksStarted) return;
   updateChecksStarted = true;
 
+  installCrossPageUpdateListener();
   queueUpdateCheck({ force: hasRefreshParam() });
   setInterval(() => checkForUpdates(), CHECK_INTERVAL_MS);
 
@@ -193,7 +198,10 @@ function showUpdateBanner(remoteTs) {
   document.getElementById("version-btn-dismiss").addEventListener("click", () => dismissBanner(banner, remoteTs));
 }
 
-async function applyUpdate(remoteTs) {
+async function applyUpdate(remoteTs, { notify = true } = {}) {
+  if (applyingUpdate) return;
+  applyingUpdate = true;
+
   const btn = document.getElementById("version-btn-update");
   if (btn) {
     btn.disabled = true;
@@ -205,10 +213,16 @@ async function applyUpdate(remoteTs) {
   try {
     localStorage.removeItem(LS_LAST_CHECK_KEY);
     localStorage.setItem(LS_KEY, String(Math.max(remoteTs || 0, DEPLOY_TIMESTAMP)));
+    localStorage.setItem(LS_UPDATE_APPLIED_KEY, JSON.stringify({
+      deployTimestamp: Math.max(remoteTs || 0, DEPLOY_TIMESTAMP),
+      at: Date.now()
+    }));
     sessionStorage.removeItem(SS_DISMISS_KEY);
   } catch (_) {
     // Storage can fail in private/restricted modes; the reload still matters.
   }
+
+  if (notify) notifyOtherPages(remoteTs);
 
   // Clear service worker caches if present
   if ("caches" in window) {
@@ -231,6 +245,39 @@ async function applyUpdate(remoteTs) {
   const url = new URL(window.location.href);
   url.searchParams.set(REFRESH_PARAM, String(remoteTs || Date.now()));
   window.location.replace(url.toString());
+}
+
+function installCrossPageUpdateListener() {
+  window.addEventListener("storage", event => {
+    if (event.key !== LS_UPDATE_APPLIED_KEY || !event.newValue) return;
+    const remoteTs = parseUpdatePayload(event.newValue);
+    if (remoteTs > DEPLOY_TIMESTAMP) applyUpdate(remoteTs, { notify: false });
+  });
+
+  if ("BroadcastChannel" in window) {
+    try {
+      updateChannel = new BroadcastChannel(UPDATE_CHANNEL_NAME);
+      updateChannel.addEventListener("message", event => {
+        if (event.data?.type !== "openlib-update-applied") return;
+        const remoteTs = readTimestamp(event.data.deployTimestamp);
+        if (remoteTs > DEPLOY_TIMESTAMP) applyUpdate(remoteTs, { notify: false });
+      });
+    } catch (_) {
+      updateChannel = null;
+    }
+  }
+}
+
+function notifyOtherPages(remoteTs) {
+  const deployTimestamp = Math.max(remoteTs || 0, DEPLOY_TIMESTAMP);
+  try {
+    updateChannel?.postMessage({
+      type: "openlib-update-applied",
+      deployTimestamp
+    });
+  } catch (_) {
+    // localStorage storage events are the fallback.
+  }
 }
 
 function dismissBanner(banner, remoteTs) {
@@ -297,6 +344,15 @@ function readSyncAttempt() {
 function readTimestamp(value) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+function parseUpdatePayload(value) {
+  try {
+    const data = JSON.parse(value);
+    return readTimestamp(data.deployTimestamp);
+  } catch (_) {
+    return readTimestamp(value);
+  }
 }
 
 function getStored(storage, key) {
