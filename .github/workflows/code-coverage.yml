@@ -1,0 +1,55 @@
+name: Code Coverage
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validation:
+    name: Docs and SEO validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install root dependencies
+        run: npm install
+
+      - name: Build documentation
+        run: npm run docs:build
+
+      - name: Generate sitemap
+        env:
+          ALLOW_STATIC_SITEMAP_FALLBACK: "1"
+        run: npm run seo:sitemap
+
+      - name: Run SEO audit
+        run: npm run seo:audit
+
+      # Add this step when OpenLib has a real test coverage script:
+      # - name: Run coverage
+      #   run: npm test -- --coverage
+
+      - name: Upload generated validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: openlib-validation-artifacts
+          path: |
+            public/docs/manifest.json
+            public/docs/search-index.json
+            public/sitemap.xml
+            public/robots.txt
