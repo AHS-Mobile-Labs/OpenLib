@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781444362';
+} from './firebase-config.js?v=1781444694';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781444362';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781444694';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781444362';
+} from './firebase-db.js?v=1781444694';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -1335,19 +1335,6 @@ async function showAppDetail(appId) {
       <p class="claim-description">If you are the developer or maintainer of ${esc(app.name)}, you can claim ownership to manage its listing.</p>
       <button class="btn btn-claim-ownership" id="claim-ownership-btn" data-app-id="${esc(appId)}">${iconImg("account")} Claim App Ownership</button>
     </div>` : "";
-
-  // Check if current user can edit (owner, admin, org member, or openlib team)
-  let canEdit = currentUser && (
-    app.addedBy?.uid === currentUser.uid ||
-    app.ownerId === currentUser.uid ||
-    isAdmin
-  );
-  if (!canEdit && currentUser && app.ownerType === "organization" && app.ownerId) {
-    const org = await getOrganization(app.ownerId);
-    if (org && hasOrgPermission(org, currentUser.uid, "contributor")) {
-      canEdit = true;
-    }
-  }
 
   // Moderation status banner
   const modStatus = app.moderationStatus || "active";
