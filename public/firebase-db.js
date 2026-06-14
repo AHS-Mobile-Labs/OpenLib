@@ -5,9 +5,8 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781441475';
+import { db } from './firebase-config.js?v=1781443896';
 
-const ROLE_ORDER = ["user", "contributor", "maintainer", "openlib-team", "admin"];
 const ADMIN_ROLES = ["admin"];
 const TEAM_ROLES = ["admin", "openlib-team"];
 const CONTENT_MODERATOR_ROLES = ["maintainer", "openlib-team", "admin"];
@@ -19,11 +18,6 @@ const CONTRIBUTOR_REQUIREMENTS = {
   minApprovedApps: 3,
   alternateAccountAgeDays: 30
 };
-
-function roleRank(role) {
-  const idx = ROLE_ORDER.indexOf(role || "user");
-  return idx === -1 ? 0 : idx;
-}
 
 function isAdminRole(role) {
   return ADMIN_ROLES.includes(role);

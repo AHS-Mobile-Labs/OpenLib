@@ -8,39 +8,37 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781441475';
+} from './firebase-config.js?v=1781443896';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781441475';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781443896';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
   setAccountVerified, setTeamAccount, getAllUsers,
-  createOrganization, getOrganization, updateOrganization, addOrgMember,
+  createOrganization, getOrganization, addOrgMember,
   removeOrgMember, transferOwnership, transferToCorporation, getUserOrganizations, getAllOrganizations,
-  getOrgMemberRole, hasOrgPermission, getUserOrgsWithPermission,
-  submitAppWithOwner, getAppsByOwner, transferAppOwnership,
+  hasOrgPermission, getUserOrgsWithPermission,
+  submitAppWithOwner, getAppsByOwner,
   getAppVersions, restoreAppVersion,
   addReviewComment, getReviewComments, approveEditRequest, mergeEditRequest, rejectEditRequest,
-  computeRecommendations, trackActivity,
-  isAdminOrTeam, adminAddApp, adminUpdateApp, adminRemoveApp,
-  getAllPendingSubmissions, getAllEditRequests, approveSubmission, rejectSubmission,
+  adminAddApp,
+  getAllEditRequests, approveSubmission, rejectSubmission,
   requestChangesOnSubmission,
-  getAllSubmissions, getSubmission, getUserSubmissions, updateSubmission, getSubmissionComments, addSubmissionComment,
+  getAllSubmissions, getUserSubmissions, updateSubmission, getSubmissionComments, addSubmissionComment,
   followUser, unfollowUser, isFollowing,
-  addAppReview, removeAppReview, getAppReviews, getAverageRating, markReviewHelpful, getUserReviewForApp, toggleReviewVote, getUserReviewVote,
+  addAppReview, removeAppReview, getAppReviews, getAverageRating, getUserReviewForApp, toggleReviewVote, getUserReviewVote,
   toggleBookmark, isBookmarked, getUserBookmarks,
   trackDownload, trackOpen,
   submitOwnershipClaim,
-  resolveContributorProfile, getOfficialProfile, isOfficialApp,
+  resolveContributorProfile, isOfficialApp,
   getTeamMembers, getOpenLibConfig, updateOpenLibConfig,
   getTeamMemberPermissions, updateTeamMemberPermissions,
   addTeamMember, removeTeamMember, getTeamStats,
-  getAllReports, getReport, updateReportStatus,
-  logModerationAction, getModerationLog,
-  setAppModerationStatus, restoreExpiredSuspensions, getReportStats,
+  getAllReports, updateReportStatus,
+  setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781441475';
+} from './firebase-db.js?v=1781443896';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -56,9 +54,6 @@ let currentGridRendered = 0;
 let appsRevalidationScheduled = false;
 let memorySessionId = null;
 const CANONICAL_ORIGIN = "https://www.openlib.online";
-const CANONICAL_AUTH_HOST = "www.openlib.online";
-const APEX_AUTH_HOST = "openlib.online";
-const AUTH_PROVIDER_PARAM = "ol_auth_provider";
 const AUTH_PROVIDER_IDS = ["google.com", "github.com"];
 const AUTH_PROVIDER_NAMES = {
   "google.com": "Google",
@@ -760,7 +755,6 @@ function compCellHtml(val, colIdx) {
   else if (val == null) selType = "dash";
   else if (typeof val === "string" && val.startsWith("@")) selType = val;
   else { selType = "text"; textVal = val; }
-  const isBinding = typeof selType === "string" && selType.startsWith("@");
   return `<div class="comp-cell" data-col="${colIdx}">
     <select class="comp-cell-type">
       <option value="true" ${selType === "true" ? "selected" : ""}>✔ Yes</option>
@@ -1650,7 +1644,6 @@ async function showAppDetail(appId) {
   if (videoContainer) {
     const iframe = videoContainer.querySelector(".youtube-embed");
     const fallback = videoContainer.closest(".video-section")?.querySelector(".video-fallback");
-    const videoSection = videoContainer.closest(".video-section");
     
     if (iframe && fallback) {
       let iframeLoaded = false;
@@ -2621,53 +2614,6 @@ async function showRolesPage() {
   });
 }
 
-// ── For You Section ──────────────────────────────────────────────────────────
-async function renderForYou() {
-  const container = document.getElementById("recommendations-section");
-  if (!container) return;
-
-  let recs;
-  if (currentUser && userRecord) {
-    // Behavior-based recommendations: use bookmarks + preferences
-    let bookmarkedIds = [];
-    try { bookmarkedIds = (await getUserBookmarks(currentUser.uid)).map(b => b.appId); } catch (e) {}
-    recs = computeRecommendations(apps, {}, userRecord, bookmarkedIds);
-  } else {
-    // Popular apps fallback for anonymous users
-    recs = [...apps]
-      .sort((a, b) => ((b.likes || 0) * 2 + (b.views || 0) * 0.1 + (b.opens || 0) + (b.downloads || 0)) - ((a.likes || 0) * 2 + (a.views || 0) * 0.1 + (a.opens || 0) + (a.downloads || 0)))
-      .slice(0, 8);
-  }
-
-  if (recs.length === 0) {
-    container.style.display = "none";
-    return;
-  }
-
-  const title = currentUser ? "For You" : "Popular Apps";
-
-  container.style.display = "block";
-  container.innerHTML = `
-    <h2 class="rec-title">${title}</h2>
-    <div class="rec-grid">
-      ${recs.map(app => {
-        const logoHtml = app.logo
-          ? `<img class="rec-logo" src="${escUrl(app.logo)}" alt="" data-fallback-char="${esc(app.name.charAt(0))}">`
-          : `<div class="rec-logo-fallback">${esc(app.name.charAt(0))}</div>`;
-        return `
-          <a href="/app/${esc(app.id)}" class="rec-card">
-            ${logoHtml}
-            <div class="rec-info">
-              <span class="rec-name">${esc(app.name)}</span>
-              <span class="rec-cat">${esc(app.category)}</span>
-            </div>
-            <span class="rec-rating">${app.avgRating ? `★ ${app.avgRating}` : `${iconImg("like")} ${app.likes || 0}`}</span>
-          </a>`;
-      }).join("")}
-    </div>
-  `;
-}
-
 // ── Trending Apps ────────────────────────────────────────────────────────────
 function getTrendingApps(period = "week") {
   const now = Date.now();
@@ -2694,40 +2640,6 @@ function getTrendingApps(period = "week") {
     })
     .filter(app => app._trendScore > 0)
     .sort((a, b) => b._trendScore - a._trendScore);
-}
-
-function renderTrendingHome() {
-  const container = document.getElementById("trending-home-section");
-  if (!container) return;
-  const trending = getTrendingApps("week").slice(0, 6);
-  if (!trending.length) { container.style.display = "none"; return; }
-  container.style.display = "block";
-  container.innerHTML = `
-    <h2 class="rec-title">${iconImg("time", "ui-icon title-icon")} Trending This Week</h2>
-    <div class="rec-grid">
-      ${trending.map(app => {
-        const logoHtml = app.logo
-          ? `<img class="rec-logo" src="${escUrl(app.logo)}" alt="" data-fallback-char="${esc(app.name.charAt(0))}">`
-          : `<div class="rec-logo-fallback">${esc(app.name.charAt(0))}</div>`;
-        return `
-          <a href="/app/${esc(app.id)}" class="rec-card">
-            ${logoHtml}
-            <div class="rec-info">
-              <span class="rec-name">${esc(app.name)}</span>
-              <span class="rec-cat">${esc(app.category)}</span>
-            </div>
-            <span class="rec-rating">${app.avgRating ? `★ ${app.avgRating}` : `${iconImg("like")} ${app.likes || 0}`}</span>
-          </a>`;
-      }).join("")}
-    </div>
-    <div style="text-align:center;margin-top:10px;">
-      <a href="/trending" class="btn btn-secondary btn-sm" id="see-all-trending">See all trending →</a>
-    </div>
-  `;
-  container.querySelector("#see-all-trending")?.addEventListener("click", e => {
-    e.preventDefault();
-    navigateTo("/trending");
-  });
 }
 
 function showTrending(period = "week") {
@@ -4708,7 +4620,6 @@ function attachAdminHandlers(tab) {
         try {
           const record = await getUserRecord(uid);
           if (record) {
-            const info = `${record.displayName || "—"} (${record.email || "—"})\nRole: ${record.role || "user"}\nProvider: ${(record.linkedProviders || []).join(", ") || record.provider || "—"}\nJoined: ${record.createdAt ? new Date(record.createdAt).toLocaleDateString() : "—"}`;
             // [VULN-H FIX] Display in inline panel instead of alert() to prevent data capture
             showProfileLookupModal("Submitter Profile", record);
           } else {
@@ -4976,7 +4887,6 @@ function attachAdminHandlers(tab) {
         try {
           const record = await getUserRecord(uid);
           if (record) {
-            const info = `${record.displayName || "—"} (${record.email || "—"})\nRole: ${record.role || "user"}\nProvider: ${(record.linkedProviders || []).join(", ") || record.provider || "—"}\nJoined: ${record.createdAt ? new Date(record.createdAt).toLocaleDateString() : "—"}`;
             // [VULN-H FIX] Display in inline panel instead of alert() to prevent data capture
             showProfileLookupModal("Reporter Profile", record);
           } else {
@@ -5382,13 +5292,6 @@ function formatInstallMethodsDiff(methods) {
   return methods.map(m => `<div class="diff-install-item"><span class="diff-tag">${esc(m.label || "")}</span> <code>${esc(m.command || "")}</code></div>`).join("");
 }
 
-function formatValuePlain(val) {
-  if (val == null || val === "") return "—";
-  if (Array.isArray(val)) return val.length ? val.map(v => typeof v === "object" ? JSON.stringify(v) : String(v)).join(", ") : "—";
-  if (typeof val === "object") return JSON.stringify(val, null, 2);
-  return String(val);
-}
-
 const FIELD_LABELS = {
   name: "Name", description: "Description", uses: "Uses", alternative: "Alternative To",
   logo: "Logo URL", download: "Download URL", source: "Source URL", category: "Category",
@@ -5776,24 +5679,6 @@ function showRankings() {
   `;
 }
 
-// ── Auth Gate ─────────────────────────────────────────────────────────────────
-function handleAuthGateClick(e) {
-  if (currentUser) return; // Allow through
-  e.preventDefault();
-  e.stopPropagation();
-  const action = e.currentTarget.dataset.action;
-  const appName = e.currentTarget.dataset.appName;
-  openLoginPrompt(action, appName, e.currentTarget.href);
-}
-
-function openLoginPrompt(action, appName, targetUrl) {
-  const modal = document.getElementById("login-prompt-modal");
-  const label = action === "download" ? "download" : "view the source code of";
-  modal.querySelector(".login-prompt-text").textContent = `Sign in to ${label} ${appName}`;
-  modal.dataset.targetUrl = targetUrl;
-  modal.classList.add("open");
-}
-
 // ── Vote Handler ─────────────────────────────────────────────────────────────
 async function handleVoteClick(e) {
   const btn = e.currentTarget;
@@ -5808,9 +5693,6 @@ async function handleVoteClick(e) {
 
   // Optimistic update: compute new score immediately
   const appIdx = apps.findIndex(a => a.id === appId);
-  const currentApp = appIdx >= 0 ? apps[appIdx] : null;
-  const oldLikes = currentApp?.likes || 0;
-  const oldDislikes = currentApp?.dislikes || 0;
 
   try {
     const result = await toggleVote(appId, currentUser.uid, voteType);
@@ -6451,33 +6333,6 @@ function updateThemeIcon(theme) {
 }
 
 // ── Auth UI ──────────────────────────────────────────────────────────────────
-function redirectApexAuthToCanonical(providerName) {
-  if (
-    window.location.protocol !== "https:" ||
-    window.location.hostname !== APEX_AUTH_HOST ||
-    !["google", "github"].includes(providerName)
-  ) {
-    return false;
-  }
-
-  const url = new URL(window.location.href);
-  url.hostname = CANONICAL_AUTH_HOST;
-  url.searchParams.set(AUTH_PROVIDER_PARAM, providerName);
-  window.location.assign(url.toString());
-  return true;
-}
-
-function consumeAuthProviderParam() {
-  const url = new URL(window.location.href);
-  const providerName = url.searchParams.get(AUTH_PROVIDER_PARAM);
-  if (!["google", "github"].includes(providerName)) return null;
-
-  url.searchParams.delete(AUTH_PROVIDER_PARAM);
-  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
-  window.history.replaceState(null, "", nextUrl || "/");
-  return providerName;
-}
-
 async function updateAuthUI(user) {
   currentUser = user;
   const trigger = document.getElementById("auth-trigger");
@@ -6985,7 +6840,6 @@ function showSeoLandingPage({ kind, slug }) {
 
   let page;
   let appList = [];
-  const publicApps = getPublicApps();
 
   if (kind === "topic") {
     const topic = SEO_TOPIC_BY_SLUG.get(slug);
@@ -7623,36 +7477,6 @@ async function showVersionHistoryPage(appId) {
     e.preventDefault();
     navigateTo(`/app/${appId}`);
   });
-}
-
-function renderCurrentView() {
-  const path = location.pathname || "/";
-  if (path.match(/^\/app\/[^/]+\/reviews$/)) {
-    showReviewsPage(decodeURIComponent(path.replace("/app/", "").replace("/reviews", "")));
-  } else if (path.match(/^\/app\/[^/]+\/edit-requests$/)) {
-    showEditRequestsPage(decodeURIComponent(path.replace("/app/", "").replace("/edit-requests", "")));
-  } else if (path.match(/^\/app\/[^/]+\/versions$/)) {
-    showVersionHistoryPage(decodeURIComponent(path.replace("/app/", "").replace("/versions", "")));
-  } else if (path.startsWith("/app/")) {
-    showAppDetail(path.replace("/app/", ""));
-  } else if (path === "/rankings") {
-    showRankings();
-  } else if (path === "/trending") {
-    showTrending();
-  } else if (path === "/roles") {
-    showRolesPage();
-  } else if (path === "/profile" || path.startsWith("/profile/")) {
-    showProfile(path === "/profile" ? null : path.replace("/profile/", ""));
-  } else if (path.startsWith("/org/")) {
-    showOrgView(path.replace("/org/", ""));
-  } else if (path === "/admin") {
-    showAdminDashboard();
-  } else if (path === "/verify") {
-    showVerifySubmissions();
-  } else {
-    buildFilters();
-    renderGrid(getFiltered());
-  }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
