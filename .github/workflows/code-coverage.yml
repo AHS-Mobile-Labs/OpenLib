@@ -45,7 +45,7 @@ jobs:
       #   run: npm test -- --coverage
 
       - name: Upload generated validation artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: openlib-validation-artifacts
           path: |
