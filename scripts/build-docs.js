@@ -348,7 +348,7 @@ function pageShell(page, pages, body, toc, prev, next) {
       <div class="header-actions docs-header-actions">
         <a href="/" class="nav-link">Library</a>
         <a href="/rankings" class="nav-link">Rankings</a>
-        <button class="theme-toggle" id="docs-theme-toggle" aria-label="Switch theme" title="Switch theme"><span id="docs-theme-icon">☀</span></button>
+        <button class="theme-toggle" id="docs-theme-toggle" aria-label="Switch to light theme" title="Switch to light theme"><span id="docs-theme-icon"><img class="ui-icon theme-mode-icon" src="/assets/tabler-icons-3.44.0/icons/outline/sun.svg" alt="" aria-hidden="true"></span></button>
       </div>
     </div>
   </header>
@@ -474,18 +474,32 @@ function writeRuntime() {
   const runtime = `(() => {
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+  const ICON_BASE = "/assets/tabler-icons-3.44.0/icons/outline/";
+  function iconImg(name) {
+    return '<img class="ui-icon theme-mode-icon" src="' + ICON_BASE + name + '.svg" alt="" aria-hidden="true">';
+  }
+  function updateThemeIcon(theme) {
+    const icon = $("#docs-theme-icon");
+    if (!icon) return;
+    const nextMode = theme === "dark" ? "light" : "dark";
+    const label = nextMode === "light" ? "Switch to light theme" : "Switch to dark theme";
+    icon.innerHTML = iconImg(theme === "dark" ? "sun" : "moon");
+    const toggle = $("#docs-theme-toggle");
+    if (toggle) {
+      toggle.setAttribute("aria-label", label);
+      toggle.setAttribute("title", label);
+    }
+  }
   function initTheme() {
     const saved = localStorage.getItem("openlib_theme") || "dark";
     document.documentElement.setAttribute("data-theme", saved);
-    const icon = $("#docs-theme-icon");
-    if (icon) icon.textContent = saved === "dark" ? "☀" : "☾";
+    updateThemeIcon(saved);
   }
   $("#docs-theme-toggle")?.addEventListener("click", () => {
     const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     localStorage.setItem("openlib_theme", next);
-    const icon = $("#docs-theme-icon");
-    if (icon) icon.textContent = next === "dark" ? "☀" : "☾";
+    updateThemeIcon(next);
   });
   initTheme();
 

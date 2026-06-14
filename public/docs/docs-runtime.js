@@ -1,18 +1,32 @@
 (() => {
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+  const ICON_BASE = "/assets/tabler-icons-3.44.0/icons/outline/";
+  function iconImg(name) {
+    return '<img class="ui-icon theme-mode-icon" src="' + ICON_BASE + name + '.svg" alt="" aria-hidden="true">';
+  }
+  function updateThemeIcon(theme) {
+    const icon = $("#docs-theme-icon");
+    if (!icon) return;
+    const nextMode = theme === "dark" ? "light" : "dark";
+    const label = nextMode === "light" ? "Switch to light theme" : "Switch to dark theme";
+    icon.innerHTML = iconImg(theme === "dark" ? "sun" : "moon");
+    const toggle = $("#docs-theme-toggle");
+    if (toggle) {
+      toggle.setAttribute("aria-label", label);
+      toggle.setAttribute("title", label);
+    }
+  }
   function initTheme() {
     const saved = localStorage.getItem("openlib_theme") || "dark";
     document.documentElement.setAttribute("data-theme", saved);
-    const icon = $("#docs-theme-icon");
-    if (icon) icon.textContent = saved === "dark" ? "☀" : "☾";
+    updateThemeIcon(saved);
   }
   $("#docs-theme-toggle")?.addEventListener("click", () => {
     const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
     localStorage.setItem("openlib_theme", next);
-    const icon = $("#docs-theme-icon");
-    if (icon) icon.textContent = next === "dark" ? "☀" : "☾";
+    updateThemeIcon(next);
   });
   initTheme();
 
@@ -55,7 +69,7 @@
   const search = $("#docs-search");
   const results = $("#docs-search-results");
   if (search && results) {
-    fetch("/docs/search-index.json?v=1781440303", { cache: "no-store", credentials: "same-origin" }).then(r => r.json()).then(index => {
+    fetch("/docs/search-index.json?v=1781440782", { cache: "no-store", credentials: "same-origin" }).then(r => r.json()).then(index => {
       search.addEventListener("input", () => {
         const q = search.value.trim().toLowerCase();
         if (!q) {
