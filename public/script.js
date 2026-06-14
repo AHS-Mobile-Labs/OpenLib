@@ -8,16 +8,16 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781444694';
+} from './firebase-config.js?v=1781445992';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781444694';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781445992';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
   setAccountVerified, setTeamAccount, getAllUsers,
   createOrganization, getOrganization, addOrgMember,
   removeOrgMember, transferOwnership, transferToCorporation, getUserOrganizations, getAllOrganizations,
-  hasOrgPermission, getUserOrgsWithPermission,
+  getUserOrgsWithPermission,
   submitAppWithOwner, getAppsByOwner,
   getAppVersions, restoreAppVersion,
   addReviewComment, getReviewComments, approveEditRequest, mergeEditRequest, rejectEditRequest,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781444694';
+} from './firebase-db.js?v=1781445992';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
