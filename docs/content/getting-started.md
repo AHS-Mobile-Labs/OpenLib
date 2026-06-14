@@ -95,8 +95,20 @@ A good OpenLib listing answers practical questions quickly:
 | [Submit an App](/docs/submit-app) | Preparing and sending app submissions |
 | [App Guidelines](/docs/app-guidelines) | Understanding what OpenLib accepts |
 | [Categories & Tags](/docs/categories-and-tags) | Organizing apps so users can find them |
+| [App Pages](/docs/app-pages) | Reading app metadata, trust signals, links, and page actions |
+| [Search and Discovery](/docs/search-and-discovery) | Finding apps through search, rankings, tags, and alternatives |
+| [Reviews and Ratings](/docs/reviews-and-ratings) | Writing reviews and understanding rating signals |
+| [Edit Requests](/docs/edit-requests) | Suggesting corrections to existing app listings |
+| [Reports and Safety](/docs/reports-and-safety) | Reporting unsafe, misleading, or broken listings |
 | [Contributor Guide](/docs/contributor-guide) | Helping with content and review quality |
+| [Roles and Permissions](/docs/roles-and-permissions) | Understanding users, contributors, maintainers, team, and admins |
+| [User Accounts and Profiles](/docs/user-accounts-and-profiles) | Learning what accounts unlock and how profiles display trust context |
+| [Organizations](/docs/organizations) | Managing shared project identities and team-owned apps |
 | [Maintainer Guide](/docs/maintainer-guide) | Maintaining the library and documentation |
+| [Moderation Workflow](/docs/moderation-workflow) | Reviewing submissions, reports, ownership claims, and trust changes |
+| [Ownership Claims](/docs/ownership-claims) | Connecting real project maintainers to app listings |
+| [Verification and Trust](/docs/verification-and-trust) | Understanding badges, reviewed entries, and user safety checks |
+| [Release and Deployment](/docs/release-and-deployment) | Building docs, updating sitemap data, and checking production routes |
 | [FAQ](/docs/faq) | Quick answers about OpenLib and docs |
 
 ## Example app metadata

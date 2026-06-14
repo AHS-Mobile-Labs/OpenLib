@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Learn the local release workflow for docs changes, generated pages, sitemap updates, and Firebase deployment checks.">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <meta name="theme-color" content="#0c0c0f">
+  <title>Release and Deployment | OpenLib Docs</title>
+  <link rel="canonical" href="https://www.openlib.online/docs/release-and-deployment">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="OpenLib">
+  <meta property="og:url" content="https://www.openlib.online/docs/release-and-deployment">
+  <meta property="og:title" content="Release and Deployment | OpenLib Docs">
+  <meta property="og:description" content="Learn the local release workflow for docs changes, generated pages, sitemap updates, and Firebase deployment checks.">
+  <meta property="og:image" content="https://www.openlib.online/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Release and Deployment | OpenLib Docs">
+  <meta name="twitter:description" content="Learn the local release workflow for docs changes, generated pages, sitemap updates, and Firebase deployment checks.">
+  <meta name="twitter:url" content="https://www.openlib.online/docs/release-and-deployment">
+  <meta name="twitter:image" content="https://www.openlib.online/og-image.png">
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://www.openlib.online/docs/release-and-deployment#article","headline":"Release and Deployment","description":"Learn the local release workflow for docs changes, generated pages, sitemap updates, and Firebase deployment checks.","url":"https://www.openlib.online/docs/release-and-deployment","dateModified":"2026-06-14","version":"1.0","author":{"@type":"Organization","name":"OpenLib Team"},"publisher":{"@type":"Organization","name":"OpenLib","url":"https://www.openlib.online"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"OpenLib","item":"https://www.openlib.online/"},{"@type":"ListItem","position":2,"name":"Docs","item":"https://www.openlib.online/docs/"},{"@type":"ListItem","position":3,"name":"Release and Deployment","item":"https://www.openlib.online/docs/release-and-deployment"}]}]}</script>
+  <link rel="stylesheet" href="/styles.css?v=1781440303">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body class="docs-body">
+  <header>
+    <div class="header-inner">
+      <a class="logo-group" href="/"><div class="logo-icon">OL</div><span class="logo-title">Open<span>Lib</span></span></a>
+      <div class="header-actions docs-header-actions">
+        <a href="/" class="nav-link">Library</a>
+        <a href="/rankings" class="nav-link">Rankings</a>
+        <button class="theme-toggle" id="docs-theme-toggle" aria-label="Switch theme" title="Switch theme"><span id="docs-theme-icon">☀</span></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="docs-shell">
+    <aside class="docs-sidebar">
+      <div class="docs-sidebar-head">
+        <strong>Docs</strong>
+      </div>
+      <label class="docs-search-label" for="docs-search">Search documentation</label>
+      <input type="search" id="docs-search" class="docs-search" placeholder="Search docs..." autocomplete="off">
+      <div class="docs-search-results" id="docs-search-results" hidden></div>
+      <nav aria-label="Documentation navigation"><a href="/docs/getting-started" class="">Getting Started</a><a href="/docs/submit-app" class="">Submit an App</a><a href="/docs/app-guidelines" class="">App Guidelines</a><a href="/docs/categories-and-tags" class="">Categories &amp; Tags</a><a href="/docs/app-pages" class="">App Pages</a><a href="/docs/search-and-discovery" class="">Search and Discovery</a><a href="/docs/reviews-and-ratings" class="">Reviews and Ratings</a><a href="/docs/edit-requests" class="">Edit Requests</a><a href="/docs/reports-and-safety" class="">Reports and Safety</a><a href="/docs/contributor-guide" class="">Contributor Guide</a><a href="/docs/roles-and-permissions" class="">Roles and Permissions</a><a href="/docs/user-accounts-and-profiles" class="">User Accounts and Profiles</a><a href="/docs/organizations" class="">Organizations</a><a href="/docs/maintainer-guide" class="">Maintainer Guide</a><a href="/docs/moderation-workflow" class="">Moderation Workflow</a><a href="/docs/ownership-claims" class="">Ownership Claims</a><a href="/docs/verification-and-trust" class="">Verification and Trust</a><a href="/docs/release-and-deployment" class="active">Release and Deployment</a><a href="/docs/faq" class="">FAQ</a><a href="/docs/changelog" class="">Changelog</a></nav>
+    </aside>
+
+    <article class="docs-article">
+      <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">OpenLib</a><span>/</span><a href="/docs/">Docs</a><span>/</span><span>Release and Deployment</span>
+      </nav>
+      <header class="docs-page-header">
+        <div>
+          <span class="docs-status published">Published</span>
+          <h1>Release and Deployment</h1>
+          <p>Learn the local release workflow for docs changes, generated pages, sitemap updates, and Firebase deployment checks.</p>
+          <div class="docs-tags"><span>deployment</span><span>docs</span><span>sitemap</span></div>
+        </div>
+        <dl class="docs-meta">
+          <div><dt>Maintained By</dt><dd>OpenLib Team</dd></div>
+          <div><dt>Last Updated</dt><dd>June 14, 2026</dd></div>
+          <div><dt>Version</dt><dd>1.0</dd></div>
+          <div><dt>Reading Time</dt><dd>2 min</dd></div>
+        </dl>
+      </header>
+      <div class="docs-content"><p>OpenLib docs are written in Markdown and generated into static files before deployment.</p><h2 id="local-release-workflow">Local release workflow <a class="docs-anchor" href="#local-release-workflow" aria-label="Link to Local release workflow">#</a></h2><p>Use this workflow after docs changes:</p><div class="docs-code"><button type="button" class="docs-copy">Copy</button><pre><code class="language-bash">npm run docs:build
+npm run seo:sitemap
+npm run seo:audit</code></pre></div><p>The build should produce static pages under <code>public/docs/</code>, update the docs manifest, and keep search data in sync.</p><h2 id="what-gets-deployed">What gets deployed <a class="docs-anchor" href="#what-gets-deployed" aria-label="Link to What gets deployed">#</a></h2><p>Firebase Hosting serves the generated files in <code>public/</code>. Markdown files in <code>docs/content/</code> are source files for maintainers and contributors.</p><div class="docs-table-wrap"><table><thead><tr><th>Source</th><th>Purpose</th></tr></thead><tbody><tr><td><code>docs/content/</code></td><td>Markdown source</td></tr><tr><td><code>docs/assets/</code></td><td>Source docs images and attachments</td></tr><tr><td><code>public/docs/</code></td><td>Generated deployable docs</td></tr><tr><td><code>public/sitemap.xml</code></td><td>Search engine sitemap</td></tr><tr><td><code>firebase.json</code></td><td>Hosting routes, headers, and rewrites</td></tr></tbody></table></div><h2 id="clean-docs-urls">Clean docs URLs <a class="docs-anchor" href="#clean-docs-urls" aria-label="Link to Clean docs URLs">#</a></h2><p>Each page gets a clean route such as <code>/docs/roles-and-permissions</code>. Firebase rewrites should point that route to the generated HTML file.</p><p>When adding a docs page:</p><ol><li>Add the Markdown file.</li><li>Run the docs build.</li><li>Add a Firebase rewrite for the clean docs path.</li><li>Run sitemap and audit checks.</li></ol><h2 id="version-and-cache-behavior">Version and cache behavior <a class="docs-anchor" href="#version-and-cache-behavior" aria-label="Link to Version and cache behavior">#</a></h2><p>The deploy process updates versioned asset links so browsers receive the latest docs CSS and runtime script.</p><p>Generated docs should not depend on client-only routing. They should render as static pages when opened directly.</p><h2 id="predeploy-checks">Predeploy checks <a class="docs-anchor" href="#predeploy-checks" aria-label="Link to Predeploy checks">#</a></h2><p>Before deployment, confirm:</p><ul><li>Docs build without errors.</li><li>New routes are in Firebase rewrites.</li><li>Sitemap includes published docs.</li><li>SEO audit passes.</li><li>Internal docs links work.</li><li>Removed pages are not still linked.</li></ul><h2 id="related-docs">Related docs <a class="docs-anchor" href="#related-docs" aria-label="Link to Related docs">#</a></h2><ul><li><a href="/docs/maintainer-guide">Maintainer Guide</a></li><li><a href="/docs/changelog">Changelog</a></li></ul></div>
+      <section class="docs-contributors">
+        <h2>Contributors</h2>
+        <ul><li>OpenLib Team</li></ul>
+      </section>
+      <nav class="docs-prev-next" aria-label="Previous and next pages">
+        <a href="/docs/verification-and-trust"><span>Previous</span>Verification and Trust</a>
+        <a href="/docs/faq"><span>Next</span>FAQ</a>
+      </nav>
+    </article>
+
+    <aside class="docs-toc">
+      <strong>On This Page</strong>
+      <nav><a class="level-2" href="#local-release-workflow">Local release workflow</a><a class="level-2" href="#what-gets-deployed">What gets deployed</a><a class="level-2" href="#clean-docs-urls">Clean docs URLs</a><a class="level-2" href="#version-and-cache-behavior">Version and cache behavior</a><a class="level-2" href="#predeploy-checks">Predeploy checks</a><a class="level-2" href="#related-docs">Related docs</a></nav>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-left"><strong>OpenLib</strong> docs are maintained as Markdown and generated into static pages.</div>
+      <nav class="footer-right" aria-label="Footer links">
+        <a href="/" class="footer-link">Library</a>
+        <a href="/docs/" class="footer-link">Docs</a>
+        <a href="/docs/changelog" class="footer-link">Changelog</a>
+        <a href="https://github.com/AHS-Mobile-Labs/OpenLib" target="_blank" rel="noopener" class="footer-link">GitHub</a>
+      </nav>
+    </div>
+  </footer>
+  <script type="module">
+    import { startUpdateChecks } from "/version-check.js?v=1781440303";
+    startUpdateChecks();
+  </script>
+  <script src="/docs/docs-runtime.js?v=1781440303" defer></script>
+</body>
+</html>

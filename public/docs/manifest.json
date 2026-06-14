@@ -65,7 +65,7 @@
         "id": "next-step"
       }
     ],
-    "readingTime": 3
+    "readingTime": 4
   },
   {
     "title": "Submit an App",
@@ -267,6 +267,276 @@
     "readingTime": 2
   },
   {
+    "title": "App Pages",
+    "description": "Understand how OpenLib app pages are structured, what each section means, and how users should read app metadata.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "apps",
+      "metadata",
+      "discovery"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 45,
+    "file": "app-pages.md",
+    "slug": "app-pages",
+    "path": "/docs/app-pages",
+    "toc": [
+      {
+        "level": 2,
+        "text": "How app pages work",
+        "id": "how-app-pages-work"
+      },
+      {
+        "level": 2,
+        "text": "How to read the top section",
+        "id": "how-to-read-the-top-section"
+      },
+      {
+        "level": 2,
+        "text": "Trust signals",
+        "id": "trust-signals"
+      },
+      {
+        "level": 2,
+        "text": "Actions on an app page",
+        "id": "actions-on-an-app-page"
+      },
+      {
+        "level": 2,
+        "text": "Good app page standards",
+        "id": "good-app-page-standards"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Search and Discovery",
+    "description": "Learn how users find apps through search, categories, tags, rankings, trending pages, and alternative pages.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "search",
+      "discovery",
+      "categories"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 46,
+    "file": "search-and-discovery.md",
+    "slug": "search-and-discovery",
+    "path": "/docs/search-and-discovery",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Search behavior",
+        "id": "search-behavior"
+      },
+      {
+        "level": 2,
+        "text": "Categories",
+        "id": "categories"
+      },
+      {
+        "level": 2,
+        "text": "Tags",
+        "id": "tags"
+      },
+      {
+        "level": 2,
+        "text": "Alternative pages",
+        "id": "alternative-pages"
+      },
+      {
+        "level": 2,
+        "text": "Rankings and trending",
+        "id": "rankings-and-trending"
+      },
+      {
+        "level": 2,
+        "text": "How contributors improve discovery",
+        "id": "how-contributors-improve-discovery"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Reviews and Ratings",
+    "description": "Learn how reviews, star ratings, helpful votes, and moderation work on OpenLib app pages.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "reviews",
+      "ratings",
+      "community"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 47,
+    "file": "reviews-and-ratings.md",
+    "slug": "reviews-and-ratings",
+    "path": "/docs/reviews-and-ratings",
+    "toc": [
+      {
+        "level": 2,
+        "text": "How reviews work",
+        "id": "how-reviews-work"
+      },
+      {
+        "level": 2,
+        "text": "Rating guidance",
+        "id": "rating-guidance"
+      },
+      {
+        "level": 2,
+        "text": "Helpful votes",
+        "id": "helpful-votes"
+      },
+      {
+        "level": 2,
+        "text": "Review moderation",
+        "id": "review-moderation"
+      },
+      {
+        "level": 2,
+        "text": "Writing strong reviews",
+        "id": "writing-strong-reviews"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Edit Requests",
+    "description": "Learn how edit requests improve app listings, what evidence to include, and how maintainers review changes.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "edit-requests",
+      "metadata",
+      "contributions"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 48,
+    "file": "edit-requests.md",
+    "slug": "edit-requests",
+    "path": "/docs/edit-requests",
+    "toc": [
+      {
+        "level": 2,
+        "text": "When to submit an edit request",
+        "id": "when-to-submit-an-edit-request"
+      },
+      {
+        "level": 2,
+        "text": "What to include",
+        "id": "what-to-include"
+      },
+      {
+        "level": 2,
+        "text": "How review works",
+        "id": "how-review-works"
+      },
+      {
+        "level": 2,
+        "text": "Direct edits and reviewed edits",
+        "id": "direct-edits-and-reviewed-edits"
+      },
+      {
+        "level": 2,
+        "text": "Good edit request examples",
+        "id": "good-edit-request-examples"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Reports and Safety",
+    "description": "Learn when to report an app, what report statuses mean, and how maintainers respond to safety issues.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "reports",
+      "safety",
+      "moderation"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 49,
+    "file": "reports-and-safety.md",
+    "slug": "reports-and-safety",
+    "path": "/docs/reports-and-safety",
+    "toc": [
+      {
+        "level": 2,
+        "text": "When to report an app",
+        "id": "when-to-report-an-app"
+      },
+      {
+        "level": 2,
+        "text": "What to include",
+        "id": "what-to-include"
+      },
+      {
+        "level": 2,
+        "text": "Report statuses",
+        "id": "report-statuses"
+      },
+      {
+        "level": 2,
+        "text": "Maintainer response",
+        "id": "maintainer-response"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
     "title": "Contributor Guide",
     "description": "Learn how contributors can improve OpenLib content, reviews, docs, and app metadata.",
     "maintainedBy": "OpenLib Team",
@@ -330,6 +600,178 @@
         "level": 2,
         "text": "Local docs workflow",
         "id": "local-docs-workflow"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Roles and Permissions",
+    "description": "Understand OpenLib roles, what each role can do, and how users progress from community member to maintainer or team member.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "roles",
+      "permissions",
+      "moderation"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 55,
+    "file": "roles-and-permissions.md",
+    "slug": "roles-and-permissions",
+    "path": "/docs/roles-and-permissions",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Role ladder",
+        "id": "role-ladder"
+      },
+      {
+        "level": 2,
+        "text": "What each role means",
+        "id": "what-each-role-means"
+      },
+      {
+        "level": 2,
+        "text": "Permission groups",
+        "id": "permission-groups"
+      },
+      {
+        "level": 2,
+        "text": "How role applications work",
+        "id": "how-role-applications-work"
+      },
+      {
+        "level": 2,
+        "text": "Contributor role",
+        "id": "contributor-role"
+      },
+      {
+        "level": 2,
+        "text": "Maintainer role",
+        "id": "maintainer-role"
+      },
+      {
+        "level": 2,
+        "text": "OpenLib Team role",
+        "id": "openlib-team-role"
+      },
+      {
+        "level": 2,
+        "text": "Admin role",
+        "id": "admin-role"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "User Accounts and Profiles",
+    "description": "Learn what OpenLib accounts unlock, how profiles display contribution history, and how identity affects submissions.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "accounts",
+      "profiles",
+      "identity"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 56,
+    "file": "user-accounts-and-profiles.md",
+    "slug": "user-accounts-and-profiles",
+    "path": "/docs/user-accounts-and-profiles",
+    "toc": [
+      {
+        "level": 2,
+        "text": "What accounts unlock",
+        "id": "what-accounts-unlock"
+      },
+      {
+        "level": 2,
+        "text": "Profile information",
+        "id": "profile-information"
+      },
+      {
+        "level": 2,
+        "text": "Verified and team badges",
+        "id": "verified-and-team-badges"
+      },
+      {
+        "level": 2,
+        "text": "Privacy expectations",
+        "id": "privacy-expectations"
+      },
+      {
+        "level": 2,
+        "text": "Account safety",
+        "id": "account-safety"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Organizations",
+    "description": "Learn how organizations work in OpenLib, how teams submit apps together, and how organization roles affect app ownership.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "organizations",
+      "teams",
+      "ownership"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 57,
+    "file": "organizations.md",
+    "slug": "organizations",
+    "path": "/docs/organizations",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Why organizations exist",
+        "id": "why-organizations-exist"
+      },
+      {
+        "level": 2,
+        "text": "Organization roles",
+        "id": "organization-roles"
+      },
+      {
+        "level": 2,
+        "text": "Submitting as an organization",
+        "id": "submitting-as-an-organization"
+      },
+      {
+        "level": 2,
+        "text": "Verification",
+        "id": "verification"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
       }
     ],
     "readingTime": 2
@@ -406,6 +848,222 @@
       }
     ],
     "readingTime": 3
+  },
+  {
+    "title": "Moderation Workflow",
+    "description": "Learn how maintainers review submissions, edit requests, reports, reviews, and trust-sensitive changes.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "moderation",
+      "maintainers",
+      "review"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 65,
+    "file": "moderation-workflow.md",
+    "slug": "moderation-workflow",
+    "path": "/docs/moderation-workflow",
+    "toc": [
+      {
+        "level": 2,
+        "text": "What maintainers review",
+        "id": "what-maintainers-review"
+      },
+      {
+        "level": 2,
+        "text": "Review priorities",
+        "id": "review-priorities"
+      },
+      {
+        "level": 2,
+        "text": "Evidence-first decisions",
+        "id": "evidence-first-decisions"
+      },
+      {
+        "level": 2,
+        "text": "Decision outcomes",
+        "id": "decision-outcomes"
+      },
+      {
+        "level": 2,
+        "text": "Moderation notes",
+        "id": "moderation-notes"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Ownership Claims",
+    "description": "Learn how project maintainers can claim app listings and how OpenLib reviews ownership evidence.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "ownership",
+      "verification",
+      "maintainers"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 70,
+    "file": "ownership-claims.md",
+    "slug": "ownership-claims",
+    "path": "/docs/ownership-claims",
+    "toc": [
+      {
+        "level": 2,
+        "text": "When to claim ownership",
+        "id": "when-to-claim-ownership"
+      },
+      {
+        "level": 2,
+        "text": "Evidence maintainers may check",
+        "id": "evidence-maintainers-may-check"
+      },
+      {
+        "level": 2,
+        "text": "Individual vs organization ownership",
+        "id": "individual-vs-organization-ownership"
+      },
+      {
+        "level": 2,
+        "text": "Review process",
+        "id": "review-process"
+      },
+      {
+        "level": 2,
+        "text": "Why ownership matters",
+        "id": "why-ownership-matters"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Verification and Trust",
+    "description": "Understand OpenLib trust signals, verification badges, official entries, and how users should evaluate listings.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "trust",
+      "verification",
+      "safety"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 75,
+    "file": "verification-and-trust.md",
+    "slug": "verification-and-trust",
+    "path": "/docs/verification-and-trust",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Trust signals",
+        "id": "trust-signals"
+      },
+      {
+        "level": 2,
+        "text": "Verification badges",
+        "id": "verification-badges"
+      },
+      {
+        "level": 2,
+        "text": "Official and reviewed entries",
+        "id": "official-and-reviewed-entries"
+      },
+      {
+        "level": 2,
+        "text": "User checklist",
+        "id": "user-checklist"
+      },
+      {
+        "level": 2,
+        "text": "Red flags",
+        "id": "red-flags"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
+  },
+  {
+    "title": "Release and Deployment",
+    "description": "Learn the local release workflow for docs changes, generated pages, sitemap updates, and Firebase deployment checks.",
+    "maintainedBy": "OpenLib Team",
+    "contributors": [
+      "OpenLib Team"
+    ],
+    "lastUpdated": "2026-06-14",
+    "version": "1.0",
+    "tags": [
+      "deployment",
+      "docs",
+      "sitemap"
+    ],
+    "status": "Published",
+    "category": "Docs",
+    "order": 80,
+    "file": "release-and-deployment.md",
+    "slug": "release-and-deployment",
+    "path": "/docs/release-and-deployment",
+    "toc": [
+      {
+        "level": 2,
+        "text": "Local release workflow",
+        "id": "local-release-workflow"
+      },
+      {
+        "level": 2,
+        "text": "What gets deployed",
+        "id": "what-gets-deployed"
+      },
+      {
+        "level": 2,
+        "text": "Clean docs URLs",
+        "id": "clean-docs-urls"
+      },
+      {
+        "level": 2,
+        "text": "Version and cache behavior",
+        "id": "version-and-cache-behavior"
+      },
+      {
+        "level": 2,
+        "text": "Predeploy checks",
+        "id": "predeploy-checks"
+      },
+      {
+        "level": 2,
+        "text": "Related docs",
+        "id": "related-docs"
+      }
+    ],
+    "readingTime": 2
   },
   {
     "title": "FAQ",
@@ -492,7 +1150,7 @@
     "contributors": [
       "OpenLib Team"
     ],
-    "lastUpdated": "2026-06-13",
+    "lastUpdated": "2026-06-14",
     "version": "1.0",
     "tags": [
       "changelog",
@@ -507,13 +1165,28 @@
     "toc": [
       {
         "level": 2,
+        "text": "2026-06-14",
+        "id": "2026-06-14"
+      },
+      {
+        "level": 3,
+        "text": "Added",
+        "id": "added"
+      },
+      {
+        "level": 3,
+        "text": "Updated",
+        "id": "updated"
+      },
+      {
+        "level": 2,
         "text": "2026-06-13",
         "id": "2026-06-13"
       },
       {
         "level": 3,
         "text": "Added",
-        "id": "added"
+        "id": "added-2"
       },
       {
         "level": 3,
@@ -531,6 +1204,6 @@
         "id": "versioning"
       }
     ],
-    "readingTime": 1
+    "readingTime": 2
   }
 ]

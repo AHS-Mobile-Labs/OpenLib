@@ -72,6 +72,24 @@
         ]
       },
       {
+        "source": "docs/**/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "docs/**/*.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(js|css)",
         "headers": [
           {
@@ -153,12 +171,60 @@
         "destination": "/docs/categories-and-tags.html"
       },
       {
+        "source": "/docs/app-pages",
+        "destination": "/docs/app-pages.html"
+      },
+      {
+        "source": "/docs/search-and-discovery",
+        "destination": "/docs/search-and-discovery.html"
+      },
+      {
+        "source": "/docs/reviews-and-ratings",
+        "destination": "/docs/reviews-and-ratings.html"
+      },
+      {
+        "source": "/docs/edit-requests",
+        "destination": "/docs/edit-requests.html"
+      },
+      {
+        "source": "/docs/reports-and-safety",
+        "destination": "/docs/reports-and-safety.html"
+      },
+      {
         "source": "/docs/contributor-guide",
         "destination": "/docs/contributor-guide.html"
       },
       {
+        "source": "/docs/roles-and-permissions",
+        "destination": "/docs/roles-and-permissions.html"
+      },
+      {
+        "source": "/docs/user-accounts-and-profiles",
+        "destination": "/docs/user-accounts-and-profiles.html"
+      },
+      {
+        "source": "/docs/organizations",
+        "destination": "/docs/organizations.html"
+      },
+      {
         "source": "/docs/maintainer-guide",
         "destination": "/docs/maintainer-guide.html"
+      },
+      {
+        "source": "/docs/moderation-workflow",
+        "destination": "/docs/moderation-workflow.html"
+      },
+      {
+        "source": "/docs/ownership-claims",
+        "destination": "/docs/ownership-claims.html"
+      },
+      {
+        "source": "/docs/verification-and-trust",
+        "destination": "/docs/verification-and-trust.html"
+      },
+      {
+        "source": "/docs/release-and-deployment",
+        "destination": "/docs/release-and-deployment.html"
       },
       {
         "source": "/docs/faq",

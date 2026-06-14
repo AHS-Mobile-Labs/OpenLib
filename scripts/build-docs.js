@@ -410,6 +410,10 @@ function pageShell(page, pages, body, toc, prev, next) {
       </nav>
     </div>
   </footer>
+  <script type="module">
+    import { startUpdateChecks } from "/version-check.js?v=${assetVersion()}";
+    startUpdateChecks();
+  </script>
   <script src="/docs/docs-runtime.js?v=${assetVersion()}" defer></script>
 </body>
 </html>`;
@@ -524,7 +528,7 @@ function writeRuntime() {
   const search = $("#docs-search");
   const results = $("#docs-search-results");
   if (search && results) {
-    fetch("/docs/search-index.json").then(r => r.json()).then(index => {
+    fetch("/docs/search-index.json?v=${assetVersion()}", { cache: "no-store", credentials: "same-origin" }).then(r => r.json()).then(index => {
       search.addEventListener("input", () => {
         const q = search.value.trim().toLowerCase();
         if (!q) {
