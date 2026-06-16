@@ -5,7 +5,7 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781539193';
+import { db } from './firebase-config.js?v=1781639981';
 
 const ADMIN_ROLES = ["admin"];
 const TEAM_ROLES = ["admin", "openlib-team"];
@@ -1123,6 +1123,7 @@ export async function approveSubmission(submissionId, adminUid) {
     screenshots: sub.screenshots || [],
     installMethods: sub.installMethods || [],
     systemRequirements: sub.systemRequirements || "",
+    comparisonData: sub.comparisonData || null,
     platforms: sub.platforms || [],
     likes: 0,
     dislikes: 0,
@@ -1245,7 +1246,7 @@ export async function updateSubmission(submissionId, uid, updatedData) {
     "uses", "alternative", "download", "source", "website", "docs",
     "maintainer", "developer", "developerUrl", "license", "version",
     "fileSize", "tags", "screenshots", "installMethods", "systemRequirements",
-    "platforms"
+    "comparisonData", "platforms"
   ];
   const update = {};
   allowed.forEach(k => { if (updatedData[k] !== undefined) update[k] = updatedData[k]; });

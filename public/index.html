@@ -109,9 +109,9 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/rP2Hp2ywxg089UriCZOIHQ.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/8vIH7w4qzmVxm2BL9A.woff2" crossorigin>
-  <link rel="modulepreload" href="script.js?v=1781539193">
+  <link rel="modulepreload" href="script.js?v=1781639981">
 
-  <link rel="stylesheet" href="styles.css?v=1781539193">
+  <link rel="stylesheet" href="styles.css?v=1781639981">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
@@ -431,6 +431,12 @@
           <textarea id="sub-install-methods" rows="3" placeholder="apt | sudo apt install obs-studio&#10;brew | brew install obs&#10;winget | winget install OBSProject.OBSStudio" maxlength="1000"></textarea>
         </div>
         <div class="form-group">
+          <label>Comparison Table <span class="optional">(optional)</span></label>
+          <p class="comp-editor-hint">Add a manual feature comparison between this app and alternatives. Use ✔/✖ for booleans, Text for custom values, — for N/A.</p>
+          <div id="sub-comparison-editor"></div>
+          <button type="button" class="btn btn-sm btn-secondary" id="sub-comp-init" style="margin-top:6px">+ Create Comparison Table</button>
+        </div>
+        <div class="form-group">
           <label for="sub-sysreq">System Requirements <span class="optional">(optional)</span></label>
           <textarea id="sub-sysreq" rows="2" placeholder="OS: Windows 10+, macOS 11+, Ubuntu 20.04+&#10;RAM: 4 GB minimum&#10;GPU: OpenGL 3.3 compatible" maxlength="500"></textarea>
         </div>
@@ -697,7 +703,7 @@
         </div>
         <div class="form-group">
           <label>Comparison Table <span class="optional">(optional)</span></label>
-          <p class="comp-editor-hint">Edit the feature comparison. Use ✔/✖ for booleans, Text for free input, — for N/A.</p>
+          <p class="comp-editor-hint">Edit the manual feature comparison. Use ✔/✖ for booleans, Text for free input, — for N/A.</p>
           <div id="er-comparison-editor"></div>
           <button type="button" class="btn btn-sm btn-secondary" id="er-comp-init" style="margin-top:6px">+ Create Comparison Table</button>
         </div>
@@ -890,6 +896,12 @@
           <textarea id="resub-install-methods" rows="2" maxlength="2000"></textarea>
         </div>
         <div class="form-group">
+          <label>Comparison Table <span class="optional">(optional)</span></label>
+          <p class="comp-editor-hint">Add a manual feature comparison between this app and alternatives. Use ✔/✖ for booleans, Text for custom values, — for N/A.</p>
+          <div id="resub-comparison-editor"></div>
+          <button type="button" class="btn btn-sm btn-secondary" id="resub-comp-init" style="margin-top:6px">+ Create Comparison Table</button>
+        </div>
+        <div class="form-group">
           <label for="resub-sysreq">System Requirements</label>
           <textarea id="resub-sysreq" rows="2" maxlength="1000"></textarea>
         </div>
@@ -938,6 +950,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=1781539193"></script>
+  <script type="module" src="script.js?v=1781639981"></script>
 </body>
 </html>
