@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781537161';
+} from './firebase-config.js?v=1781539193';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781537161';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781539193';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781537161';
+} from './firebase-db.js?v=1781539193';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
