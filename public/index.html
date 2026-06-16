@@ -109,9 +109,9 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/rP2Hp2ywxg089UriCZOIHQ.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/8vIH7w4qzmVxm2BL9A.woff2" crossorigin>
-  <link rel="modulepreload" href="script.js?v=1781639981">
+  <link rel="modulepreload" href="script.js?v=1781642105">
 
-  <link rel="stylesheet" href="styles.css?v=1781639981">
+  <link rel="stylesheet" href="styles.css?v=1781642105">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
@@ -321,12 +321,12 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="sub-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp)</span></label>
+          <label for="sub-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp, .svg)</span></label>
           <div class="logo-input-group">
             <input type="url" id="sub-logo" placeholder="https://…/logo.png" class="logo-url-input">
             <span class="logo-or">or</span>
             <label class="logo-upload-label" for="sub-logo-file"><img class="ui-icon" src="assets/tabler-icons-3.44.0/icons/outline/upload.svg" alt="" aria-hidden="true"> Upload</label>
-            <input type="file" id="sub-logo-file" accept=".jpg,.jpeg,.png,.webp" class="logo-file-input">
+            <input type="file" id="sub-logo-file" accept=".jpg,.jpeg,.png,.webp,.svg" class="logo-file-input">
             <span class="logo-file-name" id="sub-logo-filename"></span>
           </div>
         </div>
@@ -390,7 +390,7 @@
             <div class="screenshot-controls">
               <label class="btn btn-secondary btn-sm screenshot-upload-btn" for="sub-screenshot-files"><img class="ui-icon" src="assets/tabler-icons-3.44.0/icons/outline/upload.svg" alt="" aria-hidden="true"> Upload Images</label>
               <input type="file" id="sub-screenshot-files" accept=".jpg,.jpeg,.png,.webp" multiple class="screenshot-file-input">
-              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 6 screenshots</span>
+              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 8 screenshots</span>
             </div>
             <div class="screenshot-url-fallback">
               <details>
@@ -576,12 +576,12 @@
             <input type="text" id="er-alternative" placeholder="e.g. WhatsApp, Telegram" maxlength="200">
           </div>
           <div class="form-group">
-            <label for="er-logo">Logo</label>
+            <label for="er-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp, .svg)</span></label>
             <div class="logo-input-group">
               <input type="url" id="er-logo" placeholder="https://…/logo.png" class="logo-url-input">
               <span class="logo-or">or</span>
               <label class="logo-upload-label" for="er-logo-file"><img class="ui-icon" src="assets/tabler-icons-3.44.0/icons/outline/upload.svg" alt="" aria-hidden="true"> Upload</label>
-              <input type="file" id="er-logo-file" accept=".jpg,.jpeg,.png,.webp" class="logo-file-input">
+              <input type="file" id="er-logo-file" accept=".jpg,.jpeg,.png,.webp,.svg" class="logo-file-input">
               <span class="logo-file-name" id="er-logo-filename"></span>
             </div>
           </div>
@@ -670,7 +670,7 @@
             <div class="screenshot-controls">
               <label class="btn btn-secondary btn-sm screenshot-upload-btn" for="er-screenshot-files"><img class="ui-icon" src="assets/tabler-icons-3.44.0/icons/outline/upload.svg" alt="" aria-hidden="true"> Upload Images</label>
               <input type="file" id="er-screenshot-files" accept=".jpg,.jpeg,.png,.webp" multiple class="screenshot-file-input">
-              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 6 screenshots</span>
+              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 8 screenshots</span>
             </div>
             <div class="screenshot-url-fallback">
               <details>
@@ -781,7 +781,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="resub-logo">Logo URL <span class="optional">(.jpg, .jpeg, .png, .webp)</span></label>
+            <label for="resub-logo">Logo URL <span class="optional">(.jpg, .jpeg, .png, .webp, .svg)</span></label>
             <input type="url" id="resub-logo">
           </div>
           <div class="form-group">
@@ -881,7 +881,7 @@
             <div class="screenshot-controls">
               <label class="btn btn-secondary btn-sm screenshot-upload-btn" for="resub-screenshot-files"><img class="ui-icon" src="assets/tabler-icons-3.44.0/icons/outline/upload.svg" alt="" aria-hidden="true"> Upload Images</label>
               <input type="file" id="resub-screenshot-files" accept=".jpg,.jpeg,.png,.webp" multiple class="screenshot-file-input">
-              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 6 screenshots</span>
+              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 8 screenshots</span>
             </div>
             <div class="screenshot-url-fallback">
               <details>
@@ -950,6 +950,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=1781639981"></script>
+  <script type="module" src="script.js?v=1781642105"></script>
 </body>
 </html>

@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781639981';
+} from './firebase-config.js?v=1781642105';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781639981';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781642105';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781639981';
+} from './firebase-db.js?v=1781642105';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -4267,12 +4267,12 @@ function renderAdminAddApp() {
           </div>
         </div>
         <div class="form-group">
-          <label for="aa-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp)</span></label>
+          <label for="aa-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp, .svg)</span></label>
           <div class="logo-input-group">
             <input type="url" id="aa-logo" placeholder="https://…/logo.png" class="logo-url-input">
             <span class="logo-or">or</span>
             <label class="logo-upload-label" for="aa-logo-file">${iconImg("upload")} Upload</label>
-            <input type="file" id="aa-logo-file" accept=".jpg,.jpeg,.png,.webp" class="logo-file-input">
+            <input type="file" id="aa-logo-file" accept=".jpg,.jpeg,.png,.webp,.svg" class="logo-file-input">
             <span class="logo-file-name" id="aa-logo-filename"></span>
           </div>
         </div>
@@ -4355,7 +4355,7 @@ function renderAdminAddApp() {
             <div class="screenshot-controls">
               <label class="btn btn-secondary btn-sm screenshot-upload-btn" for="aa-screenshot-files">${iconImg("upload")} Upload Images</label>
               <input type="file" id="aa-screenshot-files" accept=".jpg,.jpeg,.png,.webp" multiple class="screenshot-file-input">
-              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 6 screenshots</span>
+              <span class="screenshot-hint">JPG, PNG, WebP · Max 5 MB each · Up to 8 screenshots</span>
             </div>
             <div class="screenshot-url-fallback">
               <details>
@@ -6135,7 +6135,7 @@ function isValidLogoURL(url) {
 }
 
 // ── Screenshot Upload Helpers ────────────────────────────────────────────────
-const MAX_SCREENSHOTS = 6;
+const MAX_SCREENSHOTS = 8;
 
 function initScreenshotUploader(prefix) {
   // prefix: "sub", "resub", or "aa"
