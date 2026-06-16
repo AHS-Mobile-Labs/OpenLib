@@ -142,3 +142,5 @@ Please do not open public issues for vulnerabilities. Read [SECURITY.md](SECURIT
 OpenLib is distributed under the [Mozilla Public License 2.0](LICENSE).
 
 The OpenLib name, branding, and logos remain the property of AHS Mobile Labs.
+
+© 2026 AHS Mobile Labs
