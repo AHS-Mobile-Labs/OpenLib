@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781642105';
+} from './firebase-config.js?v=1781643283';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781642105';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781643283';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781642105';
+} from './firebase-db.js?v=1781643283';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -2007,7 +2007,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
   document.getElementById("er-full-description").placeholder = app.fullDescription || "Extended description";
   document.getElementById("er-features").placeholder = (app.features || []).join("\n") || "Features (one per line)";
   document.getElementById("er-tags").placeholder = (app.tags || []).join(", ") || "Tags";
-  document.getElementById("er-screenshots").placeholder = (app.screenshots || []).join("\n") || "Screenshot URLs";
+  document.getElementById("er-screenshots").placeholder = "Paste additional screenshot URLs, one per line";
   document.getElementById("er-install-methods").placeholder = (app.installMethods || []).map(m => m.label + " | " + m.command).join("\n") || "Installation methods";
   document.getElementById("er-sysreq").placeholder = app.systemRequirements || "System requirements";
   document.getElementById("er-license").value = "";
@@ -2022,6 +2022,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
 
   // Initialize screenshot uploader
   clearScreenshotUploader("er");
+  prefillScreenshotUrls("er", app.screenshots || []);
   initScreenshotUploader("er");
 
   // Comparison editor
@@ -2070,6 +2071,7 @@ async function handleEditRequestSubmit(e) {
 
   const appId = document.getElementById("er-app-id").value;
   const reason = document.getElementById("er-reason").value.trim();
+  const app = apps.find(a => a.id === appId);
 
   if (!reason) { showFormError(form, "Please explain why this edit is needed."); return; }
   if (reason.length < 5) { showFormError(form, "Reason must be at least 5 characters."); return; }
@@ -2142,7 +2144,10 @@ async function handleEditRequestSubmit(e) {
     btn.textContent = btn.getAttribute("data-original") || "Submit Edit Request";
     return;
   }
-  if (screenshots.length) changes.screenshots = screenshots;
+  const currentScreenshots = app?.screenshots || [];
+  const screenshotsChanged = screenshots.length !== currentScreenshots.length ||
+    screenshots.some((url, i) => url !== currentScreenshots[i]);
+  if (screenshotsChanged) changes.screenshots = screenshots;
 
   const erInstall = document.getElementById("er-install-methods").value.trim();
   if (erInstall) changes.installMethods = erInstall.split("\n").map(line => {
@@ -2152,7 +2157,6 @@ async function handleEditRequestSubmit(e) {
 
   const platforms = [...form.querySelectorAll("input[name='er-platforms']:checked")].map(el => el.value);
   // Find the app to compare platforms
-  const app = apps.find(a => a.id === appId);
   const currentPlatforms = app?.platforms || [];
   const platformsChanged = platforms.length !== currentPlatforms.length ||
     platforms.some(p => !currentPlatforms.includes(p)) ||
@@ -6126,8 +6130,7 @@ function isValidLogoURL(url) {
     ];
     const isTrustedHost = trustedHosts.some(h => parsed.hostname === h || parsed.hostname.endsWith("." + h));
     if (isTrustedHost) return true;
-    // SVG URLs are safe when rendered via <img> tags (scripts are sandboxed)
-    // File uploads of SVG are still blocked in Storage rules
+    // SVG URLs are rendered via <img>; uploaded SVG logos are validated separately.
     return /\.(jpe?g|png|webp|svg)(\?.*)?$/i.test(parsed.pathname);
   } catch {
     return false;
@@ -6136,9 +6139,26 @@ function isValidLogoURL(url) {
 
 // ── Screenshot Upload Helpers ────────────────────────────────────────────────
 const MAX_SCREENSHOTS = 8;
+const SCREENSHOT_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function normalizeScreenshotUrlItems(items) {
+  return (items || [])
+    .map(item => typeof item === "string" ? { url: item } : item)
+    .filter(item => item && (item.url || item.replacementFile));
+}
+
+function validateScreenshotFile(file) {
+  if (!SCREENSHOT_FILE_TYPES.includes(file.type)) {
+    return "Invalid type. Use JPG, PNG, or WebP.";
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return "Too large. Max 5 MB.";
+  }
+  return "";
+}
 
 function initScreenshotUploader(prefix) {
-  // prefix: "sub", "resub", or "aa"
+  // prefix: "sub", "er", "resub", or "aa"
   const fileInput = document.getElementById(`${prefix}-screenshot-files`);
   const previewsContainer = document.getElementById(`${prefix}-screenshot-previews`);
   if (!fileInput || !previewsContainer) return;
@@ -6146,7 +6166,10 @@ function initScreenshotUploader(prefix) {
   // Store file list on the container element
   if (!previewsContainer._screenshotFiles) previewsContainer._screenshotFiles = [];
   if (!previewsContainer._screenshotUrls) previewsContainer._screenshotUrls = [];
+  previewsContainer._screenshotUrls = normalizeScreenshotUrlItems(previewsContainer._screenshotUrls);
 
+  if (fileInput._screenshotUploaderBound) return;
+  fileInput._screenshotUploaderBound = true;
   fileInput.addEventListener("change", () => {
     const newFiles = [...fileInput.files];
     const existing = previewsContainer._screenshotFiles.length + previewsContainer._screenshotUrls.length;
@@ -6157,12 +6180,9 @@ function initScreenshotUploader(prefix) {
     }
 
     newFiles.slice(0, allowed).forEach(file => {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        showToast(`${file.name}: Invalid type. Use JPG, PNG, or WebP.`);
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        showToast(`${file.name}: Too large. Max 5 MB.`);
+      const fileError = validateScreenshotFile(file);
+      if (fileError) {
+        showToast(`${file.name}: ${fileError}`);
         return;
       }
       previewsContainer._screenshotFiles.push(file);
@@ -6177,15 +6197,23 @@ function renderScreenshotPreviews(prefix) {
   const container = document.getElementById(`${prefix}-screenshot-previews`);
   if (!container) return;
   const files = container._screenshotFiles || [];
-  const urls = container._screenshotUrls || [];
+  const urls = normalizeScreenshotUrlItems(container._screenshotUrls);
+  container._screenshotUrls = urls;
   const items = [];
 
-  urls.forEach((url, i) => {
+  urls.forEach((item, i) => {
+    const hasReplacement = !!item.replacementFile;
+    const previewUrl = hasReplacement ? URL.createObjectURL(item.replacementFile) : item.url;
     items.push(`
       <div class="screenshot-preview-item" data-type="url" data-index="${i}">
-        <img src="${escUrl(url)}" alt="Screenshot" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2260%22><rect fill=%22%23333%22 width=%2280%22 height=%2260%22/><text x=%2240%22 y=%2234%22 fill=%22%23999%22 font-size=%2210%22 text-anchor=%22middle%22>Error</text></svg>'">
+        <img src="${escUrl(previewUrl)}" alt="Screenshot" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2260%22><rect fill=%22%23333%22 width=%2280%22 height=%2260%22/><text x=%2240%22 y=%2234%22 fill=%22%23999%22 font-size=%2210%22 text-anchor=%22middle%22>Error</text></svg>'">
         <button type="button" class="screenshot-remove-btn" data-type="url" data-index="${i}" title="Remove">✕</button>
-        <span class="screenshot-badge">URL</span>
+        <label class="screenshot-replace-btn" title="Replace screenshot">
+          Replace
+          <input type="file" class="screenshot-replace-input" data-index="${i}" accept=".jpg,.jpeg,.png,.webp">
+        </label>
+        ${hasReplacement ? `<button type="button" class="screenshot-undo-replace" data-index="${i}" title="Keep original">Undo</button>` : ""}
+        <span class="screenshot-badge">${hasReplacement ? "Replace" : "Existing"}</span>
       </div>`);
   });
 
@@ -6213,6 +6241,34 @@ function renderScreenshotPreviews(prefix) {
       renderScreenshotPreviews(prefix);
     });
   });
+
+  container.querySelectorAll(".screenshot-replace-input").forEach(input => {
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      if (!file) return;
+      const fileError = validateScreenshotFile(file);
+      if (fileError) {
+        showToast(`${file.name}: ${fileError}`);
+        input.value = "";
+        return;
+      }
+      const idx = parseInt(input.dataset.index, 10);
+      const urlItems = normalizeScreenshotUrlItems(container._screenshotUrls);
+      if (urlItems[idx]) urlItems[idx].replacementFile = file;
+      container._screenshotUrls = urlItems;
+      renderScreenshotPreviews(prefix);
+    });
+  });
+
+  container.querySelectorAll(".screenshot-undo-replace").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.index, 10);
+      const urlItems = normalizeScreenshotUrlItems(container._screenshotUrls);
+      if (urlItems[idx]) delete urlItems[idx].replacementFile;
+      container._screenshotUrls = urlItems;
+      renderScreenshotPreviews(prefix);
+    });
+  });
 }
 
 function clearScreenshotUploader(prefix) {
@@ -6228,7 +6284,7 @@ function prefillScreenshotUrls(prefix, urls) {
   const container = document.getElementById(`${prefix}-screenshot-previews`);
   if (!container) return;
   container._screenshotFiles = [];
-  container._screenshotUrls = [...(urls || [])];
+  container._screenshotUrls = (urls || []).map(url => ({ url }));
   renderScreenshotPreviews(prefix);
 }
 
@@ -6237,7 +6293,7 @@ async function processScreenshotUploads(prefix, appName, statusCallback) {
   if (!container) return [];
 
   const files = container._screenshotFiles || [];
-  const urls = container._screenshotUrls || [];
+  const urlItems = normalizeScreenshotUrlItems(container._screenshotUrls);
 
   // Also read any URLs from the fallback textarea
   const textarea = document.getElementById(`${prefix}-screenshots`);
@@ -6245,8 +6301,16 @@ async function processScreenshotUploads(prefix, appName, statusCallback) {
     ? textarea.value.trim().split("\n").map(u => u.trim()).filter(Boolean)
     : [];
 
-  // Merge direct URLs + textarea URLs (deduplicate)
-  const allUrls = [...new Set([...urls, ...textareaUrls])];
+  const retainedUrls = [];
+  for (let i = 0; i < urlItems.length; i++) {
+    const item = urlItems[i];
+    if (item.replacementFile) {
+      if (statusCallback) statusCallback(`Uploading replacement ${i + 1}/${urlItems.length}…`);
+      retainedUrls.push(await uploadScreenshotToStorage(item.replacementFile, appName, i));
+    } else if (item.url) {
+      retainedUrls.push(item.url);
+    }
+  }
 
   // Upload files
   const uploadedUrls = [];
@@ -6256,7 +6320,7 @@ async function processScreenshotUploads(prefix, appName, statusCallback) {
     uploadedUrls.push(url);
   }
 
-  return [...allUrls, ...uploadedUrls];
+  return [...new Set([...retainedUrls, ...textareaUrls, ...uploadedUrls])];
 }
 
 // ── Modal Utilities ──────────────────────────────────────────────────────────
