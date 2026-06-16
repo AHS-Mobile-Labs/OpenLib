@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781643283';
+} from './firebase-config.js?v=1781644936';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781643283';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781644936';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781643283';
+} from './firebase-db.js?v=1781644936';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -2062,6 +2062,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
   `;
 
   modal.classList.add("open");
+  markFormClean(form);
 }
 
 async function handleEditRequestSubmit(e) {
@@ -2227,6 +2228,7 @@ async function handleEditRequestSubmit(e) {
 
   try {
     await submitEditRequest(appId, changes, currentUser);
+    markFormClean(form);
     showFormSuccess(form, "Edit request submitted! It will be reviewed by the team.");
     setTimeout(() => {
       closeModal("edit-request-modal");
@@ -2910,7 +2912,11 @@ async function showProfile(uid) {
     });
 
     document.getElementById("create-org-btn")?.addEventListener("click", () => {
+      const form = document.getElementById("create-org-form");
+      form?.reset();
+      if (form) clearFormMsg(form);
       document.getElementById("create-org-modal")?.classList.add("open");
+      markFormClean(form);
     });
 
     profileView.querySelectorAll(".profile-link-provider-btn").forEach(btn => {
@@ -4912,7 +4918,10 @@ function attachAdminHandlers(tab) {
       });
     }
 
-    document.getElementById("admin-add-app-form")?.addEventListener("submit", async e => {
+    const adminAddForm = document.getElementById("admin-add-app-form");
+    markFormClean(adminAddForm);
+
+    adminAddForm?.addEventListener("submit", async e => {
       e.preventDefault();
       const form = e.target;
       const submitBtn = form.querySelector("button[type='submit']");
@@ -5027,6 +5036,7 @@ function attachAdminHandlers(tab) {
         if (aaCompContainer) aaCompContainer.innerHTML = "";
         if (aaCompInitBtn) aaCompInitBtn.style.display = "";
         clearScreenshotUploader("aa");
+        markFormClean(form);
         await loadApps({ force: true });
       } catch (err) {
         showFormError(form, err.message);
@@ -5705,6 +5715,7 @@ function openReportModal(appId, appName) {
   form.reset();
   clearFormMsg(form);
   modal.classList.add("open");
+  markFormClean(form);
 }
 
 async function handleReportSubmit(e) {
@@ -5723,6 +5734,7 @@ async function handleReportSubmit(e) {
 
   try {
     await submitReport({ appId: form.dataset.appId, appName: form.dataset.appName, reason, details });
+    markFormClean(form);
     showFormSuccess(form, "Report submitted. Thank you!");
     setTimeout(() => closeModal("report-modal"), 2000);
   } catch (err) {
@@ -5740,8 +5752,9 @@ function openSubmitModal(preselectedOrgId) {
     return;
   }
   const modal = document.getElementById("submit-modal");
-  document.getElementById("submit-form").reset();
-  clearFormMsg(document.getElementById("submit-form"));
+  const form = document.getElementById("submit-form");
+  form.reset();
+  clearFormMsg(form);
 
   // Populate org selector
   const ownerSelect = document.getElementById("sub-owner");
@@ -5772,6 +5785,7 @@ function openSubmitModal(preselectedOrgId) {
   // Initialize screenshot uploader
   clearScreenshotUploader("sub");
   initScreenshotUploader("sub");
+  markFormClean(form);
 }
 
 // ── Shared Web-Only Platform State Helper ─────────────────────────────────────
@@ -5944,6 +5958,7 @@ async function handleSubmitApp(e) {
   try {
     await submitApp(payload);
     clearScreenshotUploader("sub");
+    markFormClean(form);
     showFormSuccess(form, "App submitted for review!");
     setTimeout(() => closeModal("submit-modal"), 2500);
   } catch (err) {
@@ -6019,6 +6034,7 @@ function openResubmitModal(sub) {
   updateFormWebOnlyState("resub", "resub-platforms");
 
   modal.classList.add("open");
+  markFormClean(document.getElementById("resubmit-form"));
 }
 
 async function handleResubmit(e) {
@@ -6100,6 +6116,7 @@ async function handleResubmit(e) {
   try {
     await updateSubmission(subId, currentUser.uid, updatedData);
     clearScreenshotUploader("resub");
+    markFormClean(form);
     showFormSuccess(form, "Resubmitted for review!");
     setTimeout(() => {
       closeModal("resubmit-modal");
@@ -6324,7 +6341,116 @@ async function processScreenshotUploads(prefix, appName, statusCallback) {
 }
 
 // ── Modal Utilities ──────────────────────────────────────────────────────────
-function closeModal(id) { document.getElementById(id)?.classList.remove("open"); }
+const UNSAVED_FORM_IDS = [
+  "report-form",
+  "submit-form",
+  "edit-request-form",
+  "create-org-form",
+  "resubmit-form",
+  "admin-add-app-form"
+];
+
+function fileMeta(file) {
+  return file ? { name: file.name, size: file.size, type: file.type, lastModified: file.lastModified } : null;
+}
+
+function serializeComparisonEditorState(container) {
+  const editor = container?.querySelector?.(".comp-editor");
+  if (!editor) return null;
+  return {
+    id: container.id || "",
+    columns: [...editor.querySelectorAll(".comp-col-input")].map(input => input.value),
+    rows: [...editor.querySelectorAll(".comp-row")].map(row => ({
+      feature: row.querySelector(".comp-feature-input")?.value || "",
+      values: [...row.querySelectorAll(".comp-cell")].map(cell => ({
+        type: cell.querySelector(".comp-cell-type")?.value || "",
+        text: cell.querySelector(".comp-cell-text")?.value || ""
+      }))
+    }))
+  };
+}
+
+function serializeFormState(form) {
+  if (!form) return "";
+  const fields = [...form.elements]
+    .filter(el => el.name || el.id)
+    .filter(el => el.id !== "sub-owner")
+    .filter(el => !["button", "submit", "reset", "hidden"].includes((el.type || "").toLowerCase()))
+    .map(el => {
+      const type = (el.type || "").toLowerCase();
+      if (type === "file") {
+        return [el.id || el.name, [...(el.files || [])].map(fileMeta)];
+      }
+      if (type === "checkbox" || type === "radio") {
+        return [el.id || el.name, el.checked];
+      }
+      return [el.id || el.name, el.value];
+    });
+  const screenshots = [...form.querySelectorAll(".screenshot-previews")].map(container => ({
+    id: container.id,
+    files: (container._screenshotFiles || []).map(fileMeta),
+    urls: normalizeScreenshotUrlItems(container._screenshotUrls).map(item => ({
+      url: item.url || "",
+      replacementFile: fileMeta(item.replacementFile)
+    }))
+  }));
+  const comparisons = [...form.querySelectorAll("[id$='comparison-editor']")]
+    .map(serializeComparisonEditorState)
+    .filter(Boolean);
+  return JSON.stringify({ fields, screenshots, comparisons });
+}
+
+function markFormClean(form) {
+  if (form) form.dataset.cleanSnapshot = serializeFormState(form);
+}
+
+function isFormActive(form) {
+  if (!form) return false;
+  const modal = form.closest(".modal-overlay");
+  if (modal) return modal.classList.contains("open");
+  return form.offsetParent !== null;
+}
+
+function formHasUnsavedWork(form) {
+  if (!isFormActive(form)) return false;
+  if (!form.dataset.cleanSnapshot) markFormClean(form);
+  return serializeFormState(form) !== form.dataset.cleanSnapshot;
+}
+
+function getUnsavedForms(scope = document) {
+  return UNSAVED_FORM_IDS
+    .map(id => scope.querySelector ? scope.querySelector(`#${id}`) : document.getElementById(id))
+    .filter(Boolean)
+    .filter(formHasUnsavedWork);
+}
+
+function hasActiveUnsavedWork() {
+  return getUnsavedForms(document).length > 0;
+}
+
+function confirmDiscardUnsaved(scope = document) {
+  const dirtyForms = getUnsavedForms(scope);
+  if (!dirtyForms.length) return true;
+  const discard = confirm("You have unsaved changes. Leave without saving?");
+  if (discard) dirtyForms.forEach(markFormClean);
+  return discard;
+}
+
+function closeModal(id, opts = {}) {
+  const modal = document.getElementById(id);
+  if (!modal) return false;
+  if (!opts.force && !confirmDiscardUnsaved(modal)) return false;
+  modal.classList.remove("open");
+  return true;
+}
+
+window.addEventListener("beforeunload", e => {
+  if (!hasActiveUnsavedWork()) return;
+  e.preventDefault();
+  e.returnValue = "";
+  return "";
+});
+
 function showFormError(form, msg)   { setMsg(form, msg, "error"); }
 function showFormSuccess(form, msg) { setMsg(form, msg, "success"); }
 function clearFormMsg(form)         { setMsg(form, "", ""); }
@@ -7740,7 +7866,7 @@ async function init() {
     overlay.addEventListener("click", e => {
       // Only close via explicit close button (not backdrop click)
       if (e.target.closest(".modal-close")) {
-        overlay.classList.remove("open");
+        closeModal(overlay.id);
       }
     });
     overlay.addEventListener("keydown", e => {
@@ -7762,7 +7888,7 @@ async function init() {
   // Global keyboard shortcuts
   document.addEventListener("keydown", e => {
     if (e.key === "Escape") {
-      document.querySelectorAll(".modal-overlay.open").forEach(m => m.classList.remove("open"));
+      document.querySelectorAll(".modal-overlay.open").forEach(m => closeModal(m.id));
     }
     if (e.altKey && e.key === "s") { e.preventDefault(); openSubmitModal(); }
     if (e.altKey && e.key === "f") { e.preventDefault(); document.getElementById("search-input").focus(); }
@@ -7788,6 +7914,7 @@ async function init() {
     btn.textContent = "Creating…";
     try {
       const org = await createOrganization({ name, description, logoURL, website }, currentUser.uid);
+      markFormClean(form);
       showFormSuccess(form, "Organization created!");
       userRecord = await getUserRecord(currentUser.uid);
       setTimeout(() => {
