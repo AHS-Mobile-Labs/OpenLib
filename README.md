@@ -34,6 +34,10 @@ User docs: [https://www.openlib.online/docs/](https://www.openlib.online/docs/)
 | Functions | Firebase Cloud Functions |
 | Analytics | Google Analytics 4 |
 
+## Codebase Size
+
+OpenLib has about 31.6k maintained lines across tracked source, rules, scripts, config, and docs. This excludes generated `public/docs/` files, binary assets, and lockfiles.
+
 ## Repository Map
 
 ```text
