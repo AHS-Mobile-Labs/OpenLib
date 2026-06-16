@@ -4,7 +4,7 @@
   <img src="https://raw.githubusercontent.com/AHS-Mobile-Labs/OpenLib/refs/heads/main/public/og-image.png" alt="OpenLib banner" width="100%" />
 </p>
 
-OpenLib is a community-driven library for discovering free and open-source software. It helps people compare alternatives, review apps, browse categories, and find tools that respect open-source and privacy-friendly values.
+OpenLib is a community-driven library for discovering free and open-source software. It helps people compare alternatives, inspect app metadata, read community reviews, and find tools that match open-source and privacy-friendly values.
 
 [![Live](https://img.shields.io/badge/Live-Firebase-orange)](https://www.openlib.online/)
 [![License](https://img.shields.io/badge/license-MPL--2.0-green)](LICENSE)
@@ -13,15 +13,14 @@ Live site: [https://www.openlib.online/](https://www.openlib.online/)
 
 User docs: [https://www.openlib.online/docs/](https://www.openlib.online/docs/)
 
-## Features
+## What OpenLib Does
 
-- Browse curated open-source apps by category, tag, ranking, and trend.
-- Search the catalog with keyboard-friendly navigation.
-- View app detail pages with screenshots, install methods, metadata, alternatives, ratings, and reviews.
-- Submit new apps, request edits, claim ownership, and resubmit after review feedback.
-- Use community profiles, bookmarks, follows, organizations, reports, and reputation roles.
-- Moderate submissions, reports, edit requests, app versions, users, and team permissions.
-- Serve SEO-friendly prerendered pages for app, category, tag, alternative, policy, and landing routes.
+- Helps users browse open-source apps by category, tag, ranking, trend, and alternatives.
+- Shows app detail pages with screenshots, install methods, source links, metadata, ratings, reviews, and related tools.
+- Supports app submissions, edit requests, ownership claims, reports, and review feedback.
+- Provides community profiles, bookmarks, follows, organizations, reputation, and contributor roles.
+- Gives maintainers moderation workflows for submissions, reports, app versions, users, and team permissions.
+- Serves SEO-friendly prerendered pages for app, category, tag, alternative, policy, docs, and landing routes.
 
 ## Stack
 
@@ -35,15 +34,15 @@ User docs: [https://www.openlib.online/docs/](https://www.openlib.online/docs/)
 | Functions | Firebase Cloud Functions |
 | Analytics | Google Analytics 4 |
 
-## Project Structure
+## Repository Map
 
 ```text
-public/       Firebase Hosting public root: SPA files, assets, manifest, sitemap, robots, legal text
-docs/         Markdown source for OpenLib documentation and docs media
-functions/    Cloud Functions, prerender logic, and copied HTML/legal snapshots for bot routes
+public/       Firebase Hosting public root, SPA files, assets, generated docs, sitemap, robots, legal text
+docs/         Markdown documentation source and docs media
+functions/    Cloud Functions, prerendering, reputation, automation, and bot-friendly snapshots
 firebase/     Firestore rules, Firestore indexes, and Storage rules
-scripts/      SEO, sitemap, deploy-version, and Search Console maintenance scripts
-config/       Local configuration templates
+scripts/      Docs, SEO, sitemap, deploy-version, and Search Console maintenance scripts
+config/       Local Firebase configuration templates
 ```
 
 Important public entry files:
@@ -62,7 +61,8 @@ Read [docs/README.md](docs/README.md) before adding, editing, or fixing docs pag
 
 ### Prerequisites
 
-- Node.js
+- Node.js for local scripts and Cloud Functions tooling
+- npm
 - Firebase CLI
 - A Firebase project with Authentication, Firestore, Storage, Hosting, and Functions enabled
 
@@ -72,24 +72,54 @@ Read [docs/README.md](docs/README.md) before adding, editing, or fixing docs pag
 git clone https://github.com/AHS-Mobile-Labs/OpenLib.git
 cd OpenLib
 cp config/firebase-config.template.js public/firebase-config.js
+```
+
+Edit `public/firebase-config.js` with your local Firebase web app values. This file is ignored by git and should not be committed.
+
+For a quick static preview of the hosted files:
+
+```bash
+python3 -m http.server 5174 --directory public
+```
+
+For Firebase-backed development:
+
+```bash
 firebase emulators:start
 ```
 
-For a quick static preview, serve the `public/` directory with any local web server. The Firebase emulator flow is recommended when testing authentication, Firestore, Storage, Functions, rules, or prerendering.
-
-## Scripts
+If you are working on Cloud Functions, install the Functions dependencies first:
 
 ```bash
-npm run seo:audit        # Validate local SEO-critical files and Firebase rewrites
-npm run seo:sitemap      # Generate public/sitemap.xml and public/robots.txt
+cd functions
+npm ci
+cd ..
+firebase emulators:start
+```
+
+Use the emulator flow when testing authentication, Firestore, Storage, Functions, rules, uploads, roles, moderation, or prerendering.
+
+## Common Commands
+
+```bash
 npm run docs:build       # Generate public/docs from docs/content Markdown
+npm run seo:sitemap      # Generate public/sitemap.xml and public/robots.txt
+npm run seo:audit        # Validate local SEO-critical files and Firebase rewrites
 npm run seo:audit:live   # Check live production URLs
 npm run seo:gsc          # Read Search Console data when Google credentials are configured
 ```
 
-`firebase deploy` also runs the hosting predeploy hooks in `firebase.json`, including version stamping, sitemap generation, and the local SEO audit.
+`firebase deploy` runs the hosting predeploy hooks in `firebase.json`, including version stamping, sitemap generation, and the local SEO audit.
 
-## Deploy
+## Development Notes
+
+- The hosted SPA is framework-free and does not require a frontend build step.
+- Public routes, metadata, sitemap entries, service worker behavior, and Firebase rewrites should stay in sync.
+- Docs are edited in `docs/content/`; generated files in `public/docs/` should come from `npm run docs:build`.
+- Firestore and Storage permissions must be enforced in rules or trusted Functions, not only in client UI.
+- App listing changes should use verifiable upstream sources for licenses, install links, platforms, and ownership claims.
+
+## Deployment
 
 ```bash
 firebase deploy
@@ -99,9 +129,9 @@ Hosting deploys only `public/`. Function predeploy copies `public/index.html`, `
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, especially if your change touches routes, Firebase rules, roles, user content, docs generation, or moderation workflows.
 
-You can also submit apps directly through the live OpenLib site with the submit app flow.
+You can also submit apps directly through the live OpenLib site with the submit app flow. A pull request is not required for ordinary app suggestions.
 
 ## Security
 
