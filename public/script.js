@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781644936';
+} from './firebase-config.js?v=1781692595';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781644936';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781692595';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781644936';
+} from './firebase-db.js?v=1781692595';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -772,9 +772,9 @@ function compRowHtml(row, colCount) {
     <input type="text" class="comp-feature-input" value="${esc(row?.feature || "")}" placeholder="Feature name">
     <div class="comp-row-cells">${cells}</div>
     <div class="comp-row-actions">
-      <button type="button" class="btn btn-xs comp-row-up" title="Move up">↑</button>
-      <button type="button" class="btn btn-xs comp-row-down" title="Move down">↓</button>
-      <button type="button" class="btn btn-xs btn-danger comp-row-remove" title="Remove row">✕</button>
+      <button type="button" class="btn btn-xs comp-row-up" title="Move row up" aria-label="Move row up">↑</button>
+      <button type="button" class="btn btn-xs comp-row-down" title="Move row down" aria-label="Move row down">↓</button>
+      <button type="button" class="btn btn-xs btn-danger comp-row-remove" title="Remove row" aria-label="Remove row">✕</button>
     </div>
   </div>`;
 }
@@ -798,6 +798,17 @@ function initComparisonEditor(container, data) {
       <button type="button" class="btn btn-sm btn-secondary comp-add-row">+ Feature Row</button>
     </div>`;
   attachCompEditorEvents(container);
+  updateCompRowActionStates(container);
+}
+
+function updateCompRowActionStates(ct) {
+  const rows = [...ct.querySelectorAll(".comp-row")];
+  rows.forEach((row, i) => {
+    const up = row.querySelector(".comp-row-up");
+    const down = row.querySelector(".comp-row-down");
+    if (up) up.disabled = i === 0;
+    if (down) down.disabled = i === rows.length - 1;
+  });
 }
 
 function attachCompEditorEvents(ct) {
@@ -829,15 +840,21 @@ function attachCompEditorEvents(ct) {
     if (t.classList.contains("comp-add-row")) {
       const n = ct.querySelectorAll(".comp-col-input").length;
       ct.querySelector(".comp-editor-rows").insertAdjacentHTML("beforeend", compRowHtml(null, n));
+      updateCompRowActionStates(ct);
     }
-    if (t.classList.contains("comp-row-remove")) t.closest(".comp-row").remove();
+    if (t.classList.contains("comp-row-remove")) {
+      t.closest(".comp-row").remove();
+      updateCompRowActionStates(ct);
+    }
     if (t.classList.contains("comp-row-up")) {
       const row = t.closest(".comp-row"), prev = row.previousElementSibling;
       if (prev) row.parentElement.insertBefore(row, prev);
+      updateCompRowActionStates(ct);
     }
     if (t.classList.contains("comp-row-down")) {
       const row = t.closest(".comp-row"), next = row.nextElementSibling;
       if (next) row.parentElement.insertBefore(next, row);
+      updateCompRowActionStates(ct);
     }
   });
 }
