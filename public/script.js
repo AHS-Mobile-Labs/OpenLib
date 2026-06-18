@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781695407';
+} from './firebase-config.js?v=1781696135';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781695407';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781696135';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781695407';
+} from './firebase-db.js?v=1781696135';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -748,6 +748,20 @@ function addedByBadge(addedBy) {
 }
 
 // ── Comparison Editor Helpers ────────────────────────────────────────────────
+const MAX_COMPARISON_APPS = 5;
+
+function normalizeComparisonData(data) {
+  const columns = (data?.columns?.length ? data.columns : []).slice(0, MAX_COMPARISON_APPS);
+  const rows = (data?.rows || []).map(row => {
+    const sourceValues = Array.isArray(row?.values) ? row.values : [];
+    return {
+      ...(row || {}),
+      values: columns.map((_, i) => sourceValues[i] ?? null)
+    };
+  });
+  return { columns, rows };
+}
+
 function compCellHtml(val, colIdx) {
   let selType, textVal = "";
   if (val === true) selType = "true";
@@ -780,8 +794,7 @@ function compRowHtml(row, colCount) {
 }
 
 function initComparisonEditor(container, data) {
-  const cols = data?.columns?.length ? data.columns : [];
-  const rows = data?.rows || [];
+  const { columns: cols, rows } = normalizeComparisonData(data);
   container.innerHTML = `
     <div class="comp-editor">
       <div class="comp-editor-cols">
@@ -798,7 +811,19 @@ function initComparisonEditor(container, data) {
       <button type="button" class="btn btn-sm btn-secondary comp-add-row">+ Feature Row</button>
     </div>`;
   attachCompEditorEvents(container);
+  updateCompColumnActionStates(container);
   updateCompRowActionStates(container);
+}
+
+function updateCompColumnActionStates(ct) {
+  const addBtn = ct.querySelector(".comp-add-col");
+  if (!addBtn) return;
+  const count = ct.querySelectorAll(".comp-col-input").length;
+  const limitReached = count >= MAX_COMPARISON_APPS;
+  addBtn.disabled = limitReached;
+  addBtn.title = limitReached
+    ? `Maximum ${MAX_COMPARISON_APPS} apps, including the current app`
+    : "Add comparison app";
 }
 
 function updateCompRowActionStates(ct) {
@@ -823,6 +848,10 @@ function attachCompEditorEvents(ct) {
     if (t.classList.contains("comp-add-col")) {
       const colsBox = ct.querySelector(".comp-col-inputs");
       const n = colsBox.querySelectorAll(".comp-col-input").length;
+      if (n >= MAX_COMPARISON_APPS) {
+        updateCompColumnActionStates(ct);
+        return;
+      }
       const d = document.createElement("div"); d.className = "comp-col-entry";
       d.innerHTML = `<input type="text" class="comp-col-input" value="" placeholder="App name" data-col="${n}">
         <button type="button" class="btn btn-xs btn-danger comp-remove-col" data-col="${n}" title="Remove column">✕</button>`;
@@ -830,12 +859,14 @@ function attachCompEditorEvents(ct) {
       ct.querySelectorAll(".comp-row").forEach(row => {
         row.querySelector(".comp-row-cells").insertAdjacentHTML("beforeend", compCellHtml(null, n));
       });
+      updateCompColumnActionStates(ct);
     }
     if (t.classList.contains("comp-remove-col")) {
       const ci = parseInt(t.dataset.col);
       t.parentElement.remove();
       ct.querySelectorAll(`.comp-cell[data-col="${ci}"]`).forEach(c => c.remove());
       reindexCompCols(ct);
+      updateCompColumnActionStates(ct);
     }
     if (t.classList.contains("comp-add-row")) {
       const n = ct.querySelectorAll(".comp-col-input").length;
@@ -893,9 +924,12 @@ function getComparisonData(container) {
 function validateComparisonEditor(container) {
   const features = [];
   const rows = [...container.querySelectorAll(".comp-row")];
+  const columns = [...container.querySelectorAll(".comp-col-input")].map(input => input.value.trim());
   let error = null;
+  if (columns.length > MAX_COMPARISON_APPS) {
+    return `Comparison: maximum ${MAX_COMPARISON_APPS} apps allowed, including the current app.`;
+  }
   if (rows.length) {
-    const columns = [...container.querySelectorAll(".comp-col-input")].map(input => input.value.trim());
     if (columns.some(c => !c)) return "Comparison: column labels cannot be empty.";
   }
   rows.forEach(rowEl => {
@@ -918,8 +952,9 @@ function manualComparisonSeed(appName, alternativeLabel) {
 }
 
 function renderComparisonHtml(app) {
-  if (app.comparisonData?.columns?.length && app.comparisonData?.rows?.length) {
-    const { columns, rows } = app.comparisonData;
+  const comparisonData = normalizeComparisonData(app.comparisonData);
+  if (comparisonData.columns.length && comparisonData.rows.length) {
+    const { columns, rows } = comparisonData;
     const hdr = columns.map(c => `<th>${esc(c)}</th>`).join("");
     const body = rows.map(r => {
       const cells = (r.values || []).map(raw => {
