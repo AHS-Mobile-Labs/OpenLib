@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781696135';
+} from './firebase-config.js?v=1781869099';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781696135';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781869099';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781696135';
+} from './firebase-db.js?v=1781869099';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -59,6 +59,36 @@ const AUTH_PROVIDER_NAMES = {
   "google.com": "Google",
   "github.com": "GitHub"
 };
+const CATEGORY_GROUPS = [
+  { name: "Communication", subcategories: [] },
+  { name: "Finance", subcategories: [] },
+  { name: "Media", subcategories: [] },
+  { name: "Productivity", subcategories: [] },
+  { name: "Security", subcategories: [] },
+  { name: "Utility", subcategories: [] },
+  { name: "Development", subcategories: ["IDEs", "Code Editors", "Git Clients", "API Tools", "DevOps"] },
+  { name: "Graphics & Design", subcategories: ["Image Editors", "Vector Graphics", "3D Modeling", "Animation", "Photography"] },
+  { name: "Education", subcategories: ["Learning", "Science", "Mathematics", "Research"] },
+  { name: "Games", subcategories: ["Game Launchers", "Emulators", "Game Development"] },
+  { name: "System", subcategories: ["File Managers", "Backup Tools", "System Monitoring", "Virtualization"] },
+  { name: "Network", subcategories: ["VPN", "DNS Tools", "Firewalls", "Network Analysis"] },
+  { name: "Privacy", subcategories: ["Ad Blockers", "Tracker Blockers", "Encryption", "Password Managers"] },
+  { name: "Office", subcategories: ["Document Editors", "Spreadsheets", "Presentation Tools", "PDF Tools"] },
+  { name: "Audio", subcategories: ["Music Players", "DAWs", "Podcast Apps", "Audio Editors"] },
+  { name: "Video", subcategories: ["Video Players", "Video Editors", "Streaming Tools", "Screen Recording"] },
+  { name: "Web & Internet", subcategories: ["Browsers", "Email Clients", "RSS Readers", "Download Managers"] },
+  { name: "Social", subcategories: ["Social Networks", "Messaging", "Forums"] },
+  { name: "Books & Reading", subcategories: ["Ebook Readers", "Manga Readers", "Comics", "News Readers"] },
+  { name: "Entertainment", subcategories: ["Anime", "Movies", "TV Shows", "Streaming"] },
+  { name: "AI & Machine Learning", subcategories: ["AI Chat", "Local LLMs", "Image Generation", "AI Assistants"] },
+  { name: "Maps & Travel", subcategories: ["Navigation", "Public Transport", "Travel Planning"] },
+  { name: "Health & Fitness", subcategories: ["Workout", "Nutrition", "Medical"] },
+  { name: "Business", subcategories: ["CRM", "ERP", "Accounting", "Project Management"] },
+  { name: "Accessibility", subcategories: ["Screen Readers", "Accessibility Tools"] },
+  { name: "Platforms", subcategories: ["Android", "Linux", "Windows", "macOS", "Cross-Platform"] },
+  { name: "Other", subcategories: [] }
+];
+const APP_CATEGORIES = CATEGORY_GROUPS.map(group => group.name);
 const PERF_SLOW_OP_MS = 200;
 const perfSamples = [];
 
@@ -151,6 +181,87 @@ function esc(str) {
   const div = document.createElement("div");
   div.appendChild(document.createTextNode(String(str ?? "")));
   return div.innerHTML;
+}
+
+function categoryOptionsHtml(placeholder = "") {
+  const placeholderOption = placeholder ? `<option value="">${esc(placeholder)}</option>` : "";
+  return placeholderOption + APP_CATEGORIES
+    .map(category => `<option value="${esc(category)}">${esc(category)}</option>`)
+    .join("");
+}
+
+function getSubcategoriesForCategory(category) {
+  return CATEGORY_GROUPS.find(group => group.name === category)?.subcategories || [];
+}
+
+function subcategoryOptionsHtml(category, placeholder = "— Optional —") {
+  const subcategories = getSubcategoriesForCategory(category);
+  const placeholderLabel = category
+    ? (subcategories.length ? placeholder : "— No subcategories —")
+    : "— Pick a category first —";
+  return `<option value="">${esc(placeholderLabel)}</option>` + subcategories
+    .map(subcategory => `<option value="${esc(subcategory)}">${esc(subcategory)}</option>`)
+    .join("");
+}
+
+function populateCategorySelect(selectId, placeholder) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  const currentValue = select.value;
+  select.innerHTML = categoryOptionsHtml(placeholder);
+  if (currentValue) ensureCategoryOption(select, currentValue);
+  select.value = currentValue;
+}
+
+function populateCategorySelects() {
+  populateCategorySelect("sub-category", "— Pick one —");
+  populateCategorySelect("er-category", "— No change —");
+  populateCategorySelect("resub-category", "— Pick one —");
+  setupCategorySubcategorySelect("sub-category", "sub-subcategory");
+  setupCategorySubcategorySelect("er-category", "er-subcategory", "— No change —");
+  setupCategorySubcategorySelect("resub-category", "resub-subcategory");
+}
+
+function ensureCategoryOption(select, value) {
+  if (!select || !value) return;
+  const exists = [...select.options].some(option => option.value === value);
+  if (exists) return;
+  select.append(new Option(`${value} (legacy)`, value));
+}
+
+function ensureSubcategoryOption(select, value) {
+  if (!select || !value) return;
+  const exists = [...select.options].some(option => option.value === value);
+  if (exists) return;
+  select.append(new Option(`${value} (legacy)`, value));
+}
+
+function categorySubcategoryContext(categorySelect) {
+  return categorySelect?.value || categorySelect?.dataset.fallbackCategory || "";
+}
+
+function populateSubcategorySelect(selectId, category, placeholder = "— Optional —", value = undefined) {
+  const select = document.getElementById(selectId);
+  if (!select) return;
+  const currentValue = value !== undefined ? value : select.value;
+  const hasChoices = getSubcategoriesForCategory(category).length > 0;
+  select.innerHTML = subcategoryOptionsHtml(category, placeholder);
+  if (currentValue) ensureSubcategoryOption(select, currentValue);
+  select.value = currentValue;
+  select.disabled = !hasChoices && !currentValue;
+}
+
+function setupCategorySubcategorySelect(categoryId, subcategoryId, placeholder = "— Optional —", fallbackCategory = "") {
+  const categorySelect = document.getElementById(categoryId);
+  const subcategorySelect = document.getElementById(subcategoryId);
+  if (!categorySelect || !subcategorySelect) return;
+  if (fallbackCategory !== undefined) categorySelect.dataset.fallbackCategory = fallbackCategory || "";
+  populateSubcategorySelect(subcategoryId, categorySubcategoryContext(categorySelect), placeholder);
+  if (categorySelect._subcategoryBound) return;
+  categorySelect._subcategoryBound = true;
+  categorySelect.addEventListener("change", () => {
+    populateSubcategorySelect(subcategoryId, categorySubcategoryContext(categorySelect), placeholder, "");
+  });
 }
 
 // URL-safe escaping for src/href attributes — preserves & but prevents attribute breakout
@@ -499,10 +610,20 @@ function slugify(value) {
     .replace(/(^-|-$)/g, "");
 }
 
+function categoryDisplayText(app) {
+  return [app?.category, app?.subcategory].filter(Boolean).join(" / ");
+}
+
+function categoryLinkHtml(app) {
+  if (!app?.category) return "";
+  return `<a href="/category/${esc(slugify(app.category))}" class="app-category">${esc(categoryDisplayText(app))}</a>`;
+}
+
 function wordsForApp(app) {
   return [
     app.name,
     app.category,
+    app.subcategory,
     app.alternative,
     app.description,
     app.fullDescription,
@@ -989,7 +1110,7 @@ function buildCard(app, rankMap) {
         ${logoHtml}
         <div class="app-header-text">
           <a class="app-name app-link" href="/app/${esc(app.id)}">${esc(app.name)}</a>
-          <a href="/category/${esc(slugify(app.category))}" class="app-category">${esc(app.category)}</a>
+          ${categoryLinkHtml(app)}
         </div>
         <span class="maintainer-badge" data-type="${esc(app.maintainer)}">${esc(app.maintainer)}</span>
       </div>
@@ -1104,6 +1225,7 @@ function getFiltered() {
       || app.name.toLowerCase().includes(q)
       || app.description.toLowerCase().includes(q)
       || app.category.toLowerCase().includes(q)
+      || (app.subcategory || "").toLowerCase().includes(q)
       || (app.alternative || "").toLowerCase().includes(q)
       || (app.platforms || []).some(p => p.toLowerCase().includes(q));
     return cat && srch;
@@ -1301,7 +1423,7 @@ async function showAppDetail(appId) {
               ${saLogo}
               <div class="similar-info">
                 <span class="similar-name">${esc(sa.name)}</span>
-                <span class="similar-cat">${esc(sa.category)}</span>
+                <span class="similar-cat">${esc(categoryDisplayText(sa))}</span>
               </div>
             <span class="similar-likes">${iconImg("like")} ${sa.likes || 0}</span>
             </a>`;
@@ -1389,7 +1511,7 @@ async function showAppDetail(appId) {
         ${logoHtml}
         <div class="detail-header-text">
           <h1 class="detail-name">${esc(app.name)} ${rank ? `<span class="rank-badge rank-lg">#${rank}</span>` : ""} ${rankMovement > 0 ? `<span class="rank-move rank-up">↑${rankMovement}</span>` : rankMovement < 0 ? `<span class="rank-move rank-down">↓${Math.abs(rankMovement)}</span>` : ""}</h1>
-          <a href="/category/${esc(slugify(app.category))}" class="app-category">${esc(app.category)}</a>
+          ${categoryLinkHtml(app)}
           <span class="maintainer-badge" data-type="${esc(app.maintainer)}">${esc(app.maintainer)}</span>
           ${addedByBadge(app.addedBy)}
         </div>
@@ -1785,7 +1907,11 @@ async function showAppDetail(appId) {
 // ── Similar Apps ─────────────────────────────────────────────────────────────
 function getSimilarApps(app) {
   return apps
-    .filter(a => a.id !== app.id && (a.category === app.category || (app.tags || []).some(t => (a.tags || []).includes(t))))
+    .filter(a => a.id !== app.id && (
+      a.category === app.category ||
+      (app.subcategory && a.subcategory === app.subcategory) ||
+      (app.tags || []).some(t => (a.tags || []).includes(t))
+    ))
     .sort((a, b) => (b.likes || 0) - (a.likes || 0))
     .slice(0, 6);
 }
@@ -2039,6 +2165,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
 
   // Set app ID
   document.getElementById("er-app-id").value = appId;
+  setupCategorySubcategorySelect("er-category", "er-subcategory", "— No change —", app.category || "");
   modal.querySelector(".modal-title").innerHTML = `${iconImg("edit", "ui-icon modal-title-icon")} Edit App — ${esc(appName)}`;
 
   // Pre-fill placeholders with current data
@@ -2158,6 +2285,14 @@ async function handleEditRequestSubmit(e) {
       : document.getElementById(id).value.trim();
     if (val) changes[key] = val;
   });
+
+  const erCategory = document.getElementById("er-category").value.trim();
+  const erSubcategory = document.getElementById("er-subcategory").value.trim();
+  if (erSubcategory) {
+    changes.subcategory = erSubcategory;
+  } else if (erCategory) {
+    changes.subcategory = "";
+  }
 
   // Validate logo URL if provided
   if (changes.logo && !isValidLogoURL(changes.logo)) {
@@ -2680,7 +2815,7 @@ function showTrending(period = "week") {
           ${logoHtml}
           <div class="ranking-info">
             <span class="ranking-name">${esc(app.name)}</span>
-            <span class="ranking-cat">${esc(app.category)}</span>
+            <span class="ranking-cat">${esc(categoryDisplayText(app))}</span>
           </div>
           <div class="ranking-metrics">
             <span title="Score">${iconImg("like")} ${(app.likes || 0) - (app.dislikes || 0)}</span>
@@ -2745,6 +2880,11 @@ async function showProfile(uid) {
     ? [...new Set([...(record.linkedProviders || []), ...getLinkedProviders()])]
     : (record.linkedProviders || (record.provider ? [record.provider] : []));
   const linkedAuthProviderSet = new Set(linkedAuthProviders);
+  const preferredCategories = record.preferences?.categories || [];
+  const profileCategories = [
+    ...APP_CATEGORIES,
+    ...preferredCategories.filter(category => category && !APP_CATEGORIES.includes(category))
+  ];
 
   // Follow state
   const followersCount = record.followersCount || 0;
@@ -2829,8 +2969,8 @@ async function showProfile(uid) {
             <div class="form-group">
               <label>Preferred Categories</label>
               <div class="checkbox-group">
-                ${["Communication","Design","Finance","Media","Productivity","Security","Utility","Other"].map(c =>
-                  `<label class="checkbox-label"><input type="checkbox" name="pref-cat" value="${c}" ${(record.preferences?.categories || []).includes(c) ? "checked" : ""}> ${c}</label>`
+                ${profileCategories.map(c =>
+                  `<label class="checkbox-label"><input type="checkbox" name="pref-cat" value="${esc(c)}" ${preferredCategories.includes(c) ? "checked" : ""}> ${esc(APP_CATEGORIES.includes(c) ? c : `${c} (legacy)`)}</label>`
                 ).join("")}
               </div>
             </div>
@@ -2873,7 +3013,7 @@ async function showProfile(uid) {
               <span class="org-icon">${iconImg("verified", "ui-icon title-icon")}</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(app.name)}</span>
-                <span class="profile-list-meta">${esc(app.category)} · ${app.views || 0} views</span>
+                <span class="profile-list-meta">${esc(categoryDisplayText(app))} · ${app.views || 0} views</span>
               </div>
             </a>
           `).join("") : `<p class="profile-empty">No apps yet.</p>`}
@@ -2906,7 +3046,7 @@ async function showProfile(uid) {
               <span class="org-icon">★</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(app.name)}</span>
-                <span class="profile-list-meta">${esc(app.category)} · ${iconImg("like")} ${app.likes || 0}</span>
+                <span class="profile-list-meta">${esc(categoryDisplayText(app))} · ${iconImg("like")} ${app.likes || 0}</span>
               </div>
             </a>
           `).join("") : `<p class="profile-empty">No saved apps yet. Bookmark apps to find them here.</p>`}
@@ -2926,7 +3066,7 @@ async function showProfile(uid) {
                 <span class="org-icon">${statusIcon}</span>
                 <div class="profile-list-info">
                   <span class="profile-list-name">${esc(sub.name)}</span>
-                  <span class="profile-list-meta">${esc(statusLabel)} · ${esc(sub.category)} · ${new Date(sub.createdAt || sub.timestamp).toLocaleDateString()}</span>
+                  <span class="profile-list-meta">${esc(statusLabel)} · ${esc(categoryDisplayText(sub))} · ${new Date(sub.createdAt || sub.timestamp).toLocaleDateString()}</span>
                   ${sub.status === "changes_requested" && sub.changesComment ? `<span class="profile-list-feedback">${iconImg("edit")} "${esc(sub.changesComment)}"</span>` : ""}
                   ${sub.status === "rejected" && sub.rejectReason ? `<span class="profile-list-feedback">${iconImg("alert")} "${esc(sub.rejectReason)}"</span>` : ""}
                 </div>
@@ -3131,7 +3271,7 @@ async function showOrgView(orgId) {
               <span class="org-icon">${iconImg("verified", "ui-icon title-icon")}</span>
               <div class="profile-list-info">
                 <span class="profile-list-name">${esc(app.name)}</span>
-                <span class="profile-list-meta">${esc(app.category)} · ${iconImg("like")} ${app.likes || 0}</span>
+                <span class="profile-list-meta">${esc(categoryDisplayText(app))} · ${iconImg("like")} ${app.likes || 0}</span>
               </div>
             </a>
           `).join("") : `<p class="profile-empty">No apps yet.</p>`}
@@ -3292,7 +3432,7 @@ function renderVerifyCards(submissions, filter) {
           ${sub.logo ? `<img class="verify-card-logo" src="${escUrl(sub.logo)}" alt="" data-fallback-char="?">` : `<div class="verify-card-logo-fallback">${esc((sub.name || "?").charAt(0))}</div>`}
           <div>
             <strong class="verify-card-name">${sf(sub.name)}</strong>
-            <span class="badge badge-role">${sf(sub.category)}</span>
+            <span class="badge badge-role">${sf(categoryDisplayText(sub))}</span>
             <span class="sub-status-badge sub-status-${esc(sub.status)}">${statusIcon} ${statusLabel}</span>
           </div>
         </div>
@@ -4126,7 +4266,7 @@ function renderAdminSubmissions(submissions) {
     <div class="admin-card sub-review-card" data-id="${esc(sub.id)}" data-status="${esc(sub.status)}">
       <div class="admin-card-header">
         <strong>${esc(sub.name || "(No name)")}</strong>
-        <span class="badge badge-role">${esc(sub.category || "—")}</span>
+        <span class="badge badge-role">${esc(categoryDisplayText(sub) || "—")}</span>
         <span class="sub-status-badge sub-status-${esc(sub.status || "unknown")}">${statusIcon} ${statusLabel}</span>
         <span class="admin-card-date">${(sub.createdAt || sub.timestamp) ? new Date(sub.createdAt || sub.timestamp).toLocaleDateString() : "—"}</span>
       </div>
@@ -4320,11 +4460,12 @@ function renderAdminAddApp() {
           <div class="form-group"><label for="aa-name">App Name <span class="required">*</span></label><input type="text" id="aa-name" required maxlength="100" placeholder="e.g. Inkscape"></div>
           <div class="form-group"><label for="aa-category">Category <span class="required">*</span></label>
             <select id="aa-category" required>
-              <option value="">— Pick —</option>
-              <option value="Communication">Communication</option><option value="Design">Design</option>
-              <option value="Finance">Finance</option><option value="Media">Media</option>
-              <option value="Productivity">Productivity</option><option value="Security">Security</option>
-              <option value="Utility">Utility</option><option value="Other">Other</option>
+              ${categoryOptionsHtml("— Pick —")}
+            </select>
+          </div>
+          <div class="form-group"><label for="aa-subcategory">Subcategory <span class="optional">(optional)</span></label>
+            <select id="aa-subcategory" disabled>
+              <option value="">— Pick a category first —</option>
             </select>
           </div>
         </div>
@@ -4927,6 +5068,8 @@ function attachAdminHandlers(tab) {
   }
 
   if (tab === "add-app") {
+    setupCategorySubcategorySelect("aa-category", "aa-subcategory");
+
     // Toggle owner ID field visibility based on "Added By" selection
     const addedBySelect = document.getElementById("aa-added-by");
     const ownerIdGroup = document.getElementById("aa-owner-id-group");
@@ -5048,6 +5191,7 @@ function attachAdminHandlers(tab) {
         name: document.getElementById("aa-name").value.trim(),
         logo: logoUrl,
         category: document.getElementById("aa-category").value,
+        subcategory: document.getElementById("aa-subcategory").value,
         description: document.getElementById("aa-description").value.trim(),
         fullDescription: document.getElementById("aa-full-description").value.trim(),
         uses: document.getElementById("aa-uses").value.trim(),
@@ -5317,6 +5461,7 @@ function formatInstallMethodsDiff(methods) {
 const FIELD_LABELS = {
   name: "Name", description: "Description", uses: "Uses", alternative: "Alternative To",
   logo: "Logo URL", download: "Download URL", source: "Source URL", category: "Category",
+  subcategory: "Subcategory",
   website: "Website", docs: "Documentation", version: "Version", license: "License",
   fileSize: "File Size", developer: "Developer", developerUrl: "Developer URL",
   fullDescription: "Full Description", features: "Features", tags: "Tags",
@@ -5687,7 +5832,7 @@ function showRankings() {
               ${logoHtml}
               <div class="ranking-info">
                 <span class="ranking-name">${esc(app.name)}</span>
-                <span class="ranking-cat">${esc(app.category)}</span>
+            <span class="ranking-cat">${esc(categoryDisplayText(app))}</span>
               </div>
               <div class="ranking-metrics">
                 <span title="Score">${iconImg("like")} ${(app.likes || 0) - (app.dislikes || 0)}</span>
@@ -5807,6 +5952,7 @@ function openSubmitModal(preselectedOrgId) {
   const form = document.getElementById("submit-form");
   form.reset();
   clearFormMsg(form);
+  setupCategorySubcategorySelect("sub-category", "sub-subcategory");
 
   // Populate org selector
   const ownerSelect = document.getElementById("sub-owner");
@@ -5980,6 +6126,7 @@ async function handleSubmitApp(e) {
     name,
     logo,
     category: form.querySelector("#sub-category").value,
+    subcategory: form.querySelector("#sub-subcategory").value,
     description,
     fullDescription: (form.querySelector("#sub-full-description")?.value || "").trim(),
     features,
@@ -6036,7 +6183,11 @@ function openResubmitModal(sub) {
   // Pre-fill form with current submission data
   document.getElementById("resub-id").value = sub.id;
   document.getElementById("resub-name").value = sub.name || "";
-  document.getElementById("resub-category").value = sub.category || "";
+  const resubCategorySelect = document.getElementById("resub-category");
+  ensureCategoryOption(resubCategorySelect, sub.category);
+  resubCategorySelect.value = sub.category || "";
+  setupCategorySubcategorySelect("resub-category", "resub-subcategory");
+  populateSubcategorySelect("resub-subcategory", sub.category || "", "— Optional —", sub.subcategory || "");
   document.getElementById("resub-logo").value = sub.logo || "";
   document.getElementById("resub-alternative").value = sub.alternative || "";
   document.getElementById("resub-description").value = sub.description || "";
@@ -6134,6 +6285,7 @@ async function handleResubmit(e) {
     name: document.getElementById("resub-name").value.trim(),
     logo: resubLogo,
     category: document.getElementById("resub-category").value,
+    subcategory: document.getElementById("resub-subcategory").value,
     description: document.getElementById("resub-description").value.trim(),
     uses: document.getElementById("resub-uses").value.trim(),
     alternative: normalizeAlternativeInput(document.getElementById("resub-alternative").value),
@@ -7036,9 +7188,9 @@ function renderSeoAppList(appList) {
             ${app.logo ? `<img class="seo-app-logo" src="${escUrl(app.logo)}" alt="${esc(app.name)} logo" loading="lazy" width="52" height="52" data-fallback-char="${esc(app.name.charAt(0))}">` : `<div class="seo-app-logo-fallback">${esc(app.name.charAt(0))}</div>`}
             <div>
               <h2><a href="/app/${esc(app.id)}">${esc(app.name)}</a></h2>
-              <p>${esc(app.description || `${app.name} is an open-source ${app.category || "software"} option listed on OpenLib.`)}</p>
+              <p>${esc(app.description || `${app.name} is an open-source ${categoryDisplayText(app) || "software"} option listed on OpenLib.`)}</p>
               <div class="seo-app-meta">
-                ${app.category ? `<a href="/category/${esc(slugify(app.category))}">${esc(app.category)}</a>` : ""}
+                ${app.category ? `<a href="/category/${esc(slugify(app.category))}">${esc(categoryDisplayText(app))}</a>` : ""}
                 ${renderAlternativeTargetLinks(app, { prefix: true })}
                 ${(app.platforms || []).slice(0, 3).map(platform => `<span>${esc(platform)}</span>`).join("")}
                 ${app.license ? `<span>${esc(app.license)}</span>` : ""}
@@ -7720,6 +7872,7 @@ async function init() {
     history.replaceState(null, "", cleanPath);
   }
 
+  populateCategorySelects();
   initTheme();
   await initAuth();
   registerPwaServiceWorker();

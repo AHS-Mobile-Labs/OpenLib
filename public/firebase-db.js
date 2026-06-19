@@ -5,7 +5,7 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781696135';
+import { db } from './firebase-config.js?v=1781869099';
 
 const ADMIN_ROLES = ["admin"];
 const TEAM_ROLES = ["admin", "openlib-team"];
@@ -1104,6 +1104,7 @@ export async function approveSubmission(submissionId, adminUid) {
     name: sub.name,
     logo: sub.logo || "",
     category: sub.category,
+    subcategory: sub.subcategory || "",
     description: sub.description,
     fullDescription: sub.fullDescription || "",
     features: sub.features || [],
@@ -1242,7 +1243,7 @@ export async function updateSubmission(submissionId, uid, updatedData) {
   }
 
   const allowed = [
-    "name", "logo", "category", "description", "fullDescription", "features",
+    "name", "logo", "category", "subcategory", "description", "fullDescription", "features",
     "uses", "alternative", "download", "source", "website", "docs",
     "maintainer", "developer", "developerUrl", "license", "version",
     "fileSize", "tags", "screenshots", "installMethods", "systemRequirements",

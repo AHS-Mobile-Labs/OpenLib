@@ -741,6 +741,7 @@ header {
 
 .app-category {
   display: inline-block;
+  max-width: 100%;
   margin-top: 4px;
   font-family: var(--font-mono);
   font-size: 11px;
@@ -749,7 +750,9 @@ header {
   border-radius: 4px;
   padding: 1px 7px;
   letter-spacing: 0.3px;
+  line-height: 1.35;
   text-decoration: none;
+  white-space: normal;
 }
 
 .maintainer-badge {

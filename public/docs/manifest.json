@@ -205,7 +205,7 @@
     "contributors": [
       "OpenLib Team"
     ],
-    "lastUpdated": "2026-06-13",
+    "lastUpdated": "2026-06-19",
     "version": "1.0",
     "tags": [
       "taxonomy",
@@ -264,7 +264,7 @@
         "id": "internal-links"
       }
     ],
-    "readingTime": 2
+    "readingTime": 4
   },
   {
     "title": "App Pages",
@@ -327,7 +327,7 @@
     "contributors": [
       "OpenLib Team"
     ],
-    "lastUpdated": "2026-06-14",
+    "lastUpdated": "2026-06-19",
     "version": "1.0",
     "tags": [
       "search",

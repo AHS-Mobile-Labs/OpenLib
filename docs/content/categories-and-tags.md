@@ -4,7 +4,7 @@ description: Learn how OpenLib categories and tags organize app discovery.
 maintainedBy: OpenLib Team
 contributors:
   - OpenLib Team
-lastUpdated: 2026-06-13
+lastUpdated: 2026-06-19
 version: "1.0"
 tags:
   - taxonomy
@@ -33,16 +33,44 @@ This lets visitors browse the Productivity category while still finding specific
 
 ## Categories
 
-Use one primary category for each app. The category should describe the main job the app performs.
+Use one primary category for each app. The category should describe the broad area of software.
 
-Examples:
+Use an optional subcategory when a more specific type helps discovery. Leave subcategory blank when none of the listed options fit.
 
-- Productivity
-- Development
-- Security
-- Media
+Core categories:
+
 - Communication
-- Utilities
+- Finance
+- Media
+- Productivity
+- Security
+- Utility
+
+Additional primary categories and subcategories:
+
+| Primary category | Subcategories |
+| --- | --- |
+| Development | IDEs, Code Editors, Git Clients, API Tools, DevOps |
+| Graphics & Design | Image Editors, Vector Graphics, 3D Modeling, Animation, Photography |
+| Education | Learning, Science, Mathematics, Research |
+| Games | Game Launchers, Emulators, Game Development |
+| System | File Managers, Backup Tools, System Monitoring, Virtualization |
+| Network | VPN, DNS Tools, Firewalls, Network Analysis |
+| Privacy | Ad Blockers, Tracker Blockers, Encryption, Password Managers |
+| Office | Document Editors, Spreadsheets, Presentation Tools, PDF Tools |
+| Audio | Music Players, DAWs, Podcast Apps, Audio Editors |
+| Video | Video Players, Video Editors, Streaming Tools, Screen Recording |
+| Web & Internet | Browsers, Email Clients, RSS Readers, Download Managers |
+| Social | Social Networks, Messaging, Forums |
+| Books & Reading | Ebook Readers, Manga Readers, Comics, News Readers |
+| Entertainment | Anime, Movies, TV Shows, Streaming |
+| AI & Machine Learning | AI Chat, Local LLMs, Image Generation, AI Assistants |
+| Maps & Travel | Navigation, Public Transport, Travel Planning |
+| Health & Fitness | Workout, Nutrition, Medical |
+| Business | CRM, ERP, Accounting, Project Management |
+| Accessibility | Screen Readers, Accessibility Tools |
+| Platforms | Android, Linux, Windows, macOS, Cross-Platform |
+| Other | Use when no primary category fits |
 
 ## How to choose a category
 

@@ -57,6 +57,7 @@ const APP_PRERENDER_FIELDS = [
   "logo",
   "screenshots",
   "category",
+  "subcategory",
   "platforms",
   "features",
   "installMethods",
@@ -293,6 +294,10 @@ function slugify(value) {
     .replace(/(^-|-$)/g, "");
 }
 
+function categoryDisplayText(app) {
+  return [app?.category, app?.subcategory].filter(Boolean).join(" / ");
+}
+
 function splitAlternativeTargets(value) {
   const rawTargets = Array.isArray(value)
     ? value
@@ -392,6 +397,7 @@ function wordsForApp(app) {
   return [
     app.name,
     app.category,
+    app.subcategory,
     app.alternative,
     app.description,
     app.fullDescription,
@@ -716,7 +722,7 @@ function renderAppList(apps) {
       <li>
         <a href="/app/${encodeURIComponent(app.id)}">${esc(app.name)}</a>
         ${getAlternativeTargets(app).length ? ` - ${renderAlternativeLinks(app, { prefix: true })}` : ""}
-        ${app.category ? ` in <a href="/category/${slugify(app.category)}">${esc(app.category)}</a>` : ""}
+        ${app.category ? ` in <a href="/category/${slugify(app.category)}">${esc(categoryDisplayText(app))}</a>` : ""}
         <p>${esc(truncate(app.description || app.uses || "", 140))}</p>
       </li>`).join("")}
   </ol>`;
@@ -1003,7 +1009,7 @@ async function renderApp(appId) {
           name: app.name,
           url,
           description: app.description || "",
-          applicationCategory: app.category || "DeveloperApplication",
+          applicationCategory: categoryDisplayText(app) || "DeveloperApplication",
           operatingSystem: (app.platforms || []).join(", ") || "All",
           image: app.logo || OG_IMAGE,
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
@@ -1038,7 +1044,7 @@ async function renderApp(appId) {
     const useCases = [
       app.uses,
       alternativeTargets.length ? `${app.name} is useful when you want an open-source alternative to ${alt}.` : "",
-      app.category ? `It belongs to the ${app.category} category on OpenLib.` : "",
+      app.category ? `It belongs to the ${categoryDisplayText(app)} category on OpenLib.` : "",
       platforms ? `It supports ${platforms}.` : "",
     ].filter(Boolean);
     const alternativeList = alternativeTargets
@@ -1069,7 +1075,7 @@ async function renderApp(appId) {
         <ul>
           ${app.version ? `<li>Version: ${esc(app.version)}</li>` : ""}
           ${app.license ? `<li>License: ${esc(app.license)}</li>` : ""}
-          ${app.category ? `<li>Category: <a href="/category/${slugify(app.category)}">${esc(app.category)}</a></li>` : ""}
+          ${app.category ? `<li>Category: <a href="/category/${slugify(app.category)}">${esc(categoryDisplayText(app))}</a></li>` : ""}
           ${app.fileSize ? `<li>File Size: ${esc(app.fileSize)}</li>` : ""}
           ${app.developer ? `<li>Developer: ${esc(app.developer)}</li>` : ""}
           ${app.maintainer ? `<li>Maintained by: ${esc(app.maintainer)}</li>` : ""}

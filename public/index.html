@@ -109,9 +109,9 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/rP2Hp2ywxg089UriCZOIHQ.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/8vIH7w4qzmVxm2BL9A.woff2" crossorigin>
-  <link rel="modulepreload" href="script.js?v=1781696135">
+  <link rel="modulepreload" href="script.js?v=1781869099">
 
-  <link rel="stylesheet" href="styles.css?v=1781696135">
+  <link rel="stylesheet" href="styles.css?v=1781869099">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
@@ -309,16 +309,14 @@
             <label for="sub-category">Category <span class="required">*</span></label>
             <select id="sub-category" required>
               <option value="">— Pick one —</option>
-              <option value="Communication">Communication</option>
-              <option value="Design">Design</option>
-              <option value="Finance">Finance</option>
-              <option value="Media">Media</option>
-              <option value="Productivity">Productivity</option>
-              <option value="Security">Security</option>
-              <option value="Utility">Utility</option>
-              <option value="Other">Other</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label for="sub-subcategory">Subcategory <span class="optional">(optional)</span></label>
+          <select id="sub-subcategory" disabled>
+            <option value="">— Pick a category first —</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="sub-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp, .svg)</span></label>
@@ -551,16 +549,14 @@
             <label for="er-category">Category</label>
             <select id="er-category">
               <option value="">— No change —</option>
-              <option value="Communication">Communication</option>
-              <option value="Design">Design</option>
-              <option value="Finance">Finance</option>
-              <option value="Media">Media</option>
-              <option value="Productivity">Productivity</option>
-              <option value="Security">Security</option>
-              <option value="Utility">Utility</option>
-              <option value="Other">Other</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label for="er-subcategory">Subcategory</label>
+          <select id="er-subcategory" disabled>
+            <option value="">— No change —</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="er-description">Description</label>
@@ -768,16 +764,14 @@
             <label for="resub-category">Category <span class="required">*</span></label>
             <select id="resub-category" required>
               <option value="">— Pick one —</option>
-              <option value="Communication">Communication</option>
-              <option value="Design">Design</option>
-              <option value="Finance">Finance</option>
-              <option value="Media">Media</option>
-              <option value="Productivity">Productivity</option>
-              <option value="Security">Security</option>
-              <option value="Utility">Utility</option>
-              <option value="Other">Other</option>
             </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label for="resub-subcategory">Subcategory <span class="optional">(optional)</span></label>
+          <select id="resub-subcategory" disabled>
+            <option value="">— Pick a category first —</option>
+          </select>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -950,6 +944,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=1781696135"></script>
+  <script type="module" src="script.js?v=1781869099"></script>
 </body>
 </html>

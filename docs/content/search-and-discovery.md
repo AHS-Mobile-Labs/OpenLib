@@ -4,7 +4,7 @@ description: Learn how users find apps through search, categories, tags, ranking
 maintainedBy: OpenLib Team
 contributors:
   - OpenLib Team
-lastUpdated: 2026-06-14
+lastUpdated: 2026-06-19
 version: "1.0"
 tags:
   - search
@@ -35,9 +35,9 @@ Good metadata improves search quality. A short description with real keywords is
 
 ## Categories
 
-Categories are broad groups such as Productivity, Security, Media, Utility, Communication, Finance, and Other. Every app should have one primary category.
+Categories are broad groups such as Communication, Finance, Media, Productivity, Security, Utility, Development, Graphics & Design, Privacy, Office, Web & Internet, AI & Machine Learning, and Games. Every app should have one primary category and may have one optional subcategory, such as IDEs, Password Managers, PDF Tools, or Video Editors.
 
-Use the closest category. If the project spans multiple areas, use tags to capture the extra context.
+Use the closest primary category first, then choose a subcategory when it improves precision. If the project spans multiple areas, use tags to capture the extra context.
 
 ## Tags
 
@@ -88,4 +88,3 @@ Contributors can improve discovery by adding:
 
 - [Categories & Tags](/docs/categories-and-tags)
 - [App Pages](/docs/app-pages)
-

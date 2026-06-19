@@ -71,7 +71,7 @@ service cloud.firestore {
                          "alternative", "tags", "screenshots", "installMethods",
                          "systemRequirements", "platforms", "fileSize",
                          "developer", "developerUrl", "license", "version",
-                         "category", "updatedAt", "moderationStatus",
+                         "category", "subcategory", "updatedAt", "moderationStatus",
                          "moderatedBy", "moderatedAt", "moderationReason",
                          "suspendUntil", "avgRating", "reviewCount"])
             && request.resource.data.addedBy == resource.data.addedBy
@@ -155,7 +155,7 @@ service cloud.firestore {
         && request.resource.data.source.matches('https://.*')
         // [MED-2 FIX] Restrict allowed keys to known submission fields
         && request.resource.data.keys().hasOnly([
-             "name", "logo", "category", "description", "fullDescription",
+             "name", "logo", "category", "subcategory", "description", "fullDescription",
              "features", "uses", "alternative", "download", "source",
              "website", "docs", "maintainer", "developer", "developerUrl",
              "license", "version", "fileSize", "tags", "screenshots",
@@ -166,7 +166,7 @@ service cloud.firestore {
              "submittedByUid", "submittedByName", "orgName",
              "comparisonData"
            ])
-        && request.resource.data.keys().size() <= 35
+        && request.resource.data.keys().size() <= 36
         // Prevent non-admin users from claiming official status on submissions
         && (!request.resource.data.keys().hasAny(["addedBy"])
             || request.resource.data.addedBy.type != "openlib-team"
