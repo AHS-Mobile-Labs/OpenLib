@@ -5,12 +5,13 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781869099';
+import { db } from './firebase-config.js?v=1781876807';
 
 const ADMIN_ROLES = ["admin"];
 const TEAM_ROLES = ["admin", "openlib-team"];
 const CONTENT_MODERATOR_ROLES = ["maintainer", "openlib-team", "admin"];
 const ROLE_CHANGE_ROLES = ["user", "contributor", "maintainer", "openlib-team", "admin"];
+const GENERAL_SUBCATEGORY = "General";
 
 const CONTRIBUTOR_REQUIREMENTS = {
   minAccountAgeDays: 14,
@@ -1104,7 +1105,7 @@ export async function approveSubmission(submissionId, adminUid) {
     name: sub.name,
     logo: sub.logo || "",
     category: sub.category,
-    subcategory: sub.subcategory || "",
+    subcategory: sub.subcategory || GENERAL_SUBCATEGORY,
     description: sub.description,
     fullDescription: sub.fullDescription || "",
     features: sub.features || [],

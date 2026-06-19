@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781869099';
+} from './firebase-config.js?v=1781876807';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781869099';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781876807';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -38,7 +38,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781869099';
+} from './firebase-db.js?v=1781876807';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -59,6 +59,7 @@ const AUTH_PROVIDER_NAMES = {
   "google.com": "Google",
   "github.com": "GitHub"
 };
+const GENERAL_SUBCATEGORY = "General";
 const CATEGORY_GROUPS = [
   { name: "Communication", subcategories: [] },
   { name: "Finance", subcategories: [] },
@@ -191,7 +192,9 @@ function categoryOptionsHtml(placeholder = "") {
 }
 
 function getSubcategoriesForCategory(category) {
-  return CATEGORY_GROUPS.find(group => group.name === category)?.subcategories || [];
+  if (!category) return [];
+  const specific = CATEGORY_GROUPS.find(group => group.name === category)?.subcategories || [];
+  return [GENERAL_SUBCATEGORY, ...specific.filter(subcategory => subcategory !== GENERAL_SUBCATEGORY)];
 }
 
 function subcategoryOptionsHtml(category, placeholder = "— Optional —") {
@@ -240,10 +243,11 @@ function categorySubcategoryContext(categorySelect) {
   return categorySelect?.value || categorySelect?.dataset.fallbackCategory || "";
 }
 
-function populateSubcategorySelect(selectId, category, placeholder = "— Optional —", value = undefined) {
+function populateSubcategorySelect(selectId, category, placeholder = "— Optional —", value = undefined, defaultToGeneral = false) {
   const select = document.getElementById(selectId);
   if (!select) return;
-  const currentValue = value !== undefined ? value : select.value;
+  let currentValue = value !== undefined ? value : select.value;
+  if (defaultToGeneral && category && !currentValue) currentValue = GENERAL_SUBCATEGORY;
   const hasChoices = getSubcategoriesForCategory(category).length > 0;
   select.innerHTML = subcategoryOptionsHtml(category, placeholder);
   if (currentValue) ensureSubcategoryOption(select, currentValue);
@@ -251,16 +255,30 @@ function populateSubcategorySelect(selectId, category, placeholder = "— Option
   select.disabled = !hasChoices && !currentValue;
 }
 
-function setupCategorySubcategorySelect(categoryId, subcategoryId, placeholder = "— Optional —", fallbackCategory = "") {
+function setupCategorySubcategorySelect(categoryId, subcategoryId, placeholder = "— Optional —", fallbackCategory = "", opts = {}) {
   const categorySelect = document.getElementById(categoryId);
   const subcategorySelect = document.getElementById(subcategoryId);
   if (!categorySelect || !subcategorySelect) return;
+  const defaultToGeneral = opts.defaultToGeneral !== false;
   if (fallbackCategory !== undefined) categorySelect.dataset.fallbackCategory = fallbackCategory || "";
-  populateSubcategorySelect(subcategoryId, categorySubcategoryContext(categorySelect), placeholder);
+  categorySelect.dataset.defaultSubcategory = defaultToGeneral ? "true" : "false";
+  populateSubcategorySelect(
+    subcategoryId,
+    categorySubcategoryContext(categorySelect),
+    placeholder,
+    opts.value,
+    defaultToGeneral && !!categorySelect.value
+  );
   if (categorySelect._subcategoryBound) return;
   categorySelect._subcategoryBound = true;
   categorySelect.addEventListener("change", () => {
-    populateSubcategorySelect(subcategoryId, categorySubcategoryContext(categorySelect), placeholder, "");
+    populateSubcategorySelect(
+      subcategoryId,
+      categorySubcategoryContext(categorySelect),
+      placeholder,
+      "",
+      !!categorySelect.value || categorySelect.dataset.defaultSubcategory === "true"
+    );
   });
 }
 
@@ -610,8 +628,12 @@ function slugify(value) {
     .replace(/(^-|-$)/g, "");
 }
 
+function appSubcategory(app) {
+  return app?.subcategory || GENERAL_SUBCATEGORY;
+}
+
 function categoryDisplayText(app) {
-  return [app?.category, app?.subcategory].filter(Boolean).join(" / ");
+  return [app?.category, app?.category ? appSubcategory(app) : ""].filter(Boolean).join(" / ");
 }
 
 function categoryLinkHtml(app) {
@@ -1215,34 +1237,82 @@ function loadMoreGridItems() {
 
 function getFiltered() {
   const q = document.getElementById("search-input").value.toLowerCase().trim();
-  const active = document.querySelector(".filter-btn.active")?.dataset.filter || "All";
+  const activeCategory = document.querySelector(".category-filter-btn.active")?.dataset.category || "All";
+  const activeSubcategory = document.querySelector(".subcategory-filter-btn.active")?.dataset.subcategory || "All";
   return apps.filter(app => {
     // Hide restricted/removed apps from public view (admins still see them in admin panel)
     const modStatus = app.moderationStatus || "active";
     if (modStatus !== "active" && !isAdmin) return false;
-    const cat = active === "All" || app.category === active;
+    const cat = activeCategory === "All" || app.category === activeCategory;
+    const subcat = activeSubcategory === "All" || appSubcategory(app) === activeSubcategory;
     const srch = !q
       || app.name.toLowerCase().includes(q)
       || app.description.toLowerCase().includes(q)
       || app.category.toLowerCase().includes(q)
-      || (app.subcategory || "").toLowerCase().includes(q)
+      || appSubcategory(app).toLowerCase().includes(q)
       || (app.alternative || "").toLowerCase().includes(q)
       || (app.platforms || []).some(p => p.toLowerCase().includes(q));
-    return cat && srch;
+    return cat && subcat && srch;
   });
 }
 
 function buildFilters() {
-  const cats = ["All", ...new Set(apps.map(a => a.category).sort())];
   const wrap = document.getElementById("filters-container");
-  wrap.innerHTML = cats.map(c =>
-    `<button class="filter-btn${c === "All" ? " active" : ""}" data-filter="${esc(c)}">${esc(c)}</button>`
-  ).join("");
+  const appPool = () => apps.filter(app => (app.moderationStatus || "active") === "active" || isAdmin);
+
+  const renderControls = (selectedCategory = "All", selectedSubcategory = "All") => {
+    const pool = appPool();
+    const categories = ["All", ...new Set(pool.map(app => app.category).filter(Boolean).sort())];
+    const categoryCounts = pool.reduce((counts, app) => {
+      counts.set(app.category, (counts.get(app.category) || 0) + 1);
+      return counts;
+    }, new Map());
+
+    const categoryRow = categories.map(category => {
+      const count = category === "All" ? pool.length : categoryCounts.get(category) || 0;
+      return `<button class="filter-btn category-filter-btn${category === selectedCategory ? " active" : ""}" data-filter-type="category" data-category="${esc(category)}">${esc(category)} <span class="filter-count">${count}</span></button>`;
+    }).join("");
+
+    const matchingCategoryApps = selectedCategory === "All"
+      ? []
+      : pool.filter(app => app.category === selectedCategory);
+    const subcategoryCounts = matchingCategoryApps.reduce((counts, app) => {
+      const subcategory = appSubcategory(app);
+      counts.set(subcategory, (counts.get(subcategory) || 0) + 1);
+      return counts;
+    }, new Map());
+    const subcategories = selectedCategory === "All"
+      ? []
+      : ["All", ...new Set(matchingCategoryApps.map(appSubcategory).sort())];
+    const normalizedSubcategory = subcategories.includes(selectedSubcategory) ? selectedSubcategory : "All";
+    const subcategoryRow = subcategories.length ? `
+      <div class="filter-row filter-row-sub" aria-label="Subcategory filters">
+        <span class="filter-row-label">Subcategory</span>
+        ${subcategories.map(subcategory => {
+          const count = subcategory === "All" ? matchingCategoryApps.length : subcategoryCounts.get(subcategory) || 0;
+          return `<button class="filter-btn subcategory-filter-btn${subcategory === normalizedSubcategory ? " active" : ""}${subcategory === GENERAL_SUBCATEGORY ? " is-general" : ""}" data-filter-type="subcategory" data-subcategory="${esc(subcategory)}">${esc(subcategory)} <span class="filter-count">${count}</span></button>`;
+        }).join("")}
+      </div>` : "";
+
+    wrap.innerHTML = `
+      <div class="filter-row filter-row-main" aria-label="Category filters">
+        ${categoryRow}
+      </div>
+      ${subcategoryRow}
+    `;
+  };
+
+  renderControls();
   wrap.addEventListener("click", e => {
-    const btn = e.target.closest(".filter-btn");
+    const btn = e.target.closest(".filter-btn[data-filter-type]");
     if (!btn) return;
-    wrap.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
+    const activeCategory = document.querySelector(".category-filter-btn.active")?.dataset.category || "All";
+    const activeSubcategory = document.querySelector(".subcategory-filter-btn.active")?.dataset.subcategory || "All";
+    if (btn.dataset.filterType === "category") {
+      renderControls(btn.dataset.category || "All", "All");
+    } else {
+      renderControls(activeCategory, btn.dataset.subcategory || activeSubcategory);
+    }
     renderGrid(getFiltered());
   });
 }
@@ -4463,7 +4533,7 @@ function renderAdminAddApp() {
               ${categoryOptionsHtml("— Pick —")}
             </select>
           </div>
-          <div class="form-group"><label for="aa-subcategory">Subcategory <span class="optional">(optional)</span></label>
+          <div class="form-group"><label for="aa-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
             <select id="aa-subcategory" disabled>
               <option value="">— Pick a category first —</option>
             </select>
@@ -5191,7 +5261,7 @@ function attachAdminHandlers(tab) {
         name: document.getElementById("aa-name").value.trim(),
         logo: logoUrl,
         category: document.getElementById("aa-category").value,
-        subcategory: document.getElementById("aa-subcategory").value,
+        subcategory: document.getElementById("aa-subcategory").value || GENERAL_SUBCATEGORY,
         description: document.getElementById("aa-description").value.trim(),
         fullDescription: document.getElementById("aa-full-description").value.trim(),
         uses: document.getElementById("aa-uses").value.trim(),
@@ -6126,7 +6196,7 @@ async function handleSubmitApp(e) {
     name,
     logo,
     category: form.querySelector("#sub-category").value,
-    subcategory: form.querySelector("#sub-subcategory").value,
+    subcategory: form.querySelector("#sub-subcategory").value || GENERAL_SUBCATEGORY,
     description,
     fullDescription: (form.querySelector("#sub-full-description")?.value || "").trim(),
     features,
@@ -6285,7 +6355,7 @@ async function handleResubmit(e) {
     name: document.getElementById("resub-name").value.trim(),
     logo: resubLogo,
     category: document.getElementById("resub-category").value,
-    subcategory: document.getElementById("resub-subcategory").value,
+    subcategory: document.getElementById("resub-subcategory").value || GENERAL_SUBCATEGORY,
     description: document.getElementById("resub-description").value.trim(),
     uses: document.getElementById("resub-uses").value.trim(),
     alternative: normalizeAlternativeInput(document.getElementById("resub-alternative").value),

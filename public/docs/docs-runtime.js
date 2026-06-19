@@ -69,7 +69,7 @@
   const search = $("#docs-search");
   const results = $("#docs-search-results");
   if (search && results) {
-    fetch("/docs/search-index.json?v=1781869099", { cache: "no-store", credentials: "same-origin" }).then(r => r.json()).then(index => {
+    fetch("/docs/search-index.json?v=1781876807", { cache: "no-store", credentials: "same-origin" }).then(r => r.json()).then(index => {
       search.addEventListener("input", () => {
         const q = search.value.trim().toLowerCase();
         if (!q) {

@@ -35,9 +35,9 @@ Good metadata improves search quality. A short description with real keywords is
 
 ## Categories
 
-Categories are broad groups such as Communication, Finance, Media, Productivity, Security, Utility, Development, Graphics & Design, Privacy, Office, Web & Internet, AI & Machine Learning, and Games. Every app should have one primary category and may have one optional subcategory, such as IDEs, Password Managers, PDF Tools, or Video Editors.
+Categories are broad groups such as Communication, Finance, Media, Productivity, Security, Utility, Development, Graphics & Design, Privacy, Office, Web & Internet, AI & Machine Learning, and Games. Every app should have one primary category and one subcategory. Apps without a more specific fit use the `General` subcategory inside their category.
 
-Use the closest primary category first, then choose a subcategory when it improves precision. If the project spans multiple areas, use tags to capture the extra context.
+Use the closest primary category first, then choose a subcategory such as IDEs, Password Managers, PDF Tools, or Video Editors when it improves precision. If the project spans multiple areas, use tags to capture the extra context.
 
 ## Tags
 

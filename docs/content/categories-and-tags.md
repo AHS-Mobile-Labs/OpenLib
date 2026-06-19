@@ -35,7 +35,7 @@ This lets visitors browse the Productivity category while still finding specific
 
 Use one primary category for each app. The category should describe the broad area of software.
 
-Use an optional subcategory when a more specific type helps discovery. Leave subcategory blank when none of the listed options fit.
+Use a subcategory when a more specific type helps discovery. If no specific subcategory fits, use `General` within the chosen category.
 
 Core categories:
 
@@ -50,27 +50,27 @@ Additional primary categories and subcategories:
 
 | Primary category | Subcategories |
 | --- | --- |
-| Development | IDEs, Code Editors, Git Clients, API Tools, DevOps |
-| Graphics & Design | Image Editors, Vector Graphics, 3D Modeling, Animation, Photography |
-| Education | Learning, Science, Mathematics, Research |
-| Games | Game Launchers, Emulators, Game Development |
-| System | File Managers, Backup Tools, System Monitoring, Virtualization |
-| Network | VPN, DNS Tools, Firewalls, Network Analysis |
-| Privacy | Ad Blockers, Tracker Blockers, Encryption, Password Managers |
-| Office | Document Editors, Spreadsheets, Presentation Tools, PDF Tools |
-| Audio | Music Players, DAWs, Podcast Apps, Audio Editors |
-| Video | Video Players, Video Editors, Streaming Tools, Screen Recording |
-| Web & Internet | Browsers, Email Clients, RSS Readers, Download Managers |
-| Social | Social Networks, Messaging, Forums |
-| Books & Reading | Ebook Readers, Manga Readers, Comics, News Readers |
-| Entertainment | Anime, Movies, TV Shows, Streaming |
-| AI & Machine Learning | AI Chat, Local LLMs, Image Generation, AI Assistants |
-| Maps & Travel | Navigation, Public Transport, Travel Planning |
-| Health & Fitness | Workout, Nutrition, Medical |
-| Business | CRM, ERP, Accounting, Project Management |
-| Accessibility | Screen Readers, Accessibility Tools |
-| Platforms | Android, Linux, Windows, macOS, Cross-Platform |
-| Other | Use when no primary category fits |
+| Development | General, IDEs, Code Editors, Git Clients, API Tools, DevOps |
+| Graphics & Design | General, Image Editors, Vector Graphics, 3D Modeling, Animation, Photography |
+| Education | General, Learning, Science, Mathematics, Research |
+| Games | General, Game Launchers, Emulators, Game Development |
+| System | General, File Managers, Backup Tools, System Monitoring, Virtualization |
+| Network | General, VPN, DNS Tools, Firewalls, Network Analysis |
+| Privacy | General, Ad Blockers, Tracker Blockers, Encryption, Password Managers |
+| Office | General, Document Editors, Spreadsheets, Presentation Tools, PDF Tools |
+| Audio | General, Music Players, DAWs, Podcast Apps, Audio Editors |
+| Video | General, Video Players, Video Editors, Streaming Tools, Screen Recording |
+| Web & Internet | General, Browsers, Email Clients, RSS Readers, Download Managers |
+| Social | General, Social Networks, Messaging, Forums |
+| Books & Reading | General, Ebook Readers, Manga Readers, Comics, News Readers |
+| Entertainment | General, Anime, Movies, TV Shows, Streaming |
+| AI & Machine Learning | General, AI Chat, Local LLMs, Image Generation, AI Assistants |
+| Maps & Travel | General, Navigation, Public Transport, Travel Planning |
+| Health & Fitness | General, Workout, Nutrition, Medical |
+| Business | General, CRM, ERP, Accounting, Project Management |
+| Accessibility | General, Screen Readers, Accessibility Tools |
+| Platforms | General, Android, Linux, Windows, macOS, Cross-Platform |
+| Other | General |
 
 ## How to choose a category
 

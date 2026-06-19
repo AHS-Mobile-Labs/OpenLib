@@ -537,9 +537,28 @@ header {
 
 /* ── Filters ── */
 .filters {
+  display: grid;
+  gap: 10px;
+}
+
+.filter-row {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-row-sub {
+  padding-left: 10px;
+  border-left: 2px solid var(--border);
+}
+
+.filter-row-label {
+  color: var(--text-3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .filter-btn {
@@ -554,6 +573,30 @@ header {
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
+}
+
+.subcategory-filter-btn {
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+}
+
+.subcategory-filter-btn.is-general {
+  border-style: dashed;
+}
+
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 
 .filter-btn:hover {
@@ -9100,7 +9143,10 @@ body {
 
   /* ── Filters wrap ── */
   .filters {
-    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .filter-row {
     gap: 6px;
   }
 
@@ -10651,7 +10697,7 @@ iframe {
   }
 
   .header-actions::-webkit-scrollbar,
-  .filters::-webkit-scrollbar,
+  .filter-row::-webkit-scrollbar,
   .trending-filters::-webkit-scrollbar,
   .admin-tabs::-webkit-scrollbar {
     display: none;
@@ -10727,7 +10773,7 @@ iframe {
     width: 100%;
   }
 
-  .filters,
+  .filter-row,
   .trending-filters,
   .admin-tabs {
     flex-wrap: nowrap;

@@ -45,6 +45,7 @@ const CONTRIBUTOR_REQUIREMENTS = {
 const BASE_URL = "https://www.openlib.online";
 const GITHUB_URL = "https://github.com/AHS-Mobile-Labs/OpenLib";
 const OG_IMAGE = `${BASE_URL}/og-image.png`;
+const GENERAL_SUBCATEGORY = "General";
 const PRERENDER_CACHE_TTL_MS = 15 * 60 * 1000;
 const SITEMAP_CACHE_TTL_MS = 60 * 60 * 1000;
 const PRERENDER_LIST_LIMIT = 120;
@@ -295,7 +296,7 @@ function slugify(value) {
 }
 
 function categoryDisplayText(app) {
-  return [app?.category, app?.subcategory].filter(Boolean).join(" / ");
+  return [app?.category, app?.category ? (app.subcategory || GENERAL_SUBCATEGORY) : ""].filter(Boolean).join(" / ");
 }
 
 function splitAlternativeTargets(value) {
