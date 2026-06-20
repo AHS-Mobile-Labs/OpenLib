@@ -5,13 +5,45 @@ import {
   collection, addDoc, query, where, getDocs, updateDoc,
   doc, setDoc, getDoc, orderBy, limit, increment, deleteDoc, getCountFromServer
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-import { db } from './firebase-config.js?v=1781942865';
+import { db } from './firebase-config.js?v=1781953416';
 
 const ADMIN_ROLES = ["admin"];
 const TEAM_ROLES = ["admin", "openlib-team"];
 const CONTENT_MODERATOR_ROLES = ["maintainer", "openlib-team", "admin"];
 const ROLE_CHANGE_ROLES = ["user", "contributor", "maintainer", "openlib-team", "admin"];
 const GENERAL_SUBCATEGORY = "General";
+
+function normalizeTaxonomyLabel(value) {
+  return String(value ?? "").trim().replace(/[<>"'`]/g, "").replace(/\s+/g, " ").slice(0, 80);
+}
+
+function normalizeTaxonomyCategories(categories) {
+  if (!Array.isArray(categories)) return [];
+
+  const seenCategories = new Set();
+  return categories.reduce((list, category) => {
+    const name = normalizeTaxonomyLabel(typeof category === "string" ? category : category?.name);
+    const key = name.toLowerCase();
+    if (!name || seenCategories.has(key)) return list;
+    seenCategories.add(key);
+
+    const seenSubcategories = new Set();
+    const subcategories = (Array.isArray(category?.subcategories) ? category.subcategories : [])
+      .map(normalizeTaxonomyLabel)
+      .filter(subcategory => {
+        const subcategoryKey = subcategory.toLowerCase();
+        if (!subcategory || subcategoryKey === GENERAL_SUBCATEGORY.toLowerCase() || seenSubcategories.has(subcategoryKey)) {
+          return false;
+        }
+        seenSubcategories.add(subcategoryKey);
+        return true;
+      })
+      .slice(0, 100);
+
+    list.push({ name, subcategories });
+    return list;
+  }, []).slice(0, 80);
+}
 
 const CONTRIBUTOR_REQUIREMENTS = {
   minAccountAgeDays: 14,
@@ -267,6 +299,38 @@ export async function setTeamAccount(uid, isTeam, adminUid) {
   const admin = await getUserRecord(adminUid);
   if (!admin || !isAdminRole(admin.role)) throw new Error("Unauthorized");
   await updateDoc(doc(db, "user_records", uid), { teamAccount: !!isTeam, updatedAt: new Date().toISOString() });
+}
+
+export async function getOpenLibTaxonomy() {
+  try {
+    const snap = await getDoc(doc(db, "config", "taxonomy"));
+    if (!snap.exists()) return null;
+    const data = snap.data();
+    return {
+      ...data,
+      categories: normalizeTaxonomyCategories(data.categories)
+    };
+  } catch (e) {
+    console.error("Error getting taxonomy:", e);
+    return null;
+  }
+}
+
+export async function updateOpenLibTaxonomy(categories, adminUid) {
+  const admin = await getUserRecord(adminUid);
+  if (!admin || !isAdminRole(admin.role)) throw new Error("Only admins can manage categories");
+
+  const normalized = normalizeTaxonomyCategories(categories);
+  if (!normalized.length) throw new Error("Add at least one category");
+
+  const update = {
+    categories: normalized,
+    updatedAt: new Date().toISOString(),
+    updatedBy: adminUid
+  };
+
+  await setDoc(doc(db, "config", "taxonomy"), update, { merge: true });
+  return update;
 }
 
 export async function getAllUsers(maxResults = 100) {

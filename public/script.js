@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781942865';
+} from './firebase-config.js?v=1781953416';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781942865';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781953416';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -18,6 +18,7 @@ import {
   createOrganization, getOrganization, addOrgMember,
   removeOrgMember, transferOwnership, transferToCorporation, getUserOrganizations, getAllOrganizations,
   getUserOrgsWithPermission,
+  getOpenLibTaxonomy, updateOpenLibTaxonomy,
   submitAppWithOwner, getAppsByOwner,
   getAppVersions, restoreAppVersion,
   addReviewComment, getReviewComments, approveEditRequest, mergeEditRequest, rejectEditRequest,
@@ -38,7 +39,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781942865';
+} from './firebase-db.js?v=1781953416';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -60,7 +61,7 @@ const AUTH_PROVIDER_NAMES = {
   "github.com": "GitHub"
 };
 const GENERAL_SUBCATEGORY = "General";
-const CATEGORY_GROUPS = [
+const DEFAULT_CATEGORY_GROUPS = [
   { name: "Communication", subcategories: [] },
   { name: "Finance", subcategories: [] },
   { name: "Media", subcategories: [] },
@@ -89,7 +90,8 @@ const CATEGORY_GROUPS = [
   { name: "Platforms", subcategories: ["Android", "Linux", "Windows", "macOS", "Cross-Platform"] },
   { name: "Other", subcategories: [] }
 ];
-const APP_CATEGORIES = CATEGORY_GROUPS.map(group => group.name);
+let CATEGORY_GROUPS = cloneCategoryGroups(DEFAULT_CATEGORY_GROUPS);
+let APP_CATEGORIES = CATEGORY_GROUPS.map(group => group.name);
 const PERF_SLOW_OP_MS = 200;
 const perfSamples = [];
 
@@ -184,10 +186,81 @@ function esc(str) {
   return div.innerHTML;
 }
 
+function escAttr(str) {
+  return esc(str).replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function normalizeTaxonomyLabel(value) {
+  return String(value ?? "").trim().replace(/[<>"'`]/g, "").replace(/\s+/g, " ").slice(0, 80);
+}
+
+function cloneCategoryGroups(groups) {
+  return (Array.isArray(groups) ? groups : []).map(group => ({
+    name: normalizeTaxonomyLabel(group?.name),
+    subcategories: (Array.isArray(group?.subcategories) ? group.subcategories : [])
+      .map(normalizeTaxonomyLabel)
+      .filter(Boolean)
+  })).filter(group => group.name);
+}
+
+function normalizeCategoryGroups(groups) {
+  const seenCategories = new Set();
+  return cloneCategoryGroups(groups).reduce((list, group) => {
+    const categoryKey = group.name.toLowerCase();
+    if (seenCategories.has(categoryKey)) return list;
+    seenCategories.add(categoryKey);
+
+    const seenSubcategories = new Set();
+    const subcategories = group.subcategories.filter(subcategory => {
+      const subcategoryKey = subcategory.toLowerCase();
+      if (subcategoryKey === GENERAL_SUBCATEGORY.toLowerCase() || seenSubcategories.has(subcategoryKey)) {
+        return false;
+      }
+      seenSubcategories.add(subcategoryKey);
+      return true;
+    });
+
+    list.push({ name: group.name, subcategories });
+    return list;
+  }, []);
+}
+
+function setCategoryGroups(groups) {
+  const normalized = normalizeCategoryGroups(groups);
+  CATEGORY_GROUPS = normalized.length ? normalized : cloneCategoryGroups(DEFAULT_CATEGORY_GROUPS);
+  APP_CATEGORIES = CATEGORY_GROUPS.map(group => group.name);
+}
+
+function taxonomyLabelsEqual(a, b) {
+  return normalizeTaxonomyLabel(a).toLowerCase() === normalizeTaxonomyLabel(b).toLowerCase();
+}
+
+function parseSubcategoryList(value) {
+  const seen = new Set();
+  return String(value || "")
+    .split(",")
+    .map(normalizeTaxonomyLabel)
+    .filter(subcategory => {
+      const key = subcategory.toLowerCase();
+      if (!subcategory || key === GENERAL_SUBCATEGORY.toLowerCase() || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+async function loadCategoryTaxonomy() {
+  try {
+    const taxonomy = await getOpenLibTaxonomy();
+    if (taxonomy?.categories?.length) setCategoryGroups(taxonomy.categories);
+  } catch (err) {
+    console.warn("Could not load category taxonomy; using defaults.", err);
+  }
+}
+
 function categoryOptionsHtml(placeholder = "") {
   const placeholderOption = placeholder ? `<option value="">${esc(placeholder)}</option>` : "";
   return placeholderOption + APP_CATEGORIES
-    .map(category => `<option value="${esc(category)}">${esc(category)}</option>`)
+    .map(category => `<option value="${escAttr(category)}">${esc(category)}</option>`)
     .join("");
 }
 
@@ -203,7 +276,7 @@ function subcategoryOptionsHtml(category, placeholder = "— Optional —") {
     ? (subcategories.length ? placeholder : "— No subcategories —")
     : "— Pick a category first —";
   return `<option value="">${esc(placeholderLabel)}</option>` + subcategories
-    .map(subcategory => `<option value="${esc(subcategory)}">${esc(subcategory)}</option>`)
+    .map(subcategory => `<option value="${escAttr(subcategory)}">${esc(subcategory)}</option>`)
     .join("");
 }
 
@@ -4274,6 +4347,7 @@ async function showAdminDashboard() {
         <button class="admin-tab" data-tab="reports">Reports${pendingReports ? ` <span class="tab-badge">${pendingReports}</span>` : ""}</button>
         ${isSiteAdmin ? `<button class="admin-tab" data-tab="role-applications">Role Applications${pendingRoleApplications ? ` <span class="tab-badge">${pendingRoleApplications}</span>` : ""}</button>` : ""}
         ${isSiteAdmin ? `<button class="admin-tab" data-tab="users">Users</button>` : ""}
+        ${isSiteAdmin ? `<button class="admin-tab" data-tab="taxonomy">Categories</button>` : ""}
         ${isAdmin ? `<button class="admin-tab" data-tab="add-app">Add App</button>` : ""}
       </div>
 
@@ -4296,6 +4370,7 @@ async function showAdminDashboard() {
         case "reports": panel.innerHTML = renderAdminReports(reports); break;
         case "role-applications": panel.innerHTML = renderAdminRoleApplications(roleApplications); break;
         case "users": panel.innerHTML = renderAdminUsers(users); break;
+        case "taxonomy": panel.innerHTML = renderAdminTaxonomy(); break;
         case "add-app": panel.innerHTML = renderAdminAddApp(); break;
       }
       attachAdminHandlers(tab.dataset.tab);
@@ -4517,6 +4592,89 @@ function renderAdminUsers(users) {
           </div>
         </div>
       `).join("")}
+    </div>`;
+}
+
+function taxonomySubcategoryKey(category, subcategory) {
+  return `${category}\u001f${subcategory}`;
+}
+
+function getTaxonomyUsageCounts() {
+  return apps.reduce((counts, app) => {
+    if (!app.category) return counts;
+    const subcategory = appSubcategory(app);
+    counts.categories.set(app.category, (counts.categories.get(app.category) || 0) + 1);
+    const key = taxonomySubcategoryKey(app.category, subcategory);
+    counts.subcategories.set(key, (counts.subcategories.get(key) || 0) + 1);
+    return counts;
+  }, { categories: new Map(), subcategories: new Map() });
+}
+
+function renderAdminTaxonomy() {
+  const usage = getTaxonomyUsageCounts();
+  const categoryCards = CATEGORY_GROUPS.map(group => {
+    const categoryCount = usage.categories.get(group.name) || 0;
+    const subcategories = getSubcategoriesForCategory(group.name);
+    return `
+      <div class="taxonomy-card" data-category="${escAttr(group.name)}">
+        <div class="taxonomy-card-header">
+          <div class="taxonomy-card-title">
+            <strong>${esc(group.name)}</strong>
+            <span>${categoryCount} app${categoryCount === 1 ? "" : "s"}</span>
+          </div>
+          <button type="button" class="btn btn-danger btn-sm taxonomy-delete-category" data-category="${escAttr(group.name)}" title="Delete category">
+            ${iconImg("cancel")} Delete
+          </button>
+        </div>
+
+        <form class="taxonomy-subcategory-form" data-category="${escAttr(group.name)}">
+          <input type="text" name="subcategory" maxlength="80" placeholder="New subcategory" aria-label="New subcategory for ${escAttr(group.name)}">
+          <button type="submit" class="btn btn-secondary btn-sm">+ Add</button>
+        </form>
+
+        <div class="taxonomy-subcategory-list">
+          ${subcategories.map(subcategory => {
+            const subcategoryCount = usage.subcategories.get(taxonomySubcategoryKey(group.name, subcategory)) || 0;
+            const isGeneral = taxonomyLabelsEqual(subcategory, GENERAL_SUBCATEGORY);
+            return `
+              <div class="taxonomy-subcategory-row${isGeneral ? " is-fixed" : ""}">
+                <span class="taxonomy-subcategory-name">${esc(subcategory)}</span>
+                <span class="taxonomy-count">${subcategoryCount} app${subcategoryCount === 1 ? "" : "s"}</span>
+                ${isGeneral
+                  ? `<span class="taxonomy-fixed-label">Default</span>`
+                  : `<button type="button" class="btn btn-danger btn-sm taxonomy-delete-subcategory" data-category="${escAttr(group.name)}" data-subcategory="${escAttr(subcategory)}" title="Delete subcategory">${iconImg("cancel")} Delete</button>`}
+              </div>`;
+          }).join("")}
+        </div>
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="taxonomy-manager">
+      <div class="admin-card taxonomy-create-card">
+        <div class="admin-card-header">
+          <strong>New Category</strong>
+          <span class="admin-card-meta">${CATEGORY_GROUPS.length} active categor${CATEGORY_GROUPS.length === 1 ? "y" : "ies"}</span>
+        </div>
+        <form id="taxonomy-category-form" class="taxonomy-category-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="taxonomy-category-name">Category name</label>
+              <input type="text" id="taxonomy-category-name" maxlength="80" required placeholder="Developer Tools">
+            </div>
+            <div class="form-group">
+              <label for="taxonomy-category-subcategories">Subcategories <span class="optional">(comma separated)</span></label>
+              <input type="text" id="taxonomy-category-subcategories" maxlength="400" placeholder="IDEs, API Tools, DevOps">
+            </div>
+          </div>
+          <div class="form-msg" role="alert"></div>
+          <button type="submit" class="btn btn-primary">+ Create Category</button>
+        </form>
+      </div>
+
+      <div class="taxonomy-list">
+        ${categoryCards}
+      </div>
     </div>`;
 }
 
@@ -4768,6 +4926,20 @@ function renderAdminReports(reports) {
   }).join("");
 
   return statusFilters + `<div class="report-cards">${cards}</div>`;
+}
+
+async function saveAdminTaxonomy(nextGroups) {
+  const taxonomy = await updateOpenLibTaxonomy(nextGroups, currentUser.uid);
+  setCategoryGroups(taxonomy.categories);
+  populateCategorySelects();
+  return taxonomy;
+}
+
+function refreshAdminTaxonomyPanel() {
+  const panel = document.getElementById("admin-tab-content");
+  if (!panel) return;
+  panel.innerHTML = renderAdminTaxonomy();
+  attachAdminHandlers("taxonomy");
 }
 
 function attachAdminHandlers(tab) {
@@ -5133,6 +5305,119 @@ function attachAdminHandlers(tab) {
         } catch (err) { showToast("Lookup failed: " + err.message); }
         btn.disabled = false;
         btn.innerHTML = `${iconImg("account")} Lookup`;
+      });
+    });
+  }
+
+  if (tab === "taxonomy") {
+    const categoryForm = document.getElementById("taxonomy-category-form");
+    categoryForm?.addEventListener("submit", async e => {
+      e.preventDefault();
+      clearFormMsg(categoryForm);
+
+      const name = normalizeTaxonomyLabel(document.getElementById("taxonomy-category-name")?.value);
+      const subcategories = parseSubcategoryList(document.getElementById("taxonomy-category-subcategories")?.value);
+      if (name.length < 2) { showFormError(categoryForm, "Category name must be at least 2 characters."); return; }
+      if (CATEGORY_GROUPS.some(group => taxonomyLabelsEqual(group.name, name))) {
+        showFormError(categoryForm, "A category with this name already exists.");
+        return;
+      }
+
+      const btn = categoryForm.querySelector("button[type='submit']");
+      btn.disabled = true;
+      btn.textContent = "Creating…";
+      try {
+        await saveAdminTaxonomy([...CATEGORY_GROUPS, { name, subcategories }]);
+        showToast("Category created");
+        refreshAdminTaxonomyPanel();
+      } catch (err) {
+        showFormError(categoryForm, err.message || "Could not create category.");
+        btn.disabled = false;
+        btn.textContent = "+ Create Category";
+      }
+    });
+
+    document.querySelectorAll(".taxonomy-subcategory-form").forEach(form => {
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        const categoryName = form.dataset.category;
+        const input = form.querySelector("input[name='subcategory']");
+        const subcategory = normalizeTaxonomyLabel(input?.value);
+        if (subcategory.length < 2) { showToast("Subcategory name must be at least 2 characters"); return; }
+
+        const category = CATEGORY_GROUPS.find(group => taxonomyLabelsEqual(group.name, categoryName));
+        if (!category) { showToast("Category not found"); return; }
+        if ([GENERAL_SUBCATEGORY, ...category.subcategories].some(existing => taxonomyLabelsEqual(existing, subcategory))) {
+          showToast("Subcategory already exists");
+          return;
+        }
+
+        const btn = form.querySelector("button[type='submit']");
+        btn.disabled = true;
+        btn.textContent = "Adding…";
+        try {
+          const nextGroups = CATEGORY_GROUPS.map(group => taxonomyLabelsEqual(group.name, categoryName)
+            ? { ...group, subcategories: [...group.subcategories, subcategory] }
+            : group);
+          await saveAdminTaxonomy(nextGroups);
+          showToast("Subcategory added");
+          refreshAdminTaxonomyPanel();
+        } catch (err) {
+          showToast(err.message || "Could not add subcategory");
+          btn.disabled = false;
+          btn.textContent = "+ Add";
+        }
+      });
+    });
+
+    document.querySelectorAll(".taxonomy-delete-category").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const categoryName = btn.dataset.category;
+        if (CATEGORY_GROUPS.length <= 1) { showToast("At least one category is required"); return; }
+        const usage = getTaxonomyUsageCounts().categories.get(categoryName) || 0;
+        const warning = usage
+          ? `Delete "${categoryName}"? ${usage} existing app${usage === 1 ? "" : "s"} will keep this as a legacy category until edited.`
+          : `Delete "${categoryName}"?`;
+        if (!confirm(warning)) return;
+
+        btn.disabled = true;
+        btn.textContent = "Deleting…";
+        try {
+          await saveAdminTaxonomy(CATEGORY_GROUPS.filter(group => !taxonomyLabelsEqual(group.name, categoryName)));
+          showToast("Category deleted");
+          refreshAdminTaxonomyPanel();
+        } catch (err) {
+          showToast(err.message || "Could not delete category");
+          btn.disabled = false;
+          btn.innerHTML = `${iconImg("cancel")} Delete`;
+        }
+      });
+    });
+
+    document.querySelectorAll(".taxonomy-delete-subcategory").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const categoryName = btn.dataset.category;
+        const subcategory = btn.dataset.subcategory;
+        const usage = getTaxonomyUsageCounts().subcategories.get(taxonomySubcategoryKey(categoryName, subcategory)) || 0;
+        const warning = usage
+          ? `Delete "${subcategory}" from "${categoryName}"? ${usage} existing app${usage === 1 ? "" : "s"} will keep this as a legacy subcategory until edited.`
+          : `Delete "${subcategory}" from "${categoryName}"?`;
+        if (!confirm(warning)) return;
+
+        btn.disabled = true;
+        btn.textContent = "Deleting…";
+        try {
+          const nextGroups = CATEGORY_GROUPS.map(group => taxonomyLabelsEqual(group.name, categoryName)
+            ? { ...group, subcategories: group.subcategories.filter(item => !taxonomyLabelsEqual(item, subcategory)) }
+            : group);
+          await saveAdminTaxonomy(nextGroups);
+          showToast("Subcategory deleted");
+          refreshAdminTaxonomyPanel();
+        } catch (err) {
+          showToast(err.message || "Could not delete subcategory");
+          btn.disabled = false;
+          btn.innerHTML = `${iconImg("cancel")} Delete`;
+        }
       });
     });
   }
@@ -7942,6 +8227,7 @@ async function init() {
     history.replaceState(null, "", cleanPath);
   }
 
+  await loadCategoryTaxonomy();
   populateCategorySelects();
   initTheme();
   await initAuth();

@@ -4277,6 +4277,127 @@ a.added-by-link:hover {
   margin-top: 8px;
 }
 
+/* ── Admin Taxonomy Manager ── */
+.taxonomy-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 900px;
+}
+
+.taxonomy-create-card {
+  gap: 14px;
+}
+
+.taxonomy-category-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.taxonomy-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.taxonomy-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.taxonomy-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.taxonomy-card-title {
+  min-width: 0;
+}
+
+.taxonomy-card-title strong,
+.taxonomy-subcategory-name {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.taxonomy-card-title span,
+.taxonomy-count,
+.taxonomy-fixed-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.taxonomy-subcategory-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.taxonomy-subcategory-form input {
+  min-width: 0;
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.taxonomy-subcategory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.taxonomy-subcategory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.taxonomy-subcategory-row:first-child {
+  border-top: none;
+}
+
+.taxonomy-fixed-label {
+  color: var(--text-2);
+}
+
+@media (max-width: 640px) {
+  .taxonomy-list {
+    grid-template-columns: 1fr;
+  }
+
+  .taxonomy-card-header,
+  .taxonomy-subcategory-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .taxonomy-subcategory-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .taxonomy-subcategory-row .btn {
+    grid-column: 1 / -1;
+    justify-self: flex-start;
+  }
+}
+
 /* ── Admin Users List ── */
 
 .admin-users-list {
