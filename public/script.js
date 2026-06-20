@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781953416';
+} from './firebase-config.js?v=1781961016';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781953416';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781961016';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -39,7 +39,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781953416';
+} from './firebase-db.js?v=1781961016';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -4315,6 +4315,9 @@ async function showAdminDashboard() {
   const changesCount = submissions.filter(s => s.status === "changes_requested").length;
   const pendingReports = reports.filter(r => r.status === "pending" || r.status === "under_review").length;
   const pendingRoleApplications = roleApplications.filter(a => a.status === "pending").length;
+  const adminModeLabel = isAdmin ? "Admin Dashboard" : "Review Dashboard";
+  const adminRole = roleLabel(userRecord?.role || "user");
+  const refreshedAt = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   const errorBanner = loadErrors.length ? `
     <div class="admin-error-banner">
@@ -4327,32 +4330,49 @@ async function showAdminDashboard() {
 
   adminView.innerHTML = `
     <div class="admin-page">
-      <a href="/" class="back-link">← Back to library</a>
-      <h1 class="admin-title">${iconImg(isAdmin ? "settings" : "protect", "ui-icon title-icon")} ${isAdmin ? "Admin Dashboard" : "Review Dashboard"}</h1>
+      <div class="admin-hero">
+        <div class="admin-hero-main">
+          <a href="/" class="admin-back-link">${iconImg("back")} Back to library</a>
+          <div class="admin-title-row">
+            <span class="admin-title-icon">${iconImg(isAdmin ? "settings" : "protect", "ui-icon title-icon")}</span>
+            <div>
+              <h1 class="admin-title">${adminModeLabel}</h1>
+              <p class="admin-subtitle">Signed in as ${esc(currentUser.displayName || currentUser.email || "OpenLib staff")} · ${esc(adminRole)}</p>
+            </div>
+          </div>
+        </div>
+        <div class="admin-hero-aside">
+          <span class="admin-refresh-meta">Updated ${esc(refreshedAt)}</span>
+          <span class="admin-health-pill">${pendingCount + changesCount + pendingReports + pendingRoleApplications} open item${pendingCount + changesCount + pendingReports + pendingRoleApplications === 1 ? "" : "s"}</span>
+        </div>
+      </div>
       ${errorBanner}
 
       <div class="admin-stats">
-        <div class="admin-stat-card"><span class="stat-number">${pendingCount}</span><span class="stat-label">Pending Submissions</span></div>
-        <div class="admin-stat-card"><span class="stat-number">${changesCount}</span><span class="stat-label">Changes Requested</span></div>
-        <div class="admin-stat-card"><span class="stat-number">${editRequests.length}</span><span class="stat-label">Open Edit Requests</span></div>
-        <div class="admin-stat-card"><span class="stat-number">${pendingReports}</span><span class="stat-label">Open Reports</span></div>
-        ${isSiteAdmin ? `<div class="admin-stat-card"><span class="stat-number">${pendingRoleApplications}</span><span class="stat-label">Role Applications</span></div>` : ""}
-        ${isSiteAdmin ? `<div class="admin-stat-card"><span class="stat-number">${users.length}</span><span class="stat-label">Users</span></div>` : ""}
-        <div class="admin-stat-card"><span class="stat-number">${apps.length}</span><span class="stat-label">Apps</span></div>
+        <div class="admin-stat-card ${pendingCount ? "is-attention" : ""}"><span class="stat-icon">${iconImg("upload")}</span><span class="stat-number">${pendingCount}</span><span class="stat-label">Pending Submissions</span></div>
+        <div class="admin-stat-card ${changesCount ? "is-warning" : ""}"><span class="stat-icon">${iconImg("edit")}</span><span class="stat-number">${changesCount}</span><span class="stat-label">Changes Requested</span></div>
+        <div class="admin-stat-card ${editRequests.length ? "is-active" : ""}"><span class="stat-icon">${iconImg("copy")}</span><span class="stat-number">${editRequests.length}</span><span class="stat-label">Open Edit Requests</span></div>
+        <div class="admin-stat-card ${pendingReports ? "is-danger" : ""}"><span class="stat-icon">${iconImg("alert")}</span><span class="stat-number">${pendingReports}</span><span class="stat-label">Open Reports</span></div>
+        ${isSiteAdmin ? `<div class="admin-stat-card ${pendingRoleApplications ? "is-active" : ""}"><span class="stat-icon">${iconImg("roles")}</span><span class="stat-number">${pendingRoleApplications}</span><span class="stat-label">Role Applications</span></div>` : ""}
+        ${isSiteAdmin ? `<div class="admin-stat-card"><span class="stat-icon">${iconImg("account")}</span><span class="stat-number">${users.length}</span><span class="stat-label">Users</span></div>` : ""}
+        ${isAdmin ? `<div class="admin-stat-card"><span class="stat-icon">${iconImg("home")}</span><span class="stat-number">${orgs.length}</span><span class="stat-label">Organizations</span></div>` : ""}
+        <div class="admin-stat-card"><span class="stat-icon">${iconImg("filter")}</span><span class="stat-number">${apps.length}</span><span class="stat-label">Apps</span></div>
       </div>
 
-      <div class="admin-tabs">
-        <button class="admin-tab active" data-tab="submissions">Submissions</button>
-        <button class="admin-tab" data-tab="edit-requests">Edit Requests</button>
-        <button class="admin-tab" data-tab="reports">Reports${pendingReports ? ` <span class="tab-badge">${pendingReports}</span>` : ""}</button>
-        ${isSiteAdmin ? `<button class="admin-tab" data-tab="role-applications">Role Applications${pendingRoleApplications ? ` <span class="tab-badge">${pendingRoleApplications}</span>` : ""}</button>` : ""}
-        ${isSiteAdmin ? `<button class="admin-tab" data-tab="users">Users</button>` : ""}
-        ${isSiteAdmin ? `<button class="admin-tab" data-tab="taxonomy">Categories</button>` : ""}
-        ${isAdmin ? `<button class="admin-tab" data-tab="add-app">Add App</button>` : ""}
-      </div>
+      <div class="admin-workspace">
+        <div class="admin-tabs" role="tablist" aria-label="Admin sections">
+          <button class="admin-tab active" type="button" role="tab" aria-selected="true" data-tab="submissions">${iconImg("upload")} Submissions</button>
+          <button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="edit-requests">${iconImg("edit")} Edit Requests</button>
+          <button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="reports">${iconImg("alert")} Reports${pendingReports ? ` <span class="tab-badge">${pendingReports}</span>` : ""}</button>
+          ${isSiteAdmin ? `<button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="role-applications">${iconImg("roles")} Role Applications${pendingRoleApplications ? ` <span class="tab-badge">${pendingRoleApplications}</span>` : ""}</button>` : ""}
+          ${isSiteAdmin ? `<button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="users">${iconImg("account")} Users</button>` : ""}
+          ${isSiteAdmin ? `<button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="taxonomy">${iconImg("filter")} Categories</button>` : ""}
+          ${isAdmin ? `<button class="admin-tab" type="button" role="tab" aria-selected="false" data-tab="add-app">${iconImg("upload")} Add App</button>` : ""}
+        </div>
 
-      <div class="admin-tab-content" id="admin-tab-content">
-        ${renderAdminSubmissions(submissions)}
+        <div class="admin-tab-content" id="admin-tab-content">
+          ${renderAdminSubmissions(submissions)}
+        </div>
       </div>
     </div>
   `;
@@ -4360,8 +4380,12 @@ async function showAdminDashboard() {
   // Tab switching
   adminView.querySelectorAll(".admin-tab").forEach(tab => {
     tab.addEventListener("click", async () => {
-      adminView.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
+      adminView.querySelectorAll(".admin-tab").forEach(t => {
+        t.classList.remove("active");
+        t.setAttribute("aria-selected", "false");
+      });
       tab.classList.add("active");
+      tab.setAttribute("aria-selected", "true");
       const panel = document.getElementById("admin-tab-content");
 
       switch (tab.dataset.tab) {
@@ -4622,14 +4646,14 @@ function renderAdminTaxonomy() {
             <strong>${esc(group.name)}</strong>
             <span>${categoryCount} app${categoryCount === 1 ? "" : "s"}</span>
           </div>
-          <button type="button" class="btn btn-danger btn-sm taxonomy-delete-category" data-category="${escAttr(group.name)}" title="Delete category">
+          <button type="button" class="taxonomy-icon-action taxonomy-delete-category" data-category="${escAttr(group.name)}" title="Delete category" aria-label="Delete ${escAttr(group.name)}">
             ${iconImg("cancel")} Delete
           </button>
         </div>
 
         <form class="taxonomy-subcategory-form" data-category="${escAttr(group.name)}">
           <input type="text" name="subcategory" maxlength="80" placeholder="New subcategory" aria-label="New subcategory for ${escAttr(group.name)}">
-          <button type="submit" class="btn btn-secondary btn-sm">+ Add</button>
+          <button type="submit" class="taxonomy-add-action">Add</button>
         </form>
 
         <div class="taxonomy-subcategory-list">
@@ -4642,7 +4666,7 @@ function renderAdminTaxonomy() {
                 <span class="taxonomy-count">${subcategoryCount} app${subcategoryCount === 1 ? "" : "s"}</span>
                 ${isGeneral
                   ? `<span class="taxonomy-fixed-label">Default</span>`
-                  : `<button type="button" class="btn btn-danger btn-sm taxonomy-delete-subcategory" data-category="${escAttr(group.name)}" data-subcategory="${escAttr(subcategory)}" title="Delete subcategory">${iconImg("cancel")} Delete</button>`}
+                  : `<button type="button" class="taxonomy-row-action taxonomy-delete-subcategory" data-category="${escAttr(group.name)}" data-subcategory="${escAttr(subcategory)}" title="Delete subcategory" aria-label="Delete ${escAttr(subcategory)}">${iconImg("cancel")}</button>`}
               </div>`;
           }).join("")}
         </div>
@@ -4652,12 +4676,14 @@ function renderAdminTaxonomy() {
   return `
     <div class="taxonomy-manager">
       <div class="admin-card taxonomy-create-card">
-        <div class="admin-card-header">
-          <strong>New Category</strong>
-          <span class="admin-card-meta">${CATEGORY_GROUPS.length} active categor${CATEGORY_GROUPS.length === 1 ? "y" : "ies"}</span>
+        <div class="taxonomy-create-header">
+          <div>
+            <strong>New Category</strong>
+            <span>${CATEGORY_GROUPS.length} active categor${CATEGORY_GROUPS.length === 1 ? "y" : "ies"}</span>
+          </div>
         </div>
         <form id="taxonomy-category-form" class="taxonomy-category-form">
-          <div class="form-row">
+          <div class="taxonomy-create-grid">
             <div class="form-group">
               <label for="taxonomy-category-name">Category name</label>
               <input type="text" id="taxonomy-category-name" maxlength="80" required placeholder="Developer Tools">
@@ -4666,9 +4692,9 @@ function renderAdminTaxonomy() {
               <label for="taxonomy-category-subcategories">Subcategories <span class="optional">(comma separated)</span></label>
               <input type="text" id="taxonomy-category-subcategories" maxlength="400" placeholder="IDEs, API Tools, DevOps">
             </div>
+            <button type="submit" class="btn btn-primary taxonomy-create-action">Create</button>
           </div>
           <div class="form-msg" role="alert"></div>
-          <button type="submit" class="btn btn-primary">+ Create Category</button>
         </form>
       </div>
 
@@ -4686,15 +4712,20 @@ function renderAdminAddApp() {
         <legend class="admin-fieldset-legend">Basic Info</legend>
         <div class="form-row">
           <div class="form-group"><label for="aa-name">App Name <span class="required">*</span></label><input type="text" id="aa-name" required maxlength="100" placeholder="e.g. Inkscape"></div>
-          <div class="form-group"><label for="aa-category">Category <span class="required">*</span></label>
-            <select id="aa-category" required>
-              ${categoryOptionsHtml("— Pick —")}
-            </select>
-          </div>
-          <div class="form-group"><label for="aa-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
-            <select id="aa-subcategory" disabled>
-              <option value="">— Pick a category first —</option>
-            </select>
+          <div class="form-group"><label for="aa-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label><input type="text" id="aa-alternative" required maxlength="200" placeholder="e.g. WhatsApp, Telegram"></div>
+        </div>
+        <div class="category-picker-panel">
+          <div class="form-row category-picker-row">
+            <div class="form-group"><label for="aa-category">Category <span class="required">*</span></label>
+              <select id="aa-category" required>
+                ${categoryOptionsHtml("— Pick —")}
+              </select>
+            </div>
+            <div class="form-group"><label for="aa-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
+              <select id="aa-subcategory" disabled>
+                <option value="">— Pick a category first —</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="form-group">
@@ -4710,7 +4741,6 @@ function renderAdminAddApp() {
         <div class="form-group"><label for="aa-description">Short Description <span class="required">*</span></label><textarea id="aa-description" rows="2" required maxlength="300" placeholder="One-sentence app description."></textarea></div>
         <div class="form-group"><label for="aa-full-description">Full Description <span class="optional">(optional)</span></label><textarea id="aa-full-description" rows="4" maxlength="5000" placeholder="Detailed description with features, highlights, who it's for…"></textarea></div>
         <div class="form-group"><label for="aa-uses">Uses / Problem it solves <span class="required">*</span></label><textarea id="aa-uses" rows="2" required maxlength="300" placeholder="What specific problem does this app solve?"></textarea></div>
-        <div class="form-group"><label for="aa-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label><input type="text" id="aa-alternative" required maxlength="200" placeholder="e.g. WhatsApp, Telegram"></div>
       </fieldset>
 
       <!-- ── Section: Links ── -->
@@ -5333,7 +5363,7 @@ function attachAdminHandlers(tab) {
       } catch (err) {
         showFormError(categoryForm, err.message || "Could not create category.");
         btn.disabled = false;
-        btn.textContent = "+ Create Category";
+        btn.textContent = "Create";
       }
     });
 
@@ -5365,7 +5395,7 @@ function attachAdminHandlers(tab) {
         } catch (err) {
           showToast(err.message || "Could not add subcategory");
           btn.disabled = false;
-          btn.textContent = "+ Add";
+          btn.textContent = "Add";
         }
       });
     });

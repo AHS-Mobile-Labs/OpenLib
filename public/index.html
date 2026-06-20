@@ -109,9 +109,9 @@
   <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/rP2Hp2ywxg089UriCZOIHQ.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="/assets/fonts/8vIH7w4qzmVxm2BL9A.woff2" crossorigin>
-  <link rel="modulepreload" href="script.js?v=1781953416">
+  <link rel="modulepreload" href="script.js?v=1781961016">
 
-  <link rel="stylesheet" href="styles.css?v=1781953416">
+  <link rel="stylesheet" href="styles.css?v=1781961016">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="alternate icon" type="image/x-icon" href="/favicon.ico">
@@ -306,17 +306,25 @@
             <input type="text" id="sub-name" placeholder="e.g. Inkscape" required maxlength="100">
           </div>
           <div class="form-group">
-            <label for="sub-category">Category <span class="required">*</span></label>
-            <select id="sub-category" required>
-              <option value="">— Pick one —</option>
-            </select>
+            <label for="sub-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label>
+            <input type="text" id="sub-alternative" placeholder="e.g. WhatsApp, Telegram" required maxlength="200">
           </div>
         </div>
-        <div class="form-group">
-          <label for="sub-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
-          <select id="sub-subcategory" disabled>
-            <option value="">— Pick a category first —</option>
-          </select>
+        <div class="category-picker-panel">
+          <div class="form-row category-picker-row">
+            <div class="form-group">
+              <label for="sub-category">Category <span class="required">*</span></label>
+              <select id="sub-category" required>
+                <option value="">— Pick one —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sub-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
+              <select id="sub-subcategory" disabled>
+                <option value="">— Pick a category first —</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label for="sub-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp, .svg)</span></label>
@@ -329,10 +337,6 @@
           </div>
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <label for="sub-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label>
-            <input type="text" id="sub-alternative" placeholder="e.g. WhatsApp, Telegram" required maxlength="200">
-          </div>
           <div class="form-group">
             <label for="sub-license">License <span class="required">*</span></label>
             <select id="sub-license" required>
@@ -546,17 +550,25 @@
             <input type="text" id="er-name" placeholder="Current name…" maxlength="100">
           </div>
           <div class="form-group">
-            <label for="er-category">Category</label>
-            <select id="er-category">
-              <option value="">— No change —</option>
-            </select>
+            <label for="er-alternative">Alternative to <span class="optional">(comma separated)</span></label>
+            <input type="text" id="er-alternative" placeholder="e.g. WhatsApp, Telegram" maxlength="200">
           </div>
         </div>
-        <div class="form-group">
-          <label for="er-subcategory">Subcategory <span class="optional">(General if blank)</span></label>
-          <select id="er-subcategory" disabled>
-            <option value="">— No change —</option>
-          </select>
+        <div class="category-picker-panel">
+          <div class="form-row category-picker-row">
+            <div class="form-group">
+              <label for="er-category">Category</label>
+              <select id="er-category">
+                <option value="">— No change —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="er-subcategory">Subcategory <span class="optional">(General if blank)</span></label>
+              <select id="er-subcategory" disabled>
+                <option value="">— No change —</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label for="er-description">Description</label>
@@ -567,10 +579,6 @@
           <textarea id="er-uses" rows="2" placeholder="Suggest updated uses…" maxlength="300"></textarea>
         </div>
         <div class="form-row">
-          <div class="form-group">
-            <label for="er-alternative">Alternative to <span class="optional">(comma separated)</span></label>
-            <input type="text" id="er-alternative" placeholder="e.g. WhatsApp, Telegram" maxlength="200">
-          </div>
           <div class="form-group">
             <label for="er-logo">Logo <span class="optional">(URL or upload — .jpg, .jpeg, .png, .webp, .svg)</span></label>
             <div class="logo-input-group">
@@ -761,26 +769,30 @@
             <input type="text" id="resub-name" required maxlength="100">
           </div>
           <div class="form-group">
-            <label for="resub-category">Category <span class="required">*</span></label>
-            <select id="resub-category" required>
-              <option value="">— Pick one —</option>
-            </select>
+            <label for="resub-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label>
+            <input type="text" id="resub-alternative" placeholder="e.g. WhatsApp, Telegram" required maxlength="200">
           </div>
         </div>
-        <div class="form-group">
-          <label for="resub-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
-          <select id="resub-subcategory" disabled>
-            <option value="">— Pick a category first —</option>
-          </select>
+        <div class="category-picker-panel">
+          <div class="form-row category-picker-row">
+            <div class="form-group">
+              <label for="resub-category">Category <span class="required">*</span></label>
+              <select id="resub-category" required>
+                <option value="">— Pick one —</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="resub-subcategory">Subcategory <span class="optional">(defaults to General)</span></label>
+              <select id="resub-subcategory" disabled>
+                <option value="">— Pick a category first —</option>
+              </select>
+            </div>
+          </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="resub-logo">Logo URL <span class="optional">(.jpg, .jpeg, .png, .webp, .svg)</span></label>
             <input type="url" id="resub-logo">
-          </div>
-          <div class="form-group">
-            <label for="resub-alternative">Alternative to <span class="required">*</span> <span class="optional">(comma separated)</span></label>
-            <input type="text" id="resub-alternative" placeholder="e.g. WhatsApp, Telegram" required maxlength="200">
           </div>
         </div>
         <div class="form-group">
@@ -944,6 +956,6 @@
     </div>
   </div>
 
-  <script type="module" src="script.js?v=1781953416"></script>
+  <script type="module" src="script.js?v=1781961016"></script>
 </body>
 </html>
