@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1781961016';
+} from './firebase-config.js?v=1782592281';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1781961016';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1782592281';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -39,7 +39,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1781961016';
+} from './firebase-db.js?v=1782592281';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -1157,12 +1157,28 @@ function validateComparisonEditor(container) {
   return error;
 }
 
+function comparisonSeedColumns(appName, alternativeLabel) {
+  const appColumn = String(appName || "").trim() || "This App";
+  const alternatives = splitAlternativeTargets(alternativeLabel);
+  const labels = [appColumn, ...(alternatives.length ? alternatives : ["Alternative"])];
+  const seen = new Set();
+  const columns = [];
+  labels.forEach(label => {
+    const normalized = String(label || "").trim();
+    const key = normalized.toLowerCase();
+    if (!normalized || seen.has(key)) return;
+    seen.add(key);
+    columns.push(normalized);
+  });
+  if (columns.length < 2) {
+    columns.push(seen.has("alternative") ? "Other App" : "Alternative");
+  }
+  return columns.slice(0, MAX_COMPARISON_APPS);
+}
+
 function manualComparisonSeed(appName, alternativeLabel) {
   return {
-    columns: [
-      appName?.trim() || "This App",
-      alternativeLabel?.trim() || "Alternative"
-    ],
+    columns: comparisonSeedColumns(appName, alternativeLabel),
     rows: []
   };
 }
@@ -2360,7 +2376,7 @@ function openEditRequestModal(appId, appName, app, directEdit = false) {
         erCompInitBtn.style.display = "";
         erCompInitBtn.onclick = () => {
           const appName = app.name || "This App";
-          const alt = formatAlternativeTargets(app, "Alternative");
+          const alt = getAlternativeTargets(app);
           initComparisonEditor(erCompContainer, manualComparisonSeed(appName, alt));
           erCompInitBtn.style.display = "none";
         };
