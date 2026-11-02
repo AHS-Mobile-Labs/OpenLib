@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1782594241';
+} from './firebase-config.js?v=1793651258';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1782594241';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1793651258';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -39,7 +39,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1782594241';
+} from './firebase-db.js?v=1793651258';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -1429,45 +1429,40 @@ async function showAppDetail(appId) {
     return;
   }
 
-  const alternativeLabelTitle = formatAlternativeTargets(app, "Proprietary Apps");
-  const alternativeLabelDescription = formatAlternativeTargets(app, "proprietary software");
+  try {
+    const alternativeLabelTitle = formatAlternativeTargets(app, "Proprietary Apps");
+    const alternativeLabelDescription = formatAlternativeTargets(app, "proprietary software");
+    autoUpdatePageMeta(`/app/${encodeURIComponent(appId)}`, { app });
 
-  updatePageMeta({
-    title: `${app.name} - Free Open Source Alternative to ${alternativeLabelTitle} | OpenLib`,
-    description: `${app.name} is a free, open-source alternative to ${alternativeLabelDescription}. ${(app.description || "").slice(0, 140)}`,
-    url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
-    image: app.logo || `${BASE_URL}/og-image.png`
-  });
+    // SEO: Inject SoftwareApplication JSON-LD for this app
+    injectAppJsonLd(app);
 
-  // SEO: Inject SoftwareApplication JSON-LD for this app
-  injectAppJsonLd(app);
+    const localIdx = apps.findIndex(a => a.id === appId);
 
-  const localIdx = apps.findIndex(a => a.id === appId);
-
-  // Increment views in the background. Local throttle prevents repeated
-  // Firestore throttle queries from the same browser/device.
-  const viewUserId = currentUser ? currentUser.uid : null;
-  const viewThrottleKey = `view:${viewUserId || getSessionId()}:${appId}`;
-  if (shouldRunClientTrackedEvent(viewThrottleKey, 60 * 60 * 1000)) {
-    app.views = (app.views || 0) + 1;
-    if (localIdx >= 0) apps[localIdx].views = app.views;
-    incrementAppViews(appId, viewUserId).catch(() => {});
-  }
-
-  // Get user vote if logged in
-  let userVote = null;
-  let bookmarked = false;
-  const ratingData = (app.avgRating || app.reviewCount)
-    ? { avg: app.avgRating || 0, count: app.reviewCount || 0 }
-    : await getAverageRating(appId);
-  if (currentUser) {
-    try {
-      userVote = await getUserVote(appId, currentUser.uid);
-      bookmarked = await isBookmarked(currentUser.uid, appId);
-    } catch (err) {
-      console.warn("Error loading user data for detail page:", err);
+    // Increment views in the background. Local throttle prevents repeated
+    // Firestore throttle queries from the same browser/device.
+    const viewUserId = currentUser ? currentUser.uid : null;
+    const viewThrottleKey = `view:${viewUserId || getSessionId()}:${appId}`;
+    if (shouldRunClientTrackedEvent(viewThrottleKey, 60 * 60 * 1000)) {
+      app.views = (app.views || 0) + 1;
+      if (localIdx >= 0) apps[localIdx].views = app.views;
+      incrementAppViews(appId, viewUserId).catch(() => {});
     }
-  }
+
+    // Get user vote if logged in
+    let userVote = null;
+    let bookmarked = false;
+    const ratingData = (app.avgRating || app.reviewCount)
+      ? { avg: app.avgRating || 0, count: app.reviewCount || 0 }
+      : await getAverageRating(appId);
+    if (currentUser) {
+      try {
+        userVote = await getUserVote(appId, currentUser.uid);
+        bookmarked = await isBookmarked(currentUser.uid, appId);
+      } catch (err) {
+        console.warn("Error loading user data for detail page:", err);
+      }
+    }
 
   const rank = getAppRank(appId);
   const prevRank = getAppPreviousRank(appId);
@@ -2059,6 +2054,10 @@ async function showAppDetail(appId) {
   // Load edit requests and version history for this app
   loadEditRequestsForDetail(appId);
   loadVersionHistory(appId);
+  } catch (err) {
+    console.error("Error rendering app detail view:", err);
+    detailView.innerHTML = `<div class="empty-state"><h3>Failed to load app</h3><p>${esc(err.message || 'An error occurred while loading this app.')}</p><p><a href="/">← Back to library</a></p></div>`;
+  }
 }
 
 // ── Edit Request (PR-style) ──────────────────────────────────────────────────
@@ -3028,6 +3027,7 @@ async function showProfile(uid) {
     profileView.innerHTML = `<div class="empty-state"><h3>Profile not found</h3><a href="/">← Back</a></div>`;
     return;
   }
+  autoUpdatePageMeta(location.pathname, { user: record });
 
   const orgs = await getUserOrganizations(targetUid);
   const userApps = await getAppsByOwner(targetUid);
@@ -3349,6 +3349,7 @@ async function showOrgView(orgId) {
     orgView.innerHTML = `<div class="empty-state"><h3>Organization not found</h3><a href="/">← Back</a></div>`;
     return;
   }
+  autoUpdatePageMeta(location.pathname, { org });
 
   const orgApps = await getAppsByOwner(orgId);
   const isOwner = currentUser && org.ownerId === currentUser.uid;
@@ -7435,28 +7436,266 @@ function navigateTo(path) {
   window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 }
 
-function updatePageMeta({ title, description, url, robots = "index, follow, max-snippet:-1, max-image-preview:large", image }) {
-  document.title = title;
-  const setAttr = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
-  setAttr("meta-description", "content", description);
-  setAttr("meta-robots", "content", robots);
-  setAttr("canonical-url", "href", url);
-  setAttr("og-url",         "content", url);
-  setAttr("og-title",       "content", title);
-  setAttr("og-description", "content", description);
-  setAttr("tw-title",       "content", title);
-  setAttr("tw-description", "content", description);
-  setAttr("tw-url",         "content", url);
-  if (image) {
-    setAttr("og-image", "content", image);
-    const twImage = document.querySelector('meta[name="twitter:image"]');
-    if (twImage) twImage.setAttribute("content", image);
-  }
+function updatePageMeta({
+  title,
+  description,
+  keywords,
+  url,
+  robots = "index, follow, max-snippet:-1, max-image-preview:large",
+  image,
+  imageAlt,
+  type
+}) {
+  if (title) document.title = title;
 
-  // Dynamic og:type per page
-  const ogType = document.getElementById("og-type");
-  if (ogType) {
-    ogType.setAttribute("content", url.includes("/app/") ? "article" : "website");
+  const setMetaAttr = (selector, attr, val, createTag) => {
+    if (!val) return;
+    let el = document.querySelector(selector);
+    if (!el && createTag) {
+      el = document.createElement(createTag.tagName || "meta");
+      for (const [k, v] of Object.entries(createTag.attrs || {})) {
+        el.setAttribute(k, v);
+      }
+      document.head.appendChild(el);
+    }
+    if (el) el.setAttribute(attr, val);
+  };
+
+  const canonicalUrl = url || `${BASE_URL}${location.pathname}`;
+  const imgUrl = image || `${BASE_URL}/og-image.png`;
+  const imgAlt = imageAlt || title || "OpenLib";
+  const pageType = type || (canonicalUrl.includes("/app/") ? "article" : "website");
+  const kwStr = Array.isArray(keywords)
+    ? keywords.filter(Boolean).join(", ")
+    : (keywords || "open source, free software, FOSS, app library, software alternatives, open-source apps, Linux apps, free alternatives");
+
+  setMetaAttr("#meta-description, meta[name=\"description\"]", "content", description || "Discover free alternatives. Rate what you use. Own your software stack.", { attrs: { name: "description", id: "meta-description" } });
+  setMetaAttr("#meta-keywords, meta[name=\"keywords\"]", "content", kwStr, { attrs: { name: "keywords", id: "meta-keywords" } });
+  setMetaAttr("#meta-robots, meta[name=\"robots\"]", "content", robots, { attrs: { name: "robots", id: "meta-robots" } });
+  setMetaAttr("#canonical-url, link[rel=\"canonical\"]", "href", canonicalUrl, { tagName: "link", attrs: { rel: "canonical", id: "canonical-url" } });
+
+  // Open Graph
+  setMetaAttr("#og-site-name, meta[property=\"og:site_name\"]", "content", "OpenLib", { attrs: { property: "og:site_name" } });
+  setMetaAttr("#og-type, meta[property=\"og:type\"]", "content", pageType, { attrs: { property: "og:type", id: "og-type" } });
+  setMetaAttr("#og-url, meta[property=\"og:url\"]", "content", canonicalUrl, { attrs: { property: "og:url", id: "og-url" } });
+  setMetaAttr("#og-title, meta[property=\"og:title\"]", "content", title, { attrs: { property: "og:title", id: "og-title" } });
+  setMetaAttr("#og-description, meta[property=\"og:description\"]", "content", description || "", { attrs: { property: "og:description", id: "og-description" } });
+  setMetaAttr("#og-image, meta[property=\"og:image\"]", "content", imgUrl, { attrs: { property: "og:image", id: "og-image" } });
+  setMetaAttr("#og-image-alt, meta[property=\"og:image:alt\"]", "content", imgAlt, { attrs: { property: "og:image:alt", id: "og-image-alt" } });
+
+  // Twitter Card
+  setMetaAttr("#tw-card, meta[name=\"twitter:card\"]", "content", "summary_large_image", { attrs: { name: "twitter:card" } });
+  setMetaAttr("#tw-title, meta[name=\"twitter:title\"]", "content", title, { attrs: { name: "twitter:title", id: "tw-title" } });
+  setMetaAttr("#tw-description, meta[name=\"twitter:description\"]", "content", description || "", { attrs: { name: "twitter:description", id: "tw-description" } });
+  setMetaAttr("#tw-url, meta[name=\"twitter:url\"]", "content", canonicalUrl, { attrs: { name: "twitter:url", id: "tw-url" } });
+  setMetaAttr("#tw-image, meta[name=\"twitter:image\"]", "content", imgUrl, { attrs: { name: "twitter:image", id: "tw-image" } });
+}
+
+function getAppMetaProps(app) {
+  if (!app) return null;
+  const altNames = formatAlternativeTargets(app, "");
+  let title;
+  let description;
+  if (altNames) {
+    title = `${app.name} — Free Open Source Alternative to ${altNames} | OpenLib`;
+    description = `${app.name} is a free, open-source alternative to ${altNames}. ${(app.description || app.uses || "").slice(0, 150)}`;
+  } else {
+    const cat = categoryDisplayText(app) || "Software";
+    title = `${app.name} — Free & Open Source ${cat} | OpenLib`;
+    description = `${app.name} is a free, open-source ${cat.toLowerCase()}. ${(app.description || app.uses || "").slice(0, 150)}`;
+  }
+  const alternativeTargets = getAlternativeTargets(app);
+  const keywords = [
+    app.name,
+    `${app.name} open source`,
+    `${app.name} download`,
+    `${app.name} alternative`,
+    ...(alternativeTargets.map(target => `alternative to ${target}`)),
+    ...(app.tags || []),
+    app.category,
+    app.subcategory,
+    "free software",
+    "FOSS"
+  ].filter(Boolean);
+
+  return {
+    title,
+    description,
+    keywords,
+    url: `${BASE_URL}/app/${encodeURIComponent(app.id)}`,
+    image: app.logo || `${BASE_URL}/og-image.png`,
+    imageAlt: `${app.name} logo`,
+    type: "article"
+  };
+}
+
+function autoUpdatePageMeta(path = location.pathname, context = {}) {
+  const normPath = (path || "/").toLowerCase();
+
+  if (normPath.match(/^\/app\/[^/]+\/reviews$/)) {
+    const appId = decodeURIComponent(path.replace("/app/", "").replace("/reviews", ""));
+    const app = context.app || apps.find(a => a.id === appId);
+    const appName = app ? app.name : "App";
+    updatePageMeta({
+      title: `${appName} Reviews & Ratings — OpenLib`,
+      description: `Read verified community ratings and reviews for ${appName} on OpenLib.`,
+      keywords: [`${appName} reviews`, `${appName} ratings`, `${appName} feedback`, "open source reviews"],
+      url: `${BASE_URL}/app/${encodeURIComponent(appId)}/reviews`,
+      robots: "noindex, follow"
+    });
+  } else if (normPath.match(/^\/app\/[^/]+\/edit-requests$/)) {
+    const appId = decodeURIComponent(path.replace("/app/", "").replace("/edit-requests", ""));
+    const app = context.app || apps.find(a => a.id === appId);
+    const appName = app ? app.name : "App";
+    updatePageMeta({
+      title: `${appName} Edit Requests & Community Contributions — OpenLib`,
+      description: `View community suggestions, edit requests, and contributions for ${appName} on OpenLib.`,
+      keywords: [`${appName} edit requests`, `${appName} contributions`, "open source contributions"],
+      url: `${BASE_URL}/app/${encodeURIComponent(appId)}/edit-requests`,
+      robots: "noindex, follow"
+    });
+  } else if (normPath.match(/^\/app\/[^/]+\/versions$/)) {
+    const appId = decodeURIComponent(path.replace("/app/", "").replace("/versions", ""));
+    const app = context.app || apps.find(a => a.id === appId);
+    const appName = app ? app.name : "App";
+    updatePageMeta({
+      title: `${appName} Version History & Changelog — OpenLib`,
+      description: `Explore previous releases, updates, and version changelog for ${appName} on OpenLib.`,
+      keywords: [`${appName} version history`, `${appName} changelog`, `${appName} releases`],
+      url: `${BASE_URL}/app/${encodeURIComponent(appId)}/versions`,
+      robots: "noindex, follow"
+    });
+  } else if (normPath.startsWith("/app/")) {
+    const appId = decodeURIComponent(path.replace("/app/", ""));
+    const app = context.app || apps.find(a => a.id === appId);
+    if (app) {
+      updatePageMeta(getAppMetaProps(app));
+    } else {
+      updatePageMeta({
+        title: "App — OpenLib",
+        description: "Open-source application listing on OpenLib.",
+        url: `${BASE_URL}/app/${encodeURIComponent(appId)}`
+      });
+    }
+  } else if (normPath.startsWith("/category/")) {
+    const slug = slugify(decodeURIComponent(path.replace("/category/", "")));
+    const appList = context.appList || getPublicApps(getAppsForCategorySlug(slug));
+    const label = appList[0]?.category || titleCaseFromSlug(slug);
+    updatePageMeta({
+      title: `${label} Open Source Apps & Free Software Alternatives | OpenLib`,
+      description: `Browse ${label.toLowerCase()} open-source apps and free software alternatives on OpenLib, including ${summarizeList(appList, "community-curated tools")}.`,
+      keywords: [`open source ${label.toLowerCase()} apps`, `${label.toLowerCase()} software alternatives`, `free ${label.toLowerCase()} software`, label],
+      url: `${BASE_URL}/category/${slug}`
+    });
+  } else if (normPath.startsWith("/tag/")) {
+    const slug = slugify(decodeURIComponent(path.replace("/tag/", "")));
+    const label = titleCaseFromSlug(slug);
+    updatePageMeta({
+      title: `${label} Open Source Software & Apps | OpenLib`,
+      description: `Discover free and open-source software tagged ${label.toLowerCase()} on OpenLib, with app details, alternatives, platforms, licenses, and source links.`,
+      keywords: [`${label.toLowerCase()} open source software`, `${label.toLowerCase()} apps`, label],
+      url: `${BASE_URL}/tag/${slug}`
+    });
+  } else if (normPath.startsWith("/alternatives/")) {
+    const slug = slugify(decodeURIComponent(path.replace("/alternatives/", "")));
+    const appList = context.appList || getPublicApps(getAppsForAlternativeSlug(slug));
+    const label = getAlternativeLabelForSlug(appList, slug);
+    const altTargets = getAlternativeTargetsForSlug(appList, slug);
+    updatePageMeta({
+      title: `Best Open Source Alternatives to ${label} | OpenLib`,
+      description: `Compare free and open-source alternatives to ${label} on OpenLib, including ${summarizeList(appList, "privacy-friendly software options")}.`,
+      keywords: altTargets.length ? altTargets.map(target => `alternative to ${target}`) : [`open source alternative to ${label}`, `${label} alternatives`],
+      url: `${BASE_URL}/alternatives/${slug}`
+    });
+  } else if (SEO_TOPIC_BY_SLUG.has(normPath.replace("/", ""))) {
+    const topic = SEO_TOPIC_BY_SLUG.get(normPath.replace("/", ""));
+    updatePageMeta({
+      title: topic.title,
+      description: topic.description,
+      keywords: topic.keywords,
+      url: `${BASE_URL}/${topic.slug}`
+    });
+  } else if (normPath === "/rankings") {
+    updatePageMeta({
+      title: "Top Ranked Open Source Apps | OpenLib",
+      description: "Discover the highest-rated free and open-source apps ranked by the OpenLib community. Find the best FOSS alternatives.",
+      keywords: ["open source rankings", "best open source apps", "top FOSS software", "software leaderboard"],
+      url: `${BASE_URL}/rankings`
+    });
+  } else if (normPath === "/trending") {
+    updatePageMeta({
+      title: "Trending Open Source Apps This Week | OpenLib",
+      description: "See which free and open-source apps are trending this week on OpenLib. Discover popular FOSS alternatives.",
+      keywords: ["trending open source", "rising foss projects", "new open source apps", "popular software alternatives"],
+      url: `${BASE_URL}/trending`
+    });
+  } else if (normPath === "/roles") {
+    updatePageMeta({
+      title: "OpenLib Roles and Achievements | OpenLib",
+      description: "Learn how OpenLib user, contributor, maintainer, and OpenLib Team roles work, track achievement progress, and apply for trusted roles.",
+      keywords: ["openlib roles", "contributor roles", "open source maintainer", "achievements"],
+      url: `${BASE_URL}/roles`
+    });
+  } else if (normPath === "/team") {
+    updatePageMeta({
+      title: "OpenLib Team — Curators & Maintainers | OpenLib",
+      description: "Meet the OpenLib team — admins and contributors curating the open-source app library.",
+      keywords: ["openlib team", "openlib admins", "openlib contributors"],
+      url: `${BASE_URL}/team`
+    });
+  } else if (normPath === "/team/manage") {
+    updatePageMeta({
+      title: "Team Management — OpenLib",
+      description: "Manage OpenLib team members and role assignments.",
+      url: `${BASE_URL}/team/manage`,
+      robots: "noindex, nofollow"
+    });
+  } else if (normPath === "/verify") {
+    updatePageMeta({
+      title: "Verify Submissions — OpenLib",
+      description: "Review and verify incoming app submissions.",
+      url: `${BASE_URL}/verify`,
+      robots: "noindex, nofollow"
+    });
+  } else if (normPath === "/admin") {
+    updatePageMeta({
+      title: "Admin Dashboard — OpenLib",
+      description: "OpenLib administration dashboard.",
+      url: `${BASE_URL}/admin`,
+      robots: "noindex, nofollow"
+    });
+  } else if (normPath === "/profile" || normPath.startsWith("/profile/")) {
+    const profileUser = context.user;
+    updatePageMeta({
+      title: profileUser ? `${profileUser.displayName || "User"} Profile — OpenLib` : "User Profile — OpenLib",
+      description: "User profile, contributions, and bookmarks on OpenLib.",
+      url: `${BASE_URL}${normPath}`,
+      robots: "noindex, follow"
+    });
+  } else if (normPath.startsWith("/org/")) {
+    const org = context.org;
+    updatePageMeta({
+      title: org ? `${org.name || "Organization"} — OpenLib` : "Organization — OpenLib",
+      description: org ? (org.description || `Apps maintained by ${org.name} on OpenLib.`) : "Organization profile on OpenLib.",
+      url: `${BASE_URL}${normPath}`,
+      robots: "noindex, follow"
+    });
+  } else if (normPath === "/" || normPath === "") {
+    if (context.searchQuery) {
+      updatePageMeta({
+        title: `"${context.searchQuery}" — Search Open Source Apps | OpenLib`,
+        description: `Search results for "${context.searchQuery}" on OpenLib open-source app library.`,
+        keywords: [context.searchQuery, "open source search", "FOSS search", "software alternatives"],
+        url: `${BASE_URL}/`
+      });
+    } else {
+      updatePageMeta({
+        title: "OpenLib — Open Source App Library | Free Software Alternatives",
+        description: "Discover free, open-source alternatives to popular apps. Compare FOSS software, read community reviews, and find the best free alternatives to Photoshop, Office, and more.",
+        keywords: ["open source", "free software", "FOSS", "app library", "software alternatives", "open-source apps", "Linux apps", "free alternatives"],
+        url: `${BASE_URL}/`
+      });
+    }
   }
 }
 
@@ -7689,6 +7928,7 @@ function showSeoLandingPage({ kind, slug }) {
   updatePageMeta({
     title: page.title,
     description: page.description,
+    keywords: page.keywords,
     url
   });
   updateJsonLd({
@@ -7915,47 +8155,19 @@ function showNotFoundPage() {
 // ── Router ───────────────────────────────────────────────────────────────────
 function handleRoute() {
   const path = location.pathname || "/";
+  autoUpdatePageMeta(path);
+
   if (path.match(/^\/app\/[^/]+\/reviews$/)) {
     const appId = decodeURIComponent(path.replace("/app/", "").replace("/reviews", ""));
-    const app = apps.find(a => a.id === appId);
-    updatePageMeta({
-      title: app ? `Reviews — ${app.name} — OpenLib` : "Reviews — OpenLib",
-      description: app ? `Read reviews for ${app.name} on OpenLib.` : "App reviews on OpenLib.",
-      url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
-      robots: "noindex, follow"
-    });
     showReviewsPage(appId);
   } else if (path.match(/^\/app\/[^/]+\/edit-requests$/)) {
     const appId = decodeURIComponent(path.replace("/app/", "").replace("/edit-requests", ""));
-    const app = apps.find(a => a.id === appId);
-    updatePageMeta({
-      title: app ? `Edit Requests — ${app.name} — OpenLib` : "Edit Requests — OpenLib",
-      description: app ? `View edit requests for ${app.name} on OpenLib.` : "App edit requests on OpenLib.",
-      url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
-      robots: "noindex, follow"
-    });
     showEditRequestsPage(appId);
   } else if (path.match(/^\/app\/[^/]+\/versions$/)) {
     const appId = decodeURIComponent(path.replace("/app/", "").replace("/versions", ""));
-    const app = apps.find(a => a.id === appId);
-    updatePageMeta({
-      title: app ? `Version History — ${app.name} — OpenLib` : "Version History — OpenLib",
-      description: app ? `View version history for ${app.name} on OpenLib.` : "App version history on OpenLib.",
-      url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
-      robots: "noindex, follow"
-    });
     showVersionHistoryPage(appId);
   } else if (path.startsWith("/app/")) {
     const appId = decodeURIComponent(path.replace("/app/", ""));
-    const app = apps.find(a => a.id === appId);
-    const routeAlternativeTitle = app ? formatAlternativeTargets(app, "Proprietary Apps") : "";
-    const routeAlternativeDescription = app ? formatAlternativeTargets(app, "proprietary software") : "";
-    updatePageMeta({
-      title: app ? `${app.name} — Free Open Source Alternative to ${routeAlternativeTitle} | OpenLib` : "App — OpenLib",
-      description: app ? `${app.name} is a free, open-source alternative to ${routeAlternativeDescription}. ${(app.description || '').slice(0, 120)}` : "Open-source app details on OpenLib.",
-      url: `${BASE_URL}/app/${encodeURIComponent(appId)}`,
-      image: app?.logo || `${BASE_URL}/og-image.png`
-    });
     showAppDetail(appId);
   } else if (path.startsWith("/category/")) {
     showSeoLandingPage({ kind: "category", slug: slugify(decodeURIComponent(path.replace("/category/", ""))) });
@@ -7966,25 +8178,10 @@ function handleRoute() {
   } else if (SEO_TOPIC_BY_SLUG.has(path.replace("/", ""))) {
     showSeoLandingPage({ kind: "topic", slug: path.replace("/", "") });
   } else if (path === "/rankings") {
-    updatePageMeta({
-      title: "Top Ranked Open Source Apps | OpenLib",
-      description: "Discover the highest-rated free and open-source apps ranked by the OpenLib community. Find the best FOSS alternatives.",
-      url: `${BASE_URL}/rankings`
-    });
     showRankings();
   } else if (path === "/trending") {
-    updatePageMeta({
-      title: "Trending Open Source Apps This Week | OpenLib",
-      description: "See which free and open-source apps are trending this week on OpenLib. Discover popular FOSS alternatives.",
-      url: `${BASE_URL}/trending`
-    });
     showTrending();
   } else if (path === "/roles") {
-    updatePageMeta({
-      title: "OpenLib Roles and Achievements | OpenLib",
-      description: "Learn how OpenLib user, contributor, maintainer, and OpenLib Team roles work, track achievement progress, and apply for trusted roles.",
-      url: `${BASE_URL}/roles`
-    });
     showRolesPage();
   } else if (path === "/privacy") {
     showPolicyPage("privacy");
@@ -7992,30 +8189,19 @@ function handleRoute() {
     showPolicyPage("terms");
   } else if (path === "/profile" || path.startsWith("/profile/")) {
     const uid = path === "/profile" ? null : decodeURIComponent(path.replace("/profile/", ""));
-    updatePageMeta({ title: "Profile — OpenLib", description: "User profile on OpenLib.", url: `${BASE_URL}${path}`, robots: "noindex, follow" });
     showProfile(uid);
   } else if (path.startsWith("/org/")) {
     const orgId = decodeURIComponent(path.replace("/org/", ""));
-    updatePageMeta({ title: "Organization — OpenLib", description: "Organization on OpenLib.", url: `${BASE_URL}${path}`, robots: "noindex, follow" });
     showOrgView(orgId);
   } else if (path === "/admin") {
-    updatePageMeta({ title: "Admin — OpenLib", description: "Admin dashboard.", url: `${BASE_URL}/admin`, robots: "noindex, nofollow" });
     showAdminDashboard();
   } else if (path === "/verify") {
-    updatePageMeta({ title: "Verify Submissions — OpenLib", description: "Review and verify app submissions.", url: `${BASE_URL}/verify`, robots: "noindex, nofollow" });
     showVerifySubmissions();
   } else if (path === "/team/manage") {
-    updatePageMeta({ title: "Team Management — OpenLib", description: "Manage the OpenLib team.", url: `${BASE_URL}/team/manage`, robots: "noindex, nofollow" });
     showTeamManagePage();
   } else if (path === "/team") {
-    updatePageMeta({ title: "OpenLib Team — OpenLib", description: "Meet the OpenLib team — admins and contributors curating the open-source app library.", url: `${BASE_URL}/team` });
     showOpenLibTeamPage();
   } else if (path === "/" || path === "") {
-    updatePageMeta({
-      title: "OpenLib — Open Source App Library | Free Software Alternatives",
-      description: "Discover free, open-source alternatives to popular apps. Compare FOSS software, read community reviews, and find the best free alternatives to Photoshop, Office, and more.",
-      url: `${BASE_URL}/`
-    });
     showHome();
   } else {
     showNotFoundPage();
@@ -8038,6 +8224,7 @@ async function showReviewsPage(appId) {
   let app = apps.find(a => a.id === appId);
   if (!app) { try { app = await getAppFromFirestore(appId); } catch(e) {} }
   if (!app) { detailView.innerHTML = `<div class="detail-loading">App not found.</div>`; return; }
+  autoUpdatePageMeta(`/app/${encodeURIComponent(appId)}/reviews`, { app });
 
   const hasReviewed = currentUser ? await getUserReviewForApp(appId, currentUser.uid) : null;
 
@@ -8161,6 +8348,7 @@ async function showEditRequestsPage(appId) {
   let app = apps.find(a => a.id === appId);
   if (!app) { try { app = await getAppFromFirestore(appId); } catch(e) {} }
   if (!app) { detailView.innerHTML = `<div class="detail-loading">App not found.</div>`; return; }
+  autoUpdatePageMeta(`/app/${encodeURIComponent(appId)}/edit-requests`, { app });
 
   detailView.innerHTML = `
     <div class="er-page">
@@ -8229,6 +8417,7 @@ async function showVersionHistoryPage(appId) {
   let app = apps.find(a => a.id === appId);
   if (!app) { try { app = await getAppFromFirestore(appId); } catch(e) {} }
   if (!app) { detailView.innerHTML = `<div class="detail-loading">App not found.</div>`; return; }
+  autoUpdatePageMeta(`/app/${encodeURIComponent(appId)}/versions`, { app });
 
   detailView.innerHTML = `
     <div class="version-page">
@@ -8308,7 +8497,13 @@ async function init() {
 
   // Event listeners
   document.getElementById("theme-toggle").addEventListener("click", toggleTheme);
-  document.getElementById("search-input").addEventListener("input", debounce(() => renderGrid(getFiltered()), 180));
+  document.getElementById("search-input").addEventListener("input", debounce(() => {
+    const q = document.getElementById("search-input").value.trim();
+    renderGrid(getFiltered());
+    if (location.pathname === "/" || location.pathname === "") {
+      autoUpdatePageMeta("/", { searchQuery: q });
+    }
+  }, 180));
   document.getElementById("submit-app-btn").addEventListener("click", openSubmitModal);
   document.getElementById("report-form").addEventListener("submit", handleReportSubmit);
   document.getElementById("submit-form").addEventListener("submit", handleSubmitApp);
