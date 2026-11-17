@@ -235,6 +235,18 @@
         "destination": "/docs/changelog.html"
       },
       {
+        "source": "/badge/**",
+        "function": "prerender"
+      },
+      {
+        "source": "/compare/**",
+        "function": "prerender"
+      },
+      {
+        "source": "/alternative-to/**",
+        "function": "prerender"
+      },
+      {
         "source": "/app/**",
         "function": "prerender"
       },

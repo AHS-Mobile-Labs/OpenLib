@@ -864,7 +864,18 @@ async function buildSitemapXml() {
     }
     for (const target of getAlternativeTargets(app)) {
       const slug = slugify(target);
-      if (slug) alternatives.set(slug, maxDate(alternatives.get(slug), lastmod));
+      if (slug) {
+        alternatives.set(slug, maxDate(alternatives.get(slug), lastmod));
+        const appSlug = slugify(app.name || app.id);
+        if (appSlug && appSlug !== slug) {
+          addSitemapPage(pages, {
+            loc: `/compare/${appSlug}-vs-${slug}`,
+            lastmod,
+            changefreq: "weekly",
+            priority: "0.85"
+          });
+        }
+      }
     }
     for (const tag of app.tags || []) {
       const slug = slugify(tag);
@@ -910,6 +921,18 @@ function canonicalRedirectPath(urlPath) {
     const appId = urlPath.replace("/app/", "").split("/")[0];
     return `/app/${encodeURIComponent(appId)}`;
   }
+  if (urlPath.startsWith("/alternative-to/")) {
+    const slug = slugify(urlPath.slice("/alternative-to/".length));
+    return `/alternatives/${slug}`;
+  }
+  if (urlPath.startsWith("/compare/")) {
+    const compareSlug = urlPath.slice("/compare/".length);
+    const parts = compareSlug.split("-vs-");
+    if (parts.length === 2) {
+      const canonical = `/compare/${slugify(parts[0])}-vs-${slugify(parts[1])}`;
+      if (canonical !== urlPath) return canonical;
+    }
+  }
   for (const prefix of ["/category/", "/tag/", "/alternatives/"]) {
     if (!urlPath.startsWith(prefix)) continue;
     const slug = slugify(urlPath.slice(prefix.length));
@@ -917,6 +940,169 @@ function canonicalRedirectPath(urlPath) {
     if (slug && canonical !== urlPath) return canonical;
   }
   return "";
+}
+
+// ── SVG Badge Generator ──────────────────────────────────────────────────────
+function generateBadgeSvg({ name, rank, rating, verified, metric = "rank" }) {
+  const leftLabel = "openlib";
+  let rightLabel = "listed";
+  let rightColor = "#f0a500";
+  let textColor = "#0c0c0f";
+
+  if (metric === "verified") {
+    rightLabel = "verified foss";
+    rightColor = "#3ecf8e";
+    textColor = "#0c0c0f";
+  } else if (metric === "rating") {
+    rightLabel = (rating && rating > 0) ? `${rating.toFixed(1)} ★` : "★ rated";
+    rightColor = "#3ecf8e";
+    textColor = "#0c0c0f";
+  } else if (metric === "rank") {
+    rightLabel = (rank && rank > 0) ? `#${rank}` : (verified ? "verified foss" : "listed");
+    rightColor = (rank && rank > 0) ? "#f0a500" : (verified ? "#3ecf8e" : "#f0a500");
+    textColor = "#0c0c0f";
+  } else {
+    if (rank && rank > 0) {
+      rightLabel = `#${rank}`;
+      rightColor = "#f0a500";
+      textColor = "#0c0c0f";
+    } else if (verified) {
+      rightLabel = "verified foss";
+      rightColor = "#3ecf8e";
+      textColor = "#0c0c0f";
+    } else if (rating && rating > 0) {
+      rightLabel = `${rating.toFixed(1)} ★`;
+      rightColor = "#3ecf8e";
+      textColor = "#0c0c0f";
+    }
+  }
+
+  const rightTextWidth = Math.max(32, rightLabel.length * 8 + 14);
+  const leftWidth = 66;
+  const rightWidth = Math.round(rightTextWidth);
+  const totalWidth = leftWidth + rightWidth;
+  const leftCenter = 44;
+  const rightCenter = leftWidth + rightWidth / 2;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="20" role="img" aria-label="${leftLabel}: ${rightLabel}">
+  <title>${leftLabel}: ${rightLabel}</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="${totalWidth}" height="20" rx="4" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="${leftWidth}" height="20" fill="#181822"/>
+    <rect x="${leftWidth}" width="${rightWidth}" height="20" fill="${rightColor}"/>
+    <rect width="${totalWidth}" height="20" fill="url(#s)"/>
+  </g>
+  <g transform="translate(6, 3.5)">
+    <rect width="13" height="13" rx="3" fill="#f0a500"/>
+    <text x="6.5" y="9.5" font-family="-apple-system,BlinkMacSystemFont,sans-serif" font-size="8" font-weight="900" fill="#0c0c0f" text-anchor="middle">OL</text>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,sans-serif" text-rendering="geometricPrecision" font-size="110">
+    <text x="${leftCenter * 10}" y="140" transform="scale(.1)" fill="#eee" font-weight="600">openlib</text>
+    <text x="${rightCenter * 10}" y="140" transform="scale(.1)" fill="${textColor}" font-weight="700">${rightLabel}</text>
+  </g>
+</svg>`;
+}
+
+// ── Render: Programmatic Comparison Page ──────────────────────────────────────
+async function renderCompare(compareSlug) {
+  const parts = compareSlug.split("-vs-");
+  if (parts.length !== 2) return null;
+  const [slugA, slugB] = parts;
+  if (!slugA || !slugB) return null;
+
+  const allApps = await getPrerenderApps();
+  const appA = allApps.find(a => a.id === slugA || slugify(a.name) === slugA);
+  if (!appA) return null;
+
+  const appB = allApps.find(a => a.id === slugB || slugify(a.name) === slugB);
+  const nameB = appB ? appB.name : titleCaseFromSlug(slugB);
+
+  const title = `${appA.name} vs ${nameB}: Open Source Alternative Comparison | OpenLib`;
+  const description = `Compare ${appA.name} vs ${nameB}. Detailed side-by-side breakdown of open source features, privacy, pricing, offline access, and software licensing.`;
+  const url = `${BASE_URL}/compare/${slugA}-vs-${slugB}`;
+
+  const body = `
+    <article class="compare-prerender">
+      <nav aria-label="Breadcrumb">
+        <a href="/">Home</a> &gt; <a href="/alternatives/${slugB}">Alternatives to ${esc(nameB)}</a> &gt; <span>${esc(appA.name)} vs ${esc(nameB)}</span>
+      </nav>
+      <header>
+        <p class="eyebrow">OPEN SOURCE COMPARISON</p>
+        <h1>${esc(appA.name)} vs ${esc(nameB)}</h1>
+        <p>${esc(description)}</p>
+      </header>
+
+      <section class="compare-cards">
+        <div class="compare-card">
+          <h2>${esc(appA.name)} (Open Source)</h2>
+          <p><strong>License:</strong> ${esc(appA.license || "Open Source")}</p>
+          <p><strong>Pricing:</strong> Free & Open Source (FOSS)</p>
+          <p><strong>Platforms:</strong> ${esc((appA.platforms || []).join(", ") || "Cross-platform")}</p>
+          <p>${esc(appA.description || appA.uses || "")}</p>
+          <p><a href="/app/${encodeURIComponent(appA.id)}" class="btn-primary">View ${esc(appA.name)} Listing &amp; Download</a></p>
+        </div>
+        <div class="compare-card">
+          <h2>${esc(nameB)} ${appB ? "(Open Source)" : "(Proprietary)"}</h2>
+          <p><strong>Type:</strong> ${appB ? "Open Source Alternative" : "Proprietary Software"}</p>
+          <p><strong>License:</strong> ${esc(appB?.license || "Proprietary / Closed Source")}</p>
+          <p><strong>Platforms:</strong> ${esc((appB?.platforms || []).join(", ") || "Various")}</p>
+          <p>${esc(appB?.description || `Proprietary software alternative commonly replaced by ${appA.name}.`)}</p>
+          ${appB ? `<p><a href="/app/${encodeURIComponent(appB.id)}">View ${esc(nameB)} Details</a></p>` : `<p><a href="/alternatives/${slugB}">Explore all alternatives to ${esc(nameB)}</a></p>`}
+        </div>
+      </section>
+
+      <section class="compare-why">
+        <h2>Why Choose ${esc(appA.name)} over ${esc(nameB)}?</h2>
+        <ul>
+          <li><strong>No Vendor Lock-in:</strong> ${esc(appA.name)} is community-driven with open standards and no forced subscription.</li>
+          <li><strong>Privacy &amp; Data Ownership:</strong> Own your data locally without mandatory tracking or third-party cloud lock-in.</li>
+          <li><strong>100% Free &amp; Open Source:</strong> Fully verifiable codebase under ${esc(appA.license || "an open source license")}.</li>
+        </ul>
+      </section>
+
+      ${relatedCollectionLinks(allApps, url)}
+    </article>
+  `;
+
+  return buildPage({
+    title,
+    description,
+    keywords: [
+      `${appA.name} vs ${nameB}`,
+      `${appA.name} alternative to ${nameB}`,
+      `alternative to ${nameB}`,
+      `${nameB} open source alternative`,
+      `${appA.name} open source`,
+      "software comparison",
+      "FOSS"
+    ],
+    url,
+    type: "article",
+    jsonLd: {
+      "@graph": [
+        breadcrumbJsonLd([
+          { name: "OpenLib", url: `${BASE_URL}/` },
+          { name: `Alternatives to ${nameB}`, url: `${BASE_URL}/alternatives/${slugB}` },
+          { name: `${appA.name} vs ${nameB}`, url },
+        ]),
+        {
+          "@type": "WebPage",
+          "@id": `${url}#webpage`,
+          url,
+          name: title,
+          description,
+          isPartOf: { "@id": `${BASE_URL}/#website` }
+        }
+      ]
+    },
+    body
+  });
 }
 
 async function renderCollection(kind, slug) {
@@ -1521,6 +1707,63 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
     );
   }
 
+  // ── Dynamic SVG Badges for READMEs & Websites ──
+  if (urlPath.startsWith("/badge/")) {
+    const rawId = urlPath.replace("/badge/", "");
+    const appId = decodeURIComponent(rawId.replace(/\.svg$/i, ""));
+    const metric = req.query.metric || (req.query.style === "verified" ? "verified" : "rank");
+    const queryRank = parseInt(req.query.rank, 10);
+    try {
+      let appData = null;
+      const snap = await db.collection("apps").doc(appId).get();
+      if (snap.exists) {
+        appData = snap.data();
+      } else {
+        const querySnap = await db.collection("apps").where("name", "==", appId).limit(1).get();
+        if (!querySnap.empty) {
+          appData = querySnap.docs[0].data();
+        }
+      }
+
+      let appRank = (queryRank && queryRank > 0) ? queryRank : (appData?.rank || 0);
+      if (!appRank && (metric === "rank" || !metric)) {
+        try {
+          const allApps = await getPrerenderApps(1000);
+          const sorted = [...allApps].sort((a, b) => {
+            const scoreA = ((a.likes || 0) * 2) - (a.dislikes || 0) + ((a.views || 0) * 0.05);
+            const scoreB = ((b.likes || 0) * 2) - (b.dislikes || 0) + ((b.views || 0) * 0.05);
+            return scoreB - scoreA;
+          });
+          const idx = sorted.findIndex(a => a.id === appId || (a.name && a.name.toLowerCase() === appId.toLowerCase()));
+          if (idx >= 0) {
+            appRank = idx + 1;
+          }
+        } catch (rankErr) {
+          console.warn("Badge dynamic rank calculation fallback:", rankErr);
+        }
+      }
+
+      const svg = generateBadgeSvg({
+        name: appData?.name || appId,
+        rank: appRank,
+        rating: appData?.avgRating || 0,
+        verified: appData ? (appData.addedBy?.type === "openlib-team" || !!appData.source) : false,
+        metric
+      });
+
+      res.set("Content-Type", "image/svg+xml; charset=utf-8");
+      res.set("Cache-Control", "public, s-maxage=86400, max-age=3600, stale-while-revalidate=86400");
+      res.set("Access-Control-Allow-Origin", "*");
+      res.set("X-Rendered-By", "openlib-badge");
+      return res.status(200).send(svg);
+    } catch (e) {
+      console.error("Badge generation error:", e);
+      const fallbackSvg = generateBadgeSvg({ name: appId, metric: "listed" });
+      res.set("Content-Type", "image/svg+xml; charset=utf-8");
+      return res.status(200).send(fallbackSvg);
+    }
+  }
+
   const ua = req.headers["x-forwarded-user-agent"]
     || req.headers["x-client-user-agent"]
     || req.headers["fastly-client-user-agent"]
@@ -1583,6 +1826,19 @@ exports.prerender = onRequest({ invoker: "public", region: "us-central1" }, asyn
       }
     } else if (urlPath.startsWith("/alternatives/")) {
       html = await renderCollection("alternative", slugify(urlPath.replace("/alternatives/", "")));
+      if (!html) {
+        res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+        return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
+      }
+    } else if (urlPath.startsWith("/alternative-to/")) {
+      html = await renderCollection("alternative", slugify(urlPath.replace("/alternative-to/", "")));
+      if (!html) {
+        res.set("Cache-Control", "public, s-maxage=300, max-age=60");
+        return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);
+      }
+    } else if (urlPath.startsWith("/compare/")) {
+      const compareSlug = urlPath.replace("/compare/", "");
+      html = await renderCompare(compareSlug);
       if (!html) {
         res.set("Cache-Control", "public, s-maxage=300, max-age=60");
         return sendHtml(req, res, renderNotFound(urlPath), { "X-Rendered-By": "openlib-prerender" }, 404);

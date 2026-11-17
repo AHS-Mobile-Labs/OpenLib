@@ -1,5 +1,5 @@
 // Auto-stamped by predeploy hook. Keep in sync with version-check.js.
-const CACHE_VERSION = "1793651258";
+const CACHE_VERSION = "1794942367";
 const STATIC_CACHE = `openlib-static-${CACHE_VERSION}`;
 const CACHE_PREFIX = "openlib-static-";
 

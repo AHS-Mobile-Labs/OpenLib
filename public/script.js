@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1793651258';
+} from './firebase-config.js?v=1794942367';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1793651258';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1794942367';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -39,7 +39,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1793651258';
+} from './firebase-db.js?v=1794942367';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -1198,8 +1198,12 @@ function renderComparisonHtml(app) {
       }).join("");
       return `<tr><td>${esc(r.feature)}</td>${cells}</tr>`;
     }).join("");
-    return `<div class="detail-section"><h3>Comparison</h3>
-      <div class="comparison-wrapper"><table class="comparison-table"><thead><tr><th>Feature</th>${hdr}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+    return `<div class="detail-section comparison-section">
+      <div class="comparison-header">
+        <h3>Comparison</h3>
+        <span class="comparison-scroll-hint" aria-hidden="true">${iconImg("link")} Swipe to compare ↔</span>
+      </div>
+      <div class="comparison-wrapper" tabindex="0" role="region" aria-label="Software comparison table"><table class="comparison-table"><thead><tr><th>Feature</th>${hdr}</tr></thead><tbody>${body}</tbody></table></div></div>`;
   }
   return "";
 }
@@ -1476,6 +1480,53 @@ async function showAppDetail(appId) {
   const tags = app.tags || [];
   const tagsHtml = tags.length ? tags.map(t => `<a href="/tag/${esc(slugify(t))}" class="detail-tag">${esc(t)}</a>`).join("") : "";
   const alternativeTargetsHtml = renderAlternativeTargetLinks(app);
+  const compareLinksHtml = getAlternativeTargets(app).map(target => {
+    const compareSlug = `${slugify(app.name)}-vs-${slugify(target)}`;
+    return `<a href="/compare/${esc(compareSlug)}" class="detail-compare-pill">${iconImg("link")} Compare vs ${esc(target)} →</a>`;
+  }).join("");
+
+  // GitHub README Badge embed snippet
+  const rankQueryParam = rank ? `&rank=${rank}` : "";
+  const initialBadgeImgUrl = `${BASE_URL}/badge/${encodeURIComponent(appId)}.svg?metric=rank${rankQueryParam}`;
+  const initialBadgeAlt = rank ? `OpenLib: #${rank}` : "OpenLib";
+  const badgeEmbedHtml = `
+    <div class="detail-section badge-embed-section">
+      <div class="badge-embed-header">
+        <div class="badge-embed-title-wrap">
+          <h3>GitHub README Badge</h3>
+          <span class="badge-embed-pill">For Maintainers</span>
+        </div>
+        <p class="badge-embed-sub">Display ${esc(app.name)}'s OpenLib rank, verified open source status, and user ratings on your GitHub or GitLab README.</p>
+      </div>
+
+      <div class="badge-preview-card">
+        <div class="badge-preview-wrap">
+          <img class="badge-live-img" src="/badge/${encodeURIComponent(appId)}.svg?metric=rank${rankQueryParam}" alt="${esc(app.name)} OpenLib Badge" loading="lazy">
+        </div>
+
+        <div class="badge-controls">
+          <div class="badge-style-selector" role="group" aria-label="Select badge metric">
+            <button type="button" class="badge-metric-btn active" data-metric="rank">Rank (${rank ? `#${rank}` : "Listed"})</button>
+            <button type="button" class="badge-metric-btn" data-metric="verified">Verified FOSS</button>
+            ${ratingData.count > 0 ? `<button type="button" class="badge-metric-btn" data-metric="rating">Rating (${ratingData.avg.toFixed(1)} ★)</button>` : ""}
+          </div>
+
+          <div class="badge-format-tabs" role="tablist">
+            <button type="button" class="badge-tab-btn active" data-tab="md">Markdown</button>
+            <button type="button" class="badge-tab-btn" data-tab="html">HTML</button>
+          </div>
+        </div>
+
+        <div class="badge-snippet-wrap">
+          <div class="badge-code-block">
+            <code>[![${initialBadgeAlt}](${initialBadgeImgUrl})](${BASE_URL}/app/${encodeURIComponent(appId)})</code>
+          </div>
+          <button type="button" class="btn btn-secondary copy-badge-btn" title="Copy badge embed code">
+            ${iconImg("copy")} Copy Snippet
+          </button>
+        </div>
+      </div>
+    </div>`;
 
   // Screenshots gallery
   const screenshots = app.screenshots || [];
@@ -1703,6 +1754,7 @@ async function showAppDetail(appId) {
           <div class="detail-section">
             <h3>Alternative to</h3>
             <div class="alt-name">${alternativeTargetsHtml || "<span>Open source software</span>"}</div>
+            ${compareLinksHtml ? `<div class="detail-compare-links">${compareLinksHtml}</div>` : ""}
           </div>
           <div class="detail-section">
             <h3>Platforms</h3>
@@ -1837,6 +1889,7 @@ async function showAppDetail(appId) {
 
         ${creatorHtml}
         ${claimHtml}
+        ${badgeEmbedHtml}
         ${similarHtml}
       </div>
     </div>
@@ -1998,8 +2051,21 @@ async function showAppDetail(appId) {
 
   // Copy install commands
   detailView.querySelectorAll(".copy-cmd-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      navigator.clipboard.writeText(btn.dataset.cmd);
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(btn.dataset.cmd);
+      } catch (err) {
+        const ta = document.createElement("textarea");
+        ta.value = btn.dataset.cmd || "";
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      btn.classList.add("copied");
+      setTimeout(() => btn.classList.remove("copied"), 1500);
       showToast("Command copied!");
     });
   });
@@ -2049,6 +2115,88 @@ async function showAppDetail(appId) {
   const viewAllVersionsLink = document.getElementById(`view-all-versions-${appId}`);
   if (viewAllVersionsLink) {
     viewAllVersionsLink.addEventListener("click", e => { e.preventDefault(); navigateTo(`/app/${appId}/versions`); });
+  }
+
+  // Badge snippet interactivity
+  const badgeSection = detailView.querySelector(".badge-embed-section");
+  if (badgeSection) {
+    let currentMetric = "rank";
+    let currentTab = "md";
+
+    const updateBadgeSnippet = () => {
+      const liveImg = badgeSection.querySelector(".badge-live-img");
+      const codeEl = badgeSection.querySelector(".badge-code-block code");
+      const rankParam = (currentMetric === "rank" && rank) ? `&rank=${rank}` : "";
+      const badgeImgUrl = `${BASE_URL}/badge/${encodeURIComponent(appId)}.svg?metric=${currentMetric}${rankParam}`;
+      const appUrl = `${BASE_URL}/app/${encodeURIComponent(appId)}`;
+
+      let badgeAlt = "OpenLib";
+      if (currentMetric === "rank") {
+        badgeAlt = rank ? `OpenLib: #${rank}` : "OpenLib";
+      } else if (currentMetric === "verified") {
+        badgeAlt = "OpenLib: Verified FOSS";
+      } else if (currentMetric === "rating") {
+        badgeAlt = ratingData.count > 0 ? `OpenLib: ${ratingData.avg.toFixed(1)} ★` : "OpenLib: Rating";
+      }
+
+      if (liveImg) {
+        liveImg.src = `/badge/${encodeURIComponent(appId)}.svg?metric=${currentMetric}${rankParam}`;
+      }
+
+      if (codeEl) {
+        if (currentTab === "md") {
+          codeEl.textContent = `[![${badgeAlt}](${badgeImgUrl})](${appUrl})`;
+        } else {
+          codeEl.textContent = `<a href="${appUrl}"><img src="${badgeImgUrl}" alt="${esc(badgeAlt)}"></a>`;
+        }
+      }
+    };
+
+    badgeSection.querySelectorAll(".badge-metric-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        badgeSection.querySelectorAll(".badge-metric-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentMetric = btn.dataset.metric;
+        updateBadgeSnippet();
+      });
+    });
+
+    badgeSection.querySelectorAll(".badge-tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        badgeSection.querySelectorAll(".badge-tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentTab = btn.dataset.tab;
+        updateBadgeSnippet();
+      });
+    });
+
+    const copyBtn = badgeSection.querySelector(".copy-badge-btn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", async () => {
+        const codeEl = badgeSection.querySelector(".badge-code-block code");
+        const textToCopy = codeEl ? codeEl.textContent : "";
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = textToCopy;
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+        copyBtn.classList.add("copied");
+        const origHtml = copyBtn.innerHTML;
+        copyBtn.innerHTML = `${iconImg("verified")} Copied!`;
+        showToast("Badge snippet copied to clipboard!");
+        setTimeout(() => {
+          copyBtn.classList.remove("copied");
+          copyBtn.innerHTML = origHtml;
+        }, 2000);
+      });
+    }
   }
 
   // Load edit requests and version history for this app
@@ -7607,6 +7755,28 @@ function autoUpdatePageMeta(path = location.pathname, context = {}) {
       keywords: altTargets.length ? altTargets.map(target => `alternative to ${target}`) : [`open source alternative to ${label}`, `${label} alternatives`],
       url: `${BASE_URL}/alternatives/${slug}`
     });
+  } else if (normPath.startsWith("/alternative-to/")) {
+    const slug = slugify(decodeURIComponent(path.replace("/alternative-to/", "")));
+    const appList = context.appList || getPublicApps(getAppsForAlternativeSlug(slug));
+    const label = getAlternativeLabelForSlug(appList, slug);
+    const altTargets = getAlternativeTargetsForSlug(appList, slug);
+    updatePageMeta({
+      title: `Best Open Source Alternatives to ${label} | OpenLib`,
+      description: `Compare free and open-source alternatives to ${label} on OpenLib, including ${summarizeList(appList, "privacy-friendly software options")}.`,
+      keywords: altTargets.length ? altTargets.map(target => `alternative to ${target}`) : [`open source alternative to ${label}`, `${label} alternatives`],
+      url: `${BASE_URL}/alternative-to/${slug}`
+    });
+  } else if (normPath.startsWith("/compare/")) {
+    const slug = decodeURIComponent(path.replace("/compare/", "")).replace(/\/$/, "");
+    const parts = slug.split("-vs-");
+    const nameA = parts[0] ? titleCaseFromSlug(parts[0]) : "App";
+    const nameB = parts[1] ? titleCaseFromSlug(parts[1]) : "Alternative";
+    updatePageMeta({
+      title: `${nameA} vs ${nameB}: Open Source Alternative Comparison | OpenLib`,
+      description: `Compare ${nameA} vs ${nameB}. Side-by-side breakdown of open source features, privacy, pricing, offline access, and software licensing.`,
+      keywords: [`${nameA} vs ${nameB}`, `${nameA} alternative to ${nameB}`, "software comparison", "FOSS"],
+      url: `${BASE_URL}/compare/${slug}`
+    });
   } else if (SEO_TOPIC_BY_SLUG.has(normPath.replace("/", ""))) {
     const topic = SEO_TOPIC_BY_SLUG.get(normPath.replace("/", ""));
     updatePageMeta({
@@ -8135,6 +8305,267 @@ async function showPolicyPage(kind) {
     </div>`;
 }
 
+async function showComparePage(compareSlug) {
+  const seoView = document.getElementById("seo-view");
+  switchView("seo-view");
+  seoView.style.display = "block";
+
+  const cleanSlug = String(compareSlug || "").replace(/^\/+|\/+$/g, "");
+  const parts = cleanSlug.split("-vs-");
+  if (parts.length !== 2) {
+    return showNotFoundPage();
+  }
+
+  const [slugA, slugB] = parts;
+  if (!slugA || !slugB) {
+    return showNotFoundPage();
+  }
+
+  if (!apps.length) {
+    seoView.innerHTML = `<div class="seo-page"><div class="detail-loading">Loading comparison…</div></div>`;
+    await loadApps();
+  }
+
+  const allApps = getPublicApps();
+  let appA = allApps.find(a => a.id === slugA || slugify(a.name) === slugA);
+  let appB = allApps.find(a => a.id === slugB || slugify(a.name) === slugB);
+
+  // If appA not found in OpenLib, check if appB is an OpenLib app
+  if (!appA && appB) {
+    const temp = appA;
+    appA = appB;
+    appB = temp;
+  }
+
+  if (!appA) {
+    return showNotFoundPage();
+  }
+
+  const nameB = appB ? appB.name : titleCaseFromSlug(slugB);
+  const comparePath = `/compare/${slugify(appA.name || slugA)}-vs-${slugify(nameB || slugB)}`;
+  const title = `${appA.name} vs ${nameB}: Open Source Alternative Comparison | OpenLib`;
+  const description = `Compare ${appA.name} vs ${nameB}. Side-by-side breakdown of open source features, privacy, pricing, offline access, and software licensing.`;
+  const url = `${BASE_URL}${comparePath}`;
+
+  updatePageMeta({
+    title,
+    description,
+    keywords: [
+      `${appA.name} vs ${nameB}`,
+      `${appA.name} alternative to ${nameB}`,
+      `alternative to ${nameB}`,
+      `${nameB} open source alternative`,
+      `${appA.name} open source`,
+      "software comparison",
+      "FOSS comparison"
+    ],
+    url
+  });
+
+  updateJsonLd({
+    "@graph": [
+      breadcrumbJsonLd([
+        { name: "OpenLib", url: `${BASE_URL}/` },
+        { name: `Alternatives to ${nameB}`, url: `${BASE_URL}/alternatives/${slugB}` },
+        { name: `${appA.name} vs ${nameB}`, url }
+      ]),
+      {
+        "@type": "WebPage",
+        "@id": `${url}#webpage`,
+        "url": url,
+        "name": title,
+        "description": description,
+        "isPartOf": { "@id": `${BASE_URL}/#website` }
+      }
+    ]
+  });
+
+  const appALogo = appA.logo
+    ? `<img class="compare-card-logo" src="${escUrl(appA.logo)}" alt="${esc(appA.name)} logo" data-fallback-char="${esc(appA.name.charAt(0))}">`
+    : `<div class="compare-card-logo-fallback">${esc(appA.name.charAt(0))}</div>`;
+
+  const appBLogo = appB?.logo
+    ? `<img class="compare-card-logo" src="${escUrl(appB.logo)}" alt="${esc(nameB)} logo" data-fallback-char="${esc(nameB.charAt(0))}">`
+    : `<div class="compare-card-logo-fallback secondary">${esc(nameB.charAt(0))}</div>`;
+
+  const comparisonRows = [
+    {
+      feature: "Software License",
+      valA: appA.license || "Open Source (FOSS)",
+      valB: appB?.license || "Proprietary / Closed Source",
+      isAdvantageA: true
+    },
+    {
+      feature: "Cost & Pricing",
+      valA: "100% Free & Open Source",
+      valB: appB ? "Free / Open Source" : "Paid Subscription / Freemium",
+      isAdvantageA: !appB
+    },
+    {
+      feature: "Privacy & Telemetry",
+      valA: "Zero telemetry, local data ownership",
+      valB: appB ? "Privacy-respecting" : "Cloud telemetry & tracking",
+      isAdvantageA: !appB
+    },
+    {
+      feature: "Offline Access",
+      valA: "Fully offline capable",
+      valB: appB ? "Offline supported" : "Requires account & cloud sync",
+      isAdvantageA: !appB
+    },
+    {
+      feature: "Platform Support",
+      valA: (appA.platforms || []).join(", ") || "Cross-platform",
+      valB: appB ? (appB.platforms || []).join(", ") : "Various",
+      isAdvantageA: false
+    },
+    {
+      feature: "Source Code Auditing",
+      valA: "Auditable public repository",
+      valB: appB ? "Public repository" : "Closed binary / proprietary",
+      isAdvantageA: !appB
+    }
+  ];
+
+  seoView.innerHTML = `
+    <div class="seo-page compare-page">
+      <nav class="compare-breadcrumb" aria-label="Breadcrumb">
+        <a href="/">Home</a>
+        <span class="sep">/</span>
+        <a href="/alternatives/${esc(slugB)}">Alternatives to ${esc(nameB)}</a>
+        <span class="sep">/</span>
+        <span class="current">${esc(appA.name)} vs ${esc(nameB)}</span>
+      </nav>
+
+      <header class="compare-hero">
+        <div class="compare-kicker">Side-by-Side Comparison</div>
+        <h1 class="compare-title">${esc(appA.name)} vs ${esc(nameB)}</h1>
+        <p class="compare-subtitle">${esc(description)}</p>
+      </header>
+
+      <section class="compare-cards-container">
+        <div class="compare-card compare-card-highlight">
+          <div class="compare-card-header">
+            ${appALogo}
+            <div>
+              <div class="compare-badge-foss">Open Source</div>
+              <h2 class="compare-card-name">${esc(appA.name)}</h2>
+            </div>
+          </div>
+          <p class="compare-card-desc">${esc(appA.description || appA.uses || "")}</p>
+          <div class="compare-card-specs">
+            <div class="spec-row">
+              <span class="spec-label">License</span>
+              <span class="spec-val highlight">${esc(appA.license || "Open Source")}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Pricing</span>
+              <span class="spec-val highlight">Free &amp; Open Source</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Platforms</span>
+              <span class="spec-val">${esc((appA.platforms || []).join(", ") || "Cross-platform")}</span>
+            </div>
+          </div>
+          <div class="compare-card-cta">
+            <a href="/app/${encodeURIComponent(appA.id)}" class="btn btn-primary btn-compare-action">
+              ${iconImg("download")} View ${esc(appA.name)} &amp; Download
+            </a>
+          </div>
+        </div>
+
+        <div class="compare-vs-divider">
+          <div class="vs-circle">VS</div>
+        </div>
+
+        <div class="compare-card">
+          <div class="compare-card-header">
+            ${appBLogo}
+            <div>
+              <div class="compare-badge-${appB ? "foss" : "proprietary"}">${appB ? "Open Source Alternative" : "Proprietary Software"}</div>
+              <h2 class="compare-card-name">${esc(nameB)}</h2>
+            </div>
+          </div>
+          <p class="compare-card-desc">${esc(appB?.description || `Proprietary software alternative commonly replaced by ${appA.name}.`)}</p>
+          <div class="compare-card-specs">
+            <div class="spec-row">
+              <span class="spec-label">License</span>
+              <span class="spec-val">${esc(appB?.license || "Proprietary / Closed Source")}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Pricing</span>
+              <span class="spec-val">${appB ? "Free &amp; Open Source" : "Commercial / Subscription"}</span>
+            </div>
+            <div class="spec-row">
+              <span class="spec-label">Platforms</span>
+              <span class="spec-val">${esc((appB?.platforms || []).join(", ") || "Various")}</span>
+            </div>
+          </div>
+          <div class="compare-card-cta">
+            ${appB ? `
+              <a href="/app/${encodeURIComponent(appB.id)}" class="btn btn-secondary btn-compare-action">
+                View ${esc(nameB)} Details
+              </a>` : `
+              <a href="/alternatives/${esc(slugB)}" class="btn btn-secondary btn-compare-action">
+                Explore all alternatives to ${esc(nameB)} →
+              </a>`}
+          </div>
+        </div>
+      </section>
+
+      <section class="detail-section comparison-section">
+        <div class="comparison-header">
+          <h3>Feature &amp; Policy Breakdown</h3>
+          <span class="comparison-scroll-hint" aria-hidden="true">${iconImg("link")} Swipe to compare ↔</span>
+        </div>
+        <div class="comparison-wrapper" tabindex="0" role="region" aria-label="Feature and policy breakdown">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Criteria</th>
+                <th>${esc(appA.name)}</th>
+                <th>${esc(nameB)}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${comparisonRows.map(row => `
+                <tr>
+                  <td><strong>${esc(row.feature)}</strong></td>
+                  <td class="${row.isAdvantageA ? "comp-yes" : ""}">${esc(row.valA)}</td>
+                  <td class="${!row.isAdvantageA && !appB ? "comp-no" : ""}">${esc(row.valB)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="compare-why">
+        <h3>Why choose ${esc(appA.name)} over ${esc(nameB)}?</h3>
+        <div class="compare-benefits-grid">
+          <div class="compare-benefit-card">
+            <div class="benefit-icon">${iconImg("verified")}</div>
+            <h4>True Data Sovereignty</h4>
+            <p>Keep your data on your own machine. With ${esc(appA.name)}, your files, notes, and activity stay private without forced cloud syncing or tracking.</p>
+          </div>
+          <div class="compare-benefit-card">
+            <div class="benefit-icon">${iconImg("protect")}</div>
+            <h4>No Recurring Subscriptions</h4>
+            <p>Never worry about sudden price increases, feature paywalls, or expiring licenses. Enjoy full functionality forever for free.</p>
+          </div>
+          <div class="compare-benefit-card">
+            <div class="benefit-icon">${iconImg("link")}</div>
+            <h4>Transparent &amp; Auditable</h4>
+            <p>Every single line of code is open source and community-reviewed. No hidden telemetry or surveillance capitalism.</p>
+          </div>
+        </div>
+      </section>
+
+      ${renderRelatedSeoLinks(comparePath)}
+    </div>
+  `;
+}
+
 function showNotFoundPage() {
   const seoView = document.getElementById("seo-view");
   switchView("seo-view");
@@ -8175,6 +8606,11 @@ function handleRoute() {
     showSeoLandingPage({ kind: "tag", slug: slugify(decodeURIComponent(path.replace("/tag/", ""))) });
   } else if (path.startsWith("/alternatives/")) {
     showSeoLandingPage({ kind: "alternative", slug: slugify(decodeURIComponent(path.replace("/alternatives/", ""))) });
+  } else if (path.startsWith("/alternative-to/")) {
+    showSeoLandingPage({ kind: "alternative", slug: slugify(decodeURIComponent(path.replace("/alternative-to/", ""))) });
+  } else if (path.startsWith("/compare/")) {
+    const slug = decodeURIComponent(path.replace("/compare/", "")).replace(/\/$/, "");
+    showComparePage(slug);
   } else if (SEO_TOPIC_BY_SLUG.has(path.replace("/", ""))) {
     showSeoLandingPage({ kind: "topic", slug: path.replace("/", "") });
   } else if (path === "/rankings") {

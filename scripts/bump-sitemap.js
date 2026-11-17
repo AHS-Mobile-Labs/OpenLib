@@ -225,6 +225,17 @@ function buildPages(apps) {
       const slug = slugify(target);
       if (!slug) continue;
       alternatives.set(slug, maxDate(alternatives.get(slug), lastmod));
+
+      // Programmatic comparison landing page
+      const appSlug = slugify(app.name || app.id);
+      if (appSlug && appSlug !== slug) {
+        addUnique(pages, {
+          loc: `/compare/${appSlug}-vs-${slug}`,
+          lastmod,
+          changefreq: "weekly",
+          priority: "0.85",
+        });
+      }
     }
     for (const tag of app.tags || []) {
       const slug = slugify(tag);
