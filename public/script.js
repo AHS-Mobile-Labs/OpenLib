@@ -8,9 +8,9 @@ import {
   getAppFromFirestore, incrementAppViews, toggleVote, getUserVote,
   submitEditRequest, getEditRequestsForApp, getUserEditRequests,
   uploadLogoToStorage, uploadScreenshotToStorage
-} from './firebase-config.js?v=1794942367';
+} from './firebase-config.js?v=1794997639';
 
-import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1794942367';
+import { startUpdateChecks, syncCurrentVersion } from './version-check.js?v=1794997639';
 
 import {
   createOrUpdateUserRecord, getUserRecord, updateUserProfile, updateUserRole,
@@ -39,7 +39,7 @@ import {
   setAppModerationStatus, restoreExpiredSuspensions,
   submitRoleApplication, getUserRoleApplications, getAllRoleApplications,
   approveRoleApplication, rejectRoleApplication
-} from './firebase-db.js?v=1794942367';
+} from './firebase-db.js?v=1794997639';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let currentUser = null;
@@ -3314,8 +3314,8 @@ async function showProfile(uid) {
 
       <div class="profile-section">
         <h3>Apps (${userApps.length})</h3>
-        <div class="profile-list">
-          ${userApps.length ? userApps.map(app => `
+        <div class="profile-list" id="profile-apps-list">
+          ${userApps.length ? userApps.slice(0, 10).map(app => `
             <a href="/app/${esc(app.id)}" class="profile-list-item">
               <span class="org-icon">${iconImg("verified", "ui-icon title-icon")}</span>
               <div class="profile-list-info">
@@ -3325,6 +3325,13 @@ async function showProfile(uid) {
             </a>
           `).join("") : `<p class="profile-empty">No apps yet.</p>`}
         </div>
+        ${userApps.length > 10 ? `
+          <div class="profile-apps-expand-wrap" style="margin-top: 10px;">
+            <button type="button" class="btn btn-secondary btn-sm" id="profile-toggle-apps-btn">
+              Show all ${userApps.length} apps
+            </button>
+          </div>
+        ` : ""}
       </div>
 
       <div class="profile-section">
@@ -3483,6 +3490,28 @@ async function showProfile(uid) {
   document.getElementById("follow-btn-guest")?.addEventListener("click", () => {
     showToast("Sign in to follow users");
   });
+
+  const toggleAppsBtn = profileView.querySelector("#profile-toggle-apps-btn");
+  if (toggleAppsBtn) {
+    let appsExpanded = false;
+    toggleAppsBtn.addEventListener("click", () => {
+      appsExpanded = !appsExpanded;
+      const appsList = profileView.querySelector("#profile-apps-list");
+      if (appsList) {
+        const appsToShow = appsExpanded ? userApps : userApps.slice(0, 10);
+        appsList.innerHTML = appsToShow.map(app => `
+          <a href="/app/${esc(app.id)}" class="profile-list-item">
+            <span class="org-icon">${iconImg("verified", "ui-icon title-icon")}</span>
+            <div class="profile-list-info">
+              <span class="profile-list-name">${esc(app.name)}</span>
+              <span class="profile-list-meta">${esc(categoryDisplayText(app))} · ${app.views || 0} views</span>
+            </div>
+          </a>
+        `).join("");
+      }
+      toggleAppsBtn.textContent = appsExpanded ? "Show fewer apps" : `Show all ${userApps.length} apps`;
+    });
+  }
 }
 
 // ── Organization View ────────────────────────────────────────────────────────
@@ -4514,14 +4543,14 @@ async function showAdminDashboard() {
       ${errorBanner}
 
       <div class="admin-stats">
-        <div class="admin-stat-card ${pendingCount ? "is-attention" : ""}"><span class="stat-icon">${iconImg("upload")}</span><span class="stat-number">${pendingCount}</span><span class="stat-label">Pending Submissions</span></div>
-        <div class="admin-stat-card ${changesCount ? "is-warning" : ""}"><span class="stat-icon">${iconImg("edit")}</span><span class="stat-number">${changesCount}</span><span class="stat-label">Changes Requested</span></div>
-        <div class="admin-stat-card ${editRequests.length ? "is-active" : ""}"><span class="stat-icon">${iconImg("copy")}</span><span class="stat-number">${editRequests.length}</span><span class="stat-label">Open Edit Requests</span></div>
-        <div class="admin-stat-card ${pendingReports ? "is-danger" : ""}"><span class="stat-icon">${iconImg("alert")}</span><span class="stat-number">${pendingReports}</span><span class="stat-label">Open Reports</span></div>
-        ${isSiteAdmin ? `<div class="admin-stat-card ${pendingRoleApplications ? "is-active" : ""}"><span class="stat-icon">${iconImg("roles")}</span><span class="stat-number">${pendingRoleApplications}</span><span class="stat-label">Role Applications</span></div>` : ""}
-        ${isSiteAdmin ? `<div class="admin-stat-card"><span class="stat-icon">${iconImg("account")}</span><span class="stat-number">${users.length}</span><span class="stat-label">Users</span></div>` : ""}
-        ${isAdmin ? `<div class="admin-stat-card"><span class="stat-icon">${iconImg("home")}</span><span class="stat-number">${orgs.length}</span><span class="stat-label">Organizations</span></div>` : ""}
-        <div class="admin-stat-card"><span class="stat-icon">${iconImg("filter")}</span><span class="stat-number">${apps.length}</span><span class="stat-label">Apps</span></div>
+        <div class="admin-stat-card stat-pending ${pendingCount ? "is-attention" : ""}"><span class="stat-icon">${iconImg("upload")}</span><span class="stat-number">${pendingCount}</span><span class="stat-label">Pending Submissions</span></div>
+        <div class="admin-stat-card stat-changes ${changesCount ? "is-warning" : ""}"><span class="stat-icon">${iconImg("edit")}</span><span class="stat-number">${changesCount}</span><span class="stat-label">Changes Requested</span></div>
+        <div class="admin-stat-card stat-edits ${editRequests.length ? "is-active" : ""}"><span class="stat-icon">${iconImg("copy")}</span><span class="stat-number">${editRequests.length}</span><span class="stat-label">Open Edit Requests</span></div>
+        <div class="admin-stat-card stat-reports ${pendingReports ? "is-danger" : ""}"><span class="stat-icon">${iconImg("alert")}</span><span class="stat-number">${pendingReports}</span><span class="stat-label">Open Reports</span></div>
+        ${isSiteAdmin ? `<div class="admin-stat-card stat-roles ${pendingRoleApplications ? "is-active" : ""}"><span class="stat-icon">${iconImg("roles")}</span><span class="stat-number">${pendingRoleApplications}</span><span class="stat-label">Role Applications</span></div>` : ""}
+        ${isSiteAdmin ? `<div class="admin-stat-card stat-users"><span class="stat-icon">${iconImg("account")}</span><span class="stat-number">${users.length}</span><span class="stat-label">Users</span></div>` : ""}
+        ${isAdmin ? `<div class="admin-stat-card stat-orgs"><span class="stat-icon">${iconImg("home")}</span><span class="stat-number">${orgs.length}</span><span class="stat-label">Organizations</span></div>` : ""}
+        <div class="admin-stat-card stat-apps"><span class="stat-icon">${iconImg("filter")}</span><span class="stat-number">${apps.length}</span><span class="stat-label">Apps</span></div>
       </div>
 
       <div class="admin-workspace">
@@ -4586,79 +4615,155 @@ function renderAdminSubmissions(submissions) {
     const statusIcon = statusIconFor(sub.status);
     const statusLabel = sub.status === "changes_requested" ? "Changes Requested" : (sub.status || "unknown").charAt(0).toUpperCase() + (sub.status || "unknown").slice(1);
     const canAct = sub.status === "pending" || sub.status === "changes_requested";
-
-    // Helper: render a field row, showing "—" for missing/undefined values
-    const field = (label, value, isLink) => {
-      const display = value != null && value !== "" ? value : "—";
-      const content = isLink && display !== "—"
-        ? `<a href="${esc(display)}" target="_blank" rel="noopener">${esc(display)}</a>`
-        : esc(display);
-      return `<div class="sub-review-row"><span class="sub-review-label">${esc(label)}</span><span class="sub-review-value">${content}</span></div>`;
-    };
+    const dateFormatted = (sub.createdAt || sub.timestamp) ? new Date(sub.createdAt || sub.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+    const hasTechnicalSpecs = (sub.installMethods && sub.installMethods.length > 0) || sub.systemRequirements || sub.comparisonData;
 
     return `
     <div class="admin-card sub-review-card" data-id="${esc(sub.id)}" data-status="${esc(sub.status)}">
-      <div class="admin-card-header">
-        <strong>${esc(sub.name || "(No name)")}</strong>
-        <span class="badge badge-role">${esc(categoryDisplayText(sub) || "—")}</span>
-        <span class="sub-status-badge sub-status-${esc(sub.status || "unknown")}">${statusIcon} ${statusLabel}</span>
-        <span class="admin-card-date">${(sub.createdAt || sub.timestamp) ? new Date(sub.createdAt || sub.timestamp).toLocaleDateString() : "—"}</span>
+      <div class="sub-card-header">
+        <div class="sub-card-identity">
+          ${sub.logo ? `<img class="sub-review-logo" src="${escUrl(sub.logo)}" alt="${esc(sub.name)}" onerror="this.style.display='none'">` : `<div class="sub-review-logo-fallback">${esc((sub.name || "?").charAt(0).toUpperCase())}</div>`}
+          <div class="sub-card-titles">
+            <div class="sub-card-title-row">
+              <h3 class="sub-app-name">${esc(sub.name || "(No name)")}</h3>
+              <span class="sub-status-badge sub-status-${esc(sub.status || "unknown")}">${statusIcon} ${statusLabel}</span>
+            </div>
+            <div class="sub-card-meta-row">
+              <span class="badge badge-role">${esc(categoryDisplayText(sub) || "—")}</span>
+              ${sub.version ? `<span class="sub-meta-pill">v${esc(sub.version)}</span>` : ""}
+              ${sub.license ? `<span class="sub-meta-pill">${esc(sub.license)}</span>` : ""}
+              <span class="admin-card-date">${dateFormatted}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-submitter-badge">
+          <div class="sub-submitter-info">
+            <span class="sub-submitter-label">Submitted by</span>
+            <span class="sub-submitter-uid" title="${esc(sub.userId || "")}">${esc(sub.userId ? sub.userId.slice(0, 10) + "…" : "Anonymous")}</span>
+            ${isSiteAdmin && (sub.userEmail || sub.submitterEmail) ? `<span class="sub-submitter-email">(${esc(sub.userEmail || sub.submitterEmail)})</span>` : ""}
+          </div>
+          ${isSiteAdmin && sub.userId ? `<button type="button" class="btn btn-sm btn-secondary sub-lookup-user-btn" data-uid="${esc(sub.userId)}" title="Lookup submitter profile">${iconImg("account")} Lookup</button>` : ""}
+        </div>
       </div>
 
-      <div class="sub-review-details">
-        ${field("Description", sub.description)}
-        ${field("Full Description", sub.fullDescription)}
-        ${field("Uses", sub.uses)}
-        ${field("Alternative to", sub.alternative)}
-        ${field("Download", sub.download, true)}
-        ${field("Source", sub.source, true)}
-        ${field("Website", sub.website, true)}
-        ${field("Documentation", sub.docs, true)}
-        <div class="sub-review-row">
-          <span class="sub-review-label">Logo</span>
-          <span class="sub-review-value">${sub.logo ? `<img class="sub-review-logo" src="${escUrl(sub.logo)}" alt="" data-fallback-char="?"> <a href="${escUrl(sub.logo)}" target="_blank" rel="noopener">URL</a>` : "—"}</span>
+      <div class="sub-card-body">
+        <div class="sub-card-primary">
+          <div class="sub-desc-box">
+            <p class="sub-short-desc">${esc(sub.description || "No description provided.")}</p>
+            ${sub.fullDescription && sub.fullDescription !== sub.description ? `
+              <div class="sub-full-desc">
+                <details class="sub-details-toggle">
+                  <summary class="sub-desc-toggle">Full Description</summary>
+                  <div class="sub-full-desc-text">${esc(sub.fullDescription)}</div>
+                </details>
+              </div>
+            ` : ""}
+          </div>
+
+          ${sub.uses ? `
+            <div class="sub-callout sub-uses-callout">
+              <div class="sub-callout-icon">${iconImg("info")}</div>
+              <div class="sub-callout-content">
+                <strong>Uses &amp; Problem Solved</strong>
+                <p>${esc(sub.uses)}</p>
+              </div>
+            </div>
+          ` : ""}
+
+          ${(sub.features || []).length ? `
+            <div class="sub-features-panel">
+              <span class="sub-section-title">Key Features</span>
+              <ul class="sub-features-checklist">
+                ${sub.features.map(f => `<li><span class="feat-check">✓</span> ${esc(f)}</li>`).join("")}
+              </ul>
+            </div>
+          ` : ""}
+
+          ${(sub.screenshots || []).length ? `
+            <div class="sub-screenshots-panel">
+              <span class="sub-section-title">Screenshots (${sub.screenshots.length})</span>
+              <div class="sub-screenshots-strip">
+                ${sub.screenshots.map((s, idx) => `
+                  <a href="${escUrl(s)}" target="_blank" rel="noopener" class="sub-screenshot-thumb-wrap" title="View screenshot ${idx + 1}">
+                    <img src="${escUrl(s)}" alt="Screenshot ${idx + 1}" class="sub-screenshot-thumb" loading="lazy">
+                  </a>
+                `).join("")}
+              </div>
+            </div>
+          ` : ""}
         </div>
-        ${field("Maintainer", sub.maintainer)}
-        ${field("Developer", sub.developer)}
-        ${field("Developer URL", sub.developerUrl, true)}
-        ${field("License", sub.license)}
-        ${field("Version", sub.version)}
-        ${field("File Size", sub.fileSize)}
-        <div class="sub-review-row">
-          <span class="sub-review-label">Platforms</span>
-          <span class="sub-review-value">${(sub.platforms || []).length ? sub.platforms.map(p => `<span class="platform-tag">${platformIcon(p)} ${esc(p)}</span>`).join(" ") : "—"}</span>
+
+        <div class="sub-card-sidebar">
+          <div class="sub-links-group">
+            ${sub.download ? `<a href="${esc(sub.download)}" target="_blank" rel="noopener" class="sub-link-chip download">${iconImg("download")} Download</a>` : ""}
+            ${sub.source ? `<a href="${esc(sub.source)}" target="_blank" rel="noopener" class="sub-link-chip source">${iconImg("link")} Source Code</a>` : ""}
+            ${sub.website ? `<a href="${esc(sub.website)}" target="_blank" rel="noopener" class="sub-link-chip website">${iconImg("globe")} Website</a>` : ""}
+            ${sub.docs ? `<a href="${esc(sub.docs)}" target="_blank" rel="noopener" class="sub-link-chip docs">${iconImg("docs")} Documentation</a>` : ""}
+          </div>
+
+          <div class="sub-specs-table">
+            ${sub.alternative ? `
+              <div class="sub-spec-row">
+                <span class="sub-spec-key">Alternative to</span>
+                <span class="sub-spec-val">${esc(sub.alternative)}</span>
+              </div>` : ""}
+            ${(sub.platforms || []).length ? `
+              <div class="sub-spec-row">
+                <span class="sub-spec-key">Platforms</span>
+                <span class="sub-spec-val">${sub.platforms.map(p => `<span class="platform-tag">${platformIcon(p)} ${esc(p)}</span>`).join(" ")}</span>
+              </div>` : ""}
+            ${sub.developer ? `
+              <div class="sub-spec-row">
+                <span class="sub-spec-key">Developer</span>
+                <span class="sub-spec-val">${sub.developerUrl ? `<a href="${esc(sub.developerUrl)}" target="_blank" rel="noopener">${esc(sub.developer)}</a>` : esc(sub.developer)}</span>
+              </div>` : ""}
+            ${sub.maintainer ? `
+              <div class="sub-spec-row">
+                <span class="sub-spec-key">Maintainer</span>
+                <span class="sub-spec-val">${esc(sub.maintainer)}</span>
+              </div>` : ""}
+            ${sub.fileSize ? `
+              <div class="sub-spec-row">
+                <span class="sub-spec-key">File Size</span>
+                <span class="sub-spec-val">${esc(sub.fileSize)}</span>
+              </div>` : ""}
+          </div>
+
+          ${(sub.tags || []).length ? `
+            <div class="sub-tags-wrap">
+              ${sub.tags.map(t => `<span class="card-tag">${esc(t)}</span>`).join(" ")}
+            </div>
+          ` : ""}
         </div>
-        <div class="sub-review-row">
-          <span class="sub-review-label">Tags</span>
-          <span class="sub-review-value">${(sub.tags || []).length ? sub.tags.map(t => `<span class="card-tag">${esc(t)}</span>`).join(" ") : "—"}</span>
-        </div>
-        <div class="sub-review-row">
-          <span class="sub-review-label">Features</span>
-          <span class="sub-review-value">${(sub.features || []).length ? `<ul class="sub-features-list">${sub.features.map(f => `<li>${esc(f)}</li>`).join("")}</ul>` : "—"}</span>
-        </div>
-        <div class="sub-review-row">
-          <span class="sub-review-label">Screenshots</span>
-          <span class="sub-review-value">${(sub.screenshots || []).length ? sub.screenshots.map(s => `<a href="${escUrl(s)}" target="_blank" rel="noopener" class="sub-screenshot-link">${iconImg("link")} ${esc(s.split('/').pop())}</a>`).join(" ") : "—"}</span>
-        </div>
-        <div class="sub-review-row">
-          <span class="sub-review-label">Install Methods</span>
-          <span class="sub-review-value">${(sub.installMethods || []).length ? sub.installMethods.map(m => `<code>${esc(m.label)}: ${esc(m.command)}</code>`).join("<br>") : "—"}</span>
-        </div>
-        ${field("System Requirements", sub.systemRequirements)}
-        <div class="sub-review-row">
-          <span class="sub-review-label">Comparison Table</span>
-          <span class="sub-review-value">${formatComparisonDataDiff(sub.comparisonData)}</span>
-        </div>
-        <div class="sub-review-row sub-review-submitter-row">
-          <span class="sub-review-label">Submitted by</span>
-          <span class="sub-review-value">
-            <span class="sub-submitter-uid" title="${esc(sub.userId || "")}">${esc(sub.userId ? sub.userId.slice(0, 12) + "…" : "—")}</span>
-            ${isSiteAdmin && (sub.userEmail || sub.submitterEmail) ? ` <span class="sub-submitter-email">(${esc(sub.userEmail || sub.submitterEmail)})</span>` : ""}
-            ${isSiteAdmin ? `<button class="btn btn-sm btn-secondary sub-lookup-user-btn" data-uid="${esc(sub.userId || "")}" title="Lookup submitter profile">${iconImg("account")} Lookup</button>` : ""}
-          </span>
-        </div>
-        ${sub.updatedAt ? `<div class="sub-review-row"><span class="sub-review-label">Last updated</span><span class="sub-review-value">${new Date(sub.updatedAt).toLocaleString()}</span></div>` : ""}
       </div>
+
+      ${hasTechnicalSpecs ? `
+        <details class="sub-tech-details">
+          <summary class="sub-tech-summary">${iconImg("settings")} Technical Specifications &amp; Requirements</summary>
+          <div class="sub-tech-content">
+            ${sub.installMethods && sub.installMethods.length ? `
+              <div class="sub-tech-group">
+                <span class="sub-tech-title">Installation Methods</span>
+                <div class="sub-tech-install-list">
+                  ${sub.installMethods.map(m => `<code><span class="install-method-label">${esc(m.label)}:</span> ${esc(m.command)}</code>`).join("")}
+                </div>
+              </div>` : ""}
+            ${sub.systemRequirements ? `
+              <div class="sub-tech-group">
+                <span class="sub-tech-title">System Requirements</span>
+                <p class="sub-tech-text">${esc(sub.systemRequirements)}</p>
+              </div>` : ""}
+            ${sub.comparisonData ? `
+              <div class="sub-tech-group">
+                <span class="sub-tech-title">Comparison Table</span>
+                ${formatComparisonDataDiff(sub.comparisonData)}
+              </div>` : ""}
+          </div>
+        </details>
+      ` : ""}
+
+      ${sub.updatedAt ? `<div class="sub-updated-meta">Last updated: ${new Date(sub.updatedAt).toLocaleString()}</div>` : ""}
 
       ${sub.status === "changes_requested" && sub.changesComment ? `
         <div class="sub-review-feedback">
@@ -4678,15 +4783,15 @@ function renderAdminSubmissions(submissions) {
       ${currentUser ? `
         <div class="sub-comment-form">
           <input type="text" class="sub-comment-input" data-sub-id="${esc(sub.id)}" placeholder="Add a review comment…" maxlength="500">
-          <button class="btn btn-sm btn-secondary sub-comment-btn" data-sub-id="${esc(sub.id)}">Comment</button>
+          <button type="button" class="btn btn-sm btn-secondary sub-comment-btn" data-sub-id="${esc(sub.id)}">Comment</button>
         </div>
       ` : ""}
 
       ${canAct ? `
         <div class="admin-card-actions">
-          <button class="btn btn-primary btn-sm admin-approve-sub" data-id="${esc(sub.id)}">✓ Accept</button>
-          <button class="btn btn-danger btn-sm admin-reject-sub" data-id="${esc(sub.id)}">✕ Reject</button>
-          <button class="btn btn-warning btn-sm admin-request-changes-sub" data-id="${esc(sub.id)}">↺ Ask Changes</button>
+          <button type="button" class="btn btn-primary btn-sm admin-approve-sub" data-id="${esc(sub.id)}">✓ Accept &amp; Publish</button>
+          <button type="button" class="btn btn-warning btn-sm admin-request-changes-sub" data-id="${esc(sub.id)}">↺ Ask Changes</button>
+          <button type="button" class="btn btn-danger btn-sm admin-reject-sub" data-id="${esc(sub.id)}">✕ Reject</button>
         </div>
       ` : ""}
     </div>
